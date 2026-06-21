@@ -1,0 +1,330 @@
+.av-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+}
+
+.av-header {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  background-color: var(--bg-main);
+  border-bottom: 0.5px solid var(--border-light);
+}
+
+.av-back-btn {
+  background: none;
+  border: none;
+  color: var(--text-main);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  transition: opacity 0.2s;
+}
+
+.av-back-btn:hover {
+  opacity: 0.7;
+}
+
+.av-header h1 {
+  margin: 0;
+  flex: 1;
+  text-align: center;
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-right: 32px; /* to balance the back button */
+}
+
+.av-avatar-section {
+  flex: 0 0 45%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-surface);
+  position: relative;
+  overflow: hidden;
+  border-bottom: 0.5px solid var(--border-light);
+}
+
+.av-avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0.9;
+}
+
+.av-avatar-placeholder {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background-color: var(--bg-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--accent-gold);
+  color: var(--accent-gold);
+}
+
+.av-upload-btn {
+  position: absolute;
+  bottom: 20px;
+  background: var(--bg-main);
+  border: 1px solid var(--accent-gold);
+  color: var(--text-main);
+  padding: 8px 16px;
+  border-radius: 0;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.2s;
+}
+
+.av-upload-btn:hover {
+  background: var(--bg-surface);
+}
+
+.av-chat-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-main);
+  min-height: 0; /* Ensures child overflow works in flexbox */
+}
+
+.av-chat-messages {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+}
+
+.av-message {
+  max-width: 80%;
+  padding: 14px 18px;
+  font-size: 14px;
+  line-height: 1.5;
+  word-break: keep-all;
+  border-radius: 0;
+  font-family: var(--font-sans);
+}
+
+.av-message.user {
+  align-self: flex-end;
+  background-color: var(--text-main);
+  color: var(--bg-surface);
+}
+
+.av-message.ai {
+  align-self: flex-start;
+  background-color: var(--bg-surface);
+  color: var(--text-main);
+  border: 0.5px solid var(--border-light);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+}
+
+.av-chat-input-area {
+  padding: 16px;
+  background-color: var(--bg-surface);
+  border-top: 0.5px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.av-chat-input {
+  flex: 1;
+  background-color: var(--bg-main);
+  border: 1px solid var(--border-light);
+  border-radius: 0;
+  padding: 14px 20px;
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.av-chat-input:focus {
+  border-color: var(--accent-gold);
+}
+
+.av-send-btn {
+  background-color: var(--text-main);
+  border: none;
+  border-radius: 0;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--bg-surface);
+  transition: opacity 0.2s;
+}
+
+.av-send-btn:hover {
+  opacity: 0.8;
+}
+
+.av-send-btn:disabled {
+  background-color: var(--border-light);
+  cursor: not-allowed;
+}
+
+/* Edit Name Input styles */
+.av-name-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--accent-gold);
+  color: var(--text-main);
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 600;
+  text-align: center;
+  outline: none;
+  width: 150px;
+}
+
+.av-name-input:focus {
+  border-bottom-width: 2px;
+}
+
+/* Upload Icon in Chat bar */
+.av-upload-icon-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  transition: color 0.2s;
+}
+
+.av-upload-icon-btn:hover {
+  color: var(--accent-gold);
+}
+
+/* Modal Overlay */
+.av-modal-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.av-modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+}
+
+.av-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 0.5px solid var(--border-light);
+}
+
+.av-modal-header h2 {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.av-modal-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.av-modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.av-modal-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+.av-modal-select,
+.av-modal-input {
+  background: var(--bg-main);
+  border: 1px solid var(--border-light);
+  color: var(--text-main);
+  padding: 12px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  outline: none;
+  border-radius: 0;
+  margin-bottom: 4px;
+}
+
+.av-modal-select:focus,
+.av-modal-input:focus {
+  border-color: var(--accent-gold);
+}
+
+.av-modal-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 12px;
+  line-height: 1.4;
+}
+
+.av-modal-footer {
+  padding: 16px 20px;
+  border-top: 0.5px solid var(--border-light);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.av-modal-btn {
+  background: var(--text-main);
+  color: var(--bg-surface);
+  border: none;
+  padding: 12px 24px;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.av-modal-btn:hover {
+  background: var(--accent-gold);
+}

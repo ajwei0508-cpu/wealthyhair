@@ -2,14 +2,19 @@ import React, { useState } from 'react';
 import CameraView from './components/CameraView';
 import AnalysisLoading from './components/AnalysisLoading';
 import ResultView from './components/ResultView';
+import AvatarView from './components/AvatarView';
 import analyzeHairLoss from './utils/diagnosis';
 import { simulateOfflineAnalysis } from './utils/offlineAnalysis';
 import './index.css';
 
-const CAPTURE_STEPS = ['front', 'left', 'right', 'vertex'];
+// CAPTURE_STEPS is now dynamic inside App component
 
 function App() {
-  const [currentView, setCurrentView] = useState('camera'); // 'camera', 'loading', 'result'
+  const [currentView, setCurrentView] = useState('gender'); // 'gender', 'camera', 'loading', 'result', 'avatar'
+  const [gender, setGender] = useState(null);
+  
+  const getCaptureSteps = () => gender === 'female' ? ['front', 'vertex'] : ['front', 'left', 'right', 'vertex'];
+  const currentCaptureSteps = getCaptureSteps();
   
   const [capturedImages, setCapturedImages] = useState({
     front: null,
@@ -28,7 +33,8 @@ function App() {
   const [diagnosisData, setDiagnosisData] = useState(null);
 
   const handleCapture = async (imageSrc, points) => {
-    const currentStep = CAPTURE_STEPS[currentCaptureIndex];
+    const steps = getCaptureSteps();
+    const currentStep = steps[currentCaptureIndex];
     
     // Update the images object with the new capture
     const updatedImages = { ...capturedImages, [currentStep]: imageSrc };
@@ -38,7 +44,7 @@ function App() {
     setCapturedAllPoints(updatedPoints);
     
     // Check if we need more photos
-    if (currentCaptureIndex < CAPTURE_STEPS.length - 1) {
+    if (currentCaptureIndex < steps.length - 1) {
       setCurrentCaptureIndex(currentCaptureIndex + 1);
       return; // Stay on camera view
     }
@@ -47,11 +53,11 @@ function App() {
     setCurrentView('loading');
     
     try {
-      // 백엔드 API 대신 프론트엔드 오프라인 시뮬레이터 호출
-      const responseData = await simulateOfflineAnalysis(updatedPoints);
+      // 백엔드 API 대신 프론트엔드 오프라인 시뮬레이터 호출 (실제 이미지 픽셀 분석 포함)
+      const responseData = await simulateOfflineAnalysis(updatedPoints, updatedImages);
       
       if (responseData.success) {
-        const features = responseData.data.features;
+        const features = { ...responseData.data.features, gender };
         const result = analyzeHairLoss(features);
         // Include the bounding boxes from backend directly into diagnosisData
         result.boxes = responseData.data.boxes || {};
@@ -80,22 +86,52 @@ function App() {
   const resetApp = () => {
     setCapturedImages({ front: null, left: null, right: null, vertex: null });
     setCurrentCaptureIndex(0);
-    setCurrentView('camera');
+    setCurrentView('gender');
+    setGender(null);
     setDiagnosisData(null);
   };
 
   return (
     <div className="app-container">
+      {currentView === 'gender' && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', padding: '20px', color: 'var(--text-main)', background: 'var(--bg-main)' }}>
+          <h1 style={{ marginBottom: '60px', fontSize: '32px', fontFamily: 'var(--font-serif)', letterSpacing: '-0.02em' }}>당신의 성별을 선택해주세요</h1>
+          <div style={{ display: 'flex', gap: '20px', width: '100%', maxWidth: '400px' }}>
+            <button 
+              onClick={() => { setGender('male'); setCurrentView('camera'); }}
+              className="btn-secondary"
+            >남성</button>
+            <button 
+              onClick={() => { setGender('female'); setCurrentView('camera'); }}
+              className="btn-primary"
+            >여성</button>
+          </div>
+        </div>
+      )}
       {currentView === 'camera' && 
         <CameraView 
           onCapture={handleCapture} 
-          currentStep={CAPTURE_STEPS[currentCaptureIndex]} 
+          currentStep={currentCaptureSteps[currentCaptureIndex]} 
           stepIndex={currentCaptureIndex + 1}
-          totalSteps={CAPTURE_STEPS.length}
+          totalSteps={currentCaptureSteps.length}
+          gender={gender}
         />
       }
       {currentView === 'loading' && <AnalysisLoading image={capturedImages.front} />}
-      {currentView === 'result' && <ResultView images={capturedImages} onReset={resetApp} diagnosisData={diagnosisData} />}
+      {currentView === 'result' && diagnosisData && 
+        <ResultView 
+          diagnosisData={diagnosisData} 
+          images={capturedImages} 
+          onRetake={() => setCurrentView('gender')}
+          onProceedToAvatar={() => setCurrentView('avatar')}
+        />
+      }
+      {currentView === 'avatar' && diagnosisData &&
+        <AvatarView 
+          diagnosisData={diagnosisData}
+          onBack={() => setCurrentView('result')}
+        />
+      }
     </div>
   );
 }

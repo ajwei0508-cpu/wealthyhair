@@ -3,7 +3,7 @@ import { RefreshCw, Image as ImageIcon, ArrowRight, ArrowLeft, Smartphone, User,
 import { FilesetResolver, ImageSegmenter } from '@mediapipe/tasks-vision';
 import './CameraView.css';
 
-const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalSteps = 4 }) => {
+const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalSteps = 4, gender = 'male' }) => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const drawingCanvasRef = useRef(null);
@@ -45,22 +45,42 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
   }, [currentStep]);
 
   const getStepInstruction = () => {
-    switch (currentStep) {
-      case 'front': return "정면을 보고 이마 라인을 수평선에 맞추세요.";
-      case 'left': return "고개를 오른쪽으로 돌려 왼쪽 M자 부위를 보여주세요.";
-      case 'right': return "고개를 왼쪽으로 돌려 오른쪽 M자 부위를 보여주세요.";
-      case 'vertex': return "고개를 푹 숙여 정수리 중앙을 화면에 꽉 채워주세요.";
-      default: return "얼굴을 가이드라인에 맞춰주세요.";
+    if (gender === 'female') {
+      switch (currentStep) {
+        case 'front': return "정면을 보고 정상적인 헤어라인이 보이도록 이마를 드러내주세요.";
+        case 'left': return "고개를 오른쪽으로 돌려 좌측 가르마 부근의 숱을 보여주세요.";
+        case 'right': return "고개를 왼쪽으로 돌려 우측 가르마 부근의 숱을 보여주세요.";
+        case 'vertex': return "고개를 푹 숙이고, 머리를 가운데 가르마로 선명하게 타주세요.";
+        default: return "얼굴을 가이드라인에 맞춰주세요.";
+      }
+    } else {
+      switch (currentStep) {
+        case 'front': return "정면을 보고 이마 라인을 수평선에 맞추세요.";
+        case 'left': return "고개를 오른쪽으로 돌려 왼쪽 M자 부위를 보여주세요.";
+        case 'right': return "고개를 왼쪽으로 돌려 오른쪽 M자 부위를 보여주세요.";
+        case 'vertex': return "고개를 푹 숙여 정수리 중앙을 화면에 꽉 채워주세요.";
+        default: return "얼굴을 가이드라인에 맞춰주세요.";
+      }
     }
   };
 
   const getStepTitle = () => {
-    switch (currentStep) {
-      case 'front': return "정면 이마선 촬영";
-      case 'left': return "좌측 M자 파임 촬영";
-      case 'right': return "우측 M자 파임 촬영";
-      case 'vertex': return "정수리 밀도 촬영";
-      default: return "촬영";
+    if (gender === 'female') {
+      switch (currentStep) {
+        case 'front': return "정면 헤어라인 촬영";
+        case 'left': return "좌측 모발 촬영";
+        case 'right': return "우측 모발 촬영";
+        case 'vertex': return "정수리 가르마 촬영";
+        default: return "촬영";
+      }
+    } else {
+      switch (currentStep) {
+        case 'front': return "정면 이마선 촬영";
+        case 'left': return "좌측 M자 파임 촬영";
+        case 'right': return "우측 M자 파임 촬영";
+        case 'vertex': return "정수리 밀도 촬영";
+        default: return "촬영";
+      }
     }
   };
 
@@ -226,10 +246,10 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
                       
                       for (let i = 0; i < maskData.length; i++) {
                         if (maskData[i] === 1) { // Hair class
-                          data[i * 4] = 0;       // R
-                          data[i * 4 + 1] = 230; // G
-                          data[i * 4 + 2] = 118; // B
-                          data[i * 4 + 3] = 120; // Alpha (반투명 초록/하늘색)
+                          data[i * 4] = 212;     // R (Gold)
+                          data[i * 4 + 1] = 175; // G
+                          data[i * 4 + 2] = 55;  // B
+                          data[i * 4 + 3] = 120; // Alpha (반투명 골드)
                         } else {
                           data[i * 4 + 3] = 0; // 투명
                         }
@@ -250,7 +270,7 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
                       ctx.restore();
                       
                       // 텍스트 안내
-                      ctx.fillStyle = 'rgba(255, 200, 0, 1)';
+                      ctx.fillStyle = 'rgba(212, 175, 55, 1)';
                       ctx.font = 'bold 16px sans-serif';
                       ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
                       ctx.shadowBlur = 4;
@@ -348,9 +368,9 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
             
             for (let i = 0; i < maskArray.length; i++) {
               if (maskArray[i] === 1) { 
-                data[i * 4] = 0;       
-                data[i * 4 + 1] = 230; 
-                data[i * 4 + 2] = 118; 
+                data[i * 4] = 212;       
+                data[i * 4 + 1] = 175; 
+                data[i * 4 + 2] = 55; 
                 data[i * 4 + 3] = 120; // Alpha
               } else {
                 data[i * 4 + 3] = 0;
@@ -460,7 +480,7 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
               style={{
                 position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
                 objectFit: 'cover', pointerEvents: 'none',
-                filter: 'drop-shadow(0 0 4px rgba(0, 230, 118, 0.8))'
+                filter: 'drop-shadow(0 0 4px rgba(212, 175, 55, 0.8))'
               }}
             />
           )}
@@ -540,15 +560,14 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
                   )}
                 </div>
 
-                {/* 자이로스코프 시각화 UI */}
                 <div className="cv-gyro-container">
-                  <div className="cv-gyro-target" style={{ borderColor: isLevel ? '#4CAF50' : 'rgba(255,255,255,0.5)' }}></div>
+                  <div className="cv-gyro-target" style={{ borderColor: isLevel ? 'var(--accent-gold)' : 'rgba(212,175,55,0.3)' }}></div>
                   <div 
                     className="cv-gyro-indicator" 
                     style={{
                       transform: `translate(calc(-50% + ${Math.max(-20, Math.min(20, deviceAngles.gamma))}px), calc(-50% + ${Math.max(-20, Math.min(20, (currentStep === 'vertex' ? deviceAngles.beta : deviceAngles.beta - 90)))}px))`,
-                      backgroundColor: isLevel ? '#4CAF50' : '#ff9800',
-                      borderColor: isLevel ? '#4CAF50' : '#fff'
+                      backgroundColor: isLevel ? 'var(--accent-gold)' : 'transparent',
+                      borderColor: isLevel ? 'var(--accent-gold)' : 'var(--text-main)'
                     }}
                   ></div>
                 </div>
@@ -585,7 +604,7 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
             {/* 수동 캡처 버튼 (가이드 시에도 누를 수 있도록 허용) */}
             <button 
               className="cv-capture-btn" 
-              aria-label="Take Photo" 
+              aria-label="사진 촬영" 
               onClick={captureFrame} 
               disabled={!hasCamera} 
               style={{ opacity: hasCamera ? 1 : 0.5 }}

@@ -7,12 +7,12 @@ const AnalysisLoading = ({ image }) => {
     <main className="al-main">
       {/* Header Actions (Translucent) */}
       <div className="al-header">
-        <button className="al-close-btn" aria-label="Close">
+        <button className="al-close-btn" aria-label="닫기">
           <X size={24} />
         </button>
         <div className="al-ai-pill">
           <div className="al-ai-dot"></div>
-          <span>Vertex AI Active</span>
+          <span>Vertex AI 작동 중</span>
         </div>
       </div>
 

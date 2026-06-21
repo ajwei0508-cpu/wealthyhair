@@ -1,16 +1,18 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
 :root {
-  --bg-dark: #0f172a;
-  --bg-panel: #1e293b;
-  --primary: #8b5cf6;
-  --primary-glow: rgba(139, 92, 246, 0.5);
-  --accent: #10b981;
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --border-color: #334155;
-  --danger: #ef4444;
-  --warning: #f59e0b;
+  /* Dark Luxury Palette */
+  --bg-main: #000000;
+  --bg-surface: #111111;
+  --text-main: #ffffff;
+  --text-muted: #a0a0a0;
+  --text-inverse: #000000;
+  --accent-gold: #D4AF37;
+  --border-light: #333333;
+  --border-gold: #D4AF37;
+  --error: #ba1a1a;
+
+  /* Typography */
+  --font-serif: 'Playfair Display', serif;
+  --font-sans: 'Montserrat', sans-serif;
 }
 
 * {
@@ -20,8 +22,8 @@
 }
 
 body {
-  font-family: 'Inter', sans-serif;
-  background-color: var(--bg-dark);
+  font-family: var(--font-sans);
+  background-color: var(--bg-main);
   color: var(--text-main);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -31,14 +33,19 @@ body {
   min-height: 100vh;
 }
 
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+}
+
 #root {
   width: 100%;
   max-width: 480px; /* Mobile app constraint */
   height: 100vh;
   position: relative;
   overflow: hidden;
-  background-color: var(--bg-dark);
-  box-shadow: 0 0 20px rgba(0,0,0,0.5);
+  background-color: var(--bg-main);
+  box-shadow: 0 0 40px rgba(0,0,0,0.05); /* Whisper shadow */
 }
 
 /* Common App Layout */
@@ -52,27 +59,28 @@ body {
 .header {
   padding: 1.5rem 1rem 1rem;
   text-align: center;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--bg-dark);
+  border-bottom: 0.5px solid var(--border-gold);
+  background: var(--bg-main);
   z-index: 10;
 }
 
 .header h1 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  letter-spacing: -0.5px;
+  font-size: 1.5rem;
+  letter-spacing: -0.01em;
 }
 
 .header p {
   font-size: 0.85rem;
   color: var(--text-muted);
   margin-top: 0.25rem;
+  font-family: var(--font-sans);
 }
 
 .content {
   flex: 1;
   overflow-y: auto;
   position: relative;
+  background-color: var(--bg-main);
 }
 
 /* Animations */
@@ -81,35 +89,46 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes pulse {
-  0% { transform: scale(1); opacity: 0.8; }
-  50% { transform: scale(1.05); opacity: 1; box-shadow: 0 0 20px var(--primary-glow); }
-  100% { transform: scale(1); opacity: 0.8; }
-}
-
-@keyframes scanline {
-  0% { transform: translateY(-100%); }
-  100% { transform: translateY(100vh); }
-}
-
 /* Buttons */
 .btn-primary {
-  background: linear-gradient(135deg, #a855f7, #6366f1);
-  color: white;
+  background: var(--text-main); /* Onyx Black */
+  color: var(--text-inverse);
   border: none;
-  border-radius: 9999px;
+  border-radius: 0; /* Sharp corners */
   padding: 1rem 2rem;
-  font-size: 1rem;
+  font-size: 14px;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
   cursor: pointer;
-  box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.39);
-  transition: all 0.3s ease;
+  transition: all 0.4s ease;
   width: 100%;
 }
 
 .btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+  background: var(--accent-gold);
+  color: var(--text-main);
+}
+
+/* Secondary Button Ghost Style */
+.btn-secondary {
+  background: transparent;
+  color: var(--text-main);
+  border: 1px solid var(--accent-gold);
+  border-radius: 0;
+  padding: 1rem 2rem;
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.4s ease;
+  width: 100%;
+}
+
+.btn-secondary:hover {
+  background: var(--bg-surface);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 }
 
 /* Utils */
@@ -117,12 +136,31 @@ body {
   animation: fadeIn 0.5s ease forwards;
 }
 
-/* Glassmorphism panel */
+/* Luxury Panel */
 .glass-panel {
-  background: rgba(30, 41, 59, 0.7);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
+  background: var(--bg-surface);
+  border: 0.5px solid var(--border-light);
+  border-radius: 0;
   padding: 1.5rem;
   margin-bottom: 1rem;
+  box-shadow: 0 10px 40px rgba(17, 24, 39, 0.02);
+}
+
+/* Custom Scrollbar for Webkit */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-main); 
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--accent-gold);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #E5C158;
 }

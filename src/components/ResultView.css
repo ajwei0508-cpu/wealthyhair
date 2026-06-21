@@ -4,9 +4,9 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background-color: #0f1311; /* Dark background */
-  color: #ffffff;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  font-family: var(--font-sans);
   overflow: hidden; /* Prevent body scroll */
 }
 
@@ -16,27 +16,33 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  background-color: #0f1311;
+  background-color: var(--bg-main);
+  border-bottom: 0.5px solid var(--border-light);
   z-index: 100;
 }
 
 .rv-header h1 {
+  font-family: var(--font-serif);
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 600;
   margin: 0;
-  background: linear-gradient(90deg, #00E676, #FFD700);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--text-main);
+  letter-spacing: -0.01em;
 }
 
 .rv-icon-btn {
   background: none;
   border: none;
-  color: #fff;
+  color: var(--text-main);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: opacity 0.2s;
+}
+
+.rv-icon-btn:hover {
+  opacity: 0.7;
 }
 
 /* Main Content Scrollable Area */
@@ -54,6 +60,7 @@
   width: 100%;
   display: flex;
   flex-direction: column;
+  border-bottom: 0.5px solid var(--border-light);
 }
 
 /* Top Tabs */
@@ -61,23 +68,26 @@
   display: flex;
   justify-content: space-around;
   padding: 10px 20px;
-  background-color: #0f1311;
+  background-color: var(--bg-surface);
 }
 
 .rv-tab-btn {
   background: none;
   border: none;
-  color: #888;
-  font-size: 15px;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 12px;
   font-weight: 600;
-  padding: 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 12px 0;
   position: relative;
   cursor: pointer;
   transition: color 0.2s;
 }
 
 .rv-tab-btn.active {
-  color: #fff;
+  color: var(--text-main);
 }
 
 .rv-tab-btn.active::after {
@@ -86,9 +96,8 @@
   bottom: 0;
   left: 0;
   right: 0;
-  height: 3px;
-  background-color: #00E676;
-  border-radius: 3px 3px 0 0;
+  height: 2px;
+  background-color: var(--accent-gold);
 }
 
 /* Image Viewer Container */
@@ -96,7 +105,7 @@
   position: relative;
   width: 100%;
   aspect-ratio: 3 / 4; /* Matches CameraView */
-  background-color: #000;
+  background-color: #f0f0f0;
   overflow: hidden;
   user-select: none;
 }
@@ -132,7 +141,7 @@
   top: 0; left: 0; 
   width: 100%; height: 100%;
   object-fit: cover;
-  filter: brightness(0.7); /* Dim the after image slightly to make overlay pop */
+  filter: brightness(0.85); /* Dim slightly */
 }
 
 /* Overlays */
@@ -145,10 +154,10 @@
   position: absolute;
   top: 0; bottom: 0;
   width: 2px;
-  background-color: #fff;
+  background-color: var(--accent-gold);
   z-index: 20;
   transform: translateX(-50%);
-  box-shadow: 0 0 10px rgba(0,0,0,0.5);
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
   pointer-events: none;
 }
 
@@ -159,10 +168,10 @@
   transform: translate(-50%, -50%);
   width: 24px;
   height: 48px;
-  background-color: rgba(255, 255, 255, 0.3);
+  background-color: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(4px);
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  border-radius: 12px;
+  border: 1px solid var(--accent-gold);
+  border-radius: 0; /* Sharp corners */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -176,12 +185,12 @@
 }
 .rv-slider-handle::before {
   border-width: 5px 6px 5px 0;
-  border-color: transparent #fff transparent transparent;
+  border-color: transparent var(--accent-gold) transparent transparent;
   left: 3px;
 }
 .rv-slider-handle::after {
   border-width: 5px 0 5px 6px;
-  border-color: transparent transparent transparent #fff;
+  border-color: transparent transparent transparent var(--accent-gold);
   right: 3px;
 }
 
@@ -192,49 +201,54 @@
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  background-color: rgba(20, 24, 22, 0.85);
+  background-color: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(12px);
-  border-radius: 999px;
+  border-radius: 0;
   padding: 4px;
   z-index: 30;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-light);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 }
 
 .rv-sub-tab-btn {
   background: transparent;
   border: none;
-  color: #aaa;
-  font-size: 13px;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 11px;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   padding: 8px 16px;
-  border-radius: 999px;
+  border-radius: 0;
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
 }
 
 .rv-sub-tab-btn.active {
-  background-color: #1f2723;
-  color: #00E676;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  background-color: var(--text-main);
+  color: var(--bg-surface);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 /* --- Data Cards Section --- */
 .rv-cards-container {
-  padding: 20px;
+  padding: 24px 20px;
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
 .rv-card {
-  background-color: #1a1e1c;
-  border-radius: 20px;
-  padding: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background-color: var(--bg-surface);
+  border-radius: 0;
+  padding: 24px;
+  border: 0.5px solid var(--border-light);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.02);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .rv-card-row {
@@ -244,72 +258,85 @@
 }
 
 .rv-card-title {
-  font-size: 14px;
-  color: #aaa;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
   margin: 0;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .rv-card-value {
-  font-size: 20px;
-  font-weight: 700;
-  color: #fff;
+  font-family: var(--font-serif);
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-main);
   margin: 0;
 }
 
 .rv-card-value.highlight {
-  color: #00E676;
+  color: var(--accent-gold);
 }
 
 .rv-card-desc {
-  font-size: 13px;
-  color: #777;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--text-muted);
   margin: 0;
+  line-height: 1.5;
 }
 
 /* Density Color Index Bar */
 .rv-density-bar-container {
-  margin-top: 8px;
+  margin-top: 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 .rv-density-bar {
   width: 100%;
-  height: 12px;
-  border-radius: 6px;
-  background: linear-gradient(to right, #00E676, #FFD700, #FF5252);
+  height: 4px;
+  border-radius: 0;
+  background: linear-gradient(to right, var(--text-main), var(--accent-gold), var(--error));
 }
 .rv-density-labels {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
-  color: #aaa;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
   font-weight: 600;
 }
 
 /* Analysis Details Card */
 .rv-card-badge {
   display: inline-block;
-  background: rgba(0, 230, 118, 0.15);
-  color: #00E676;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-  margin-bottom: 8px;
+  background: var(--text-main);
+  color: var(--bg-surface);
+  padding: 6px 12px;
+  border-radius: 0;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 12px;
   align-self: flex-start;
 }
 
 .rv-explanation-text {
+  font-family: var(--font-sans);
   font-size: 14px;
-  color: #ddd;
+  color: var(--text-main);
   line-height: 1.6;
-  margin-top: 10px;
-  background: rgba(255, 215, 0, 0.05);
-  padding: 16px;
-  border-radius: 12px;
-  border-left: 3px solid #FFD700;
+  margin-top: 12px;
+  background: var(--bg-main);
+  padding: 20px;
+  border-radius: 0;
+  border-left: 2px solid var(--accent-gold);
 }
 
 /* Floating CTA */
@@ -319,7 +346,7 @@
   left: 0;
   width: 100%;
   padding: 20px;
-  background: linear-gradient(to top, #0f1311 80%, transparent);
+  background: linear-gradient(to top, var(--bg-main) 80%, transparent);
   display: flex;
   justify-content: center;
   z-index: 100;
@@ -328,20 +355,27 @@
 .rv-cta-btn {
   width: 100%;
   max-width: 400px;
-  background: linear-gradient(135deg, #00E676 0%, #00B259 100%);
-  color: #fff;
+  background: var(--text-main);
+  color: var(--bg-surface);
   border: none;
   padding: 18px 24px;
-  border-radius: 999px;
-  font-size: 16px;
-  font-weight: 700;
+  border-radius: 0;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  box-shadow: 0 8px 24px rgba(0, 230, 118, 0.3);
-  transition: transform 0.2s, box-shadow 0.2s;
+  gap: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s, background 0.2s;
+}
+
+.rv-cta-btn:hover {
+  background: var(--accent-gold);
 }
 
 .rv-cta-btn:active {

@@ -10,6 +10,11 @@ export default defineConfig({
       '/api': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
+      },
+      '/did-api': {
+        target: 'https://api.d-id.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/did-api/, '')
       }
     }
   }
