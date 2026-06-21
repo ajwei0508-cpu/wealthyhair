@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
+import { db } from '../firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import './ResultView.css';
 
 // --- Removed Chat Component (Moved to AvatarView) ---
@@ -12,6 +14,7 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
   const [showSurveyModal, setShowSurveyModal] = useState(false);
   const [surveyScore, setSurveyScore] = useState(0);
   const [surveyFeedback, setSurveyFeedback] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const sliderRef = useRef(null);
 
   const norwood = diagnosisData?.norwood || '분석 중...';
@@ -20,6 +23,27 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
   const features = diagnosisData?.features || {};
   const boxes = diagnosisData?.boxes || {};
   const masks = diagnosisData?.masks || {};
+
+  const handleSurveySubmit = async () => {
+    if (surveyScore === 0) return;
+    setIsSubmitting(true);
+    try {
+      await addDoc(collection(db, 'surveys'), {
+        score: surveyScore,
+        feedback: surveyFeedback,
+        createdAt: serverTimestamp(),
+        norwood: norwood,
+        hasHairLoss: features.mShapeRecession || features.vertexThinning ? true : false
+      });
+      setIsSurveyCompleted(true);
+      setShowSurveyModal(false);
+    } catch (error) {
+      console.error('Error submitting survey:', error);
+      alert('설문 제출 중 오류가 발생했습니다. 브라우저 콘솔을 확인해주세요.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   // Translation mappings
   const mainTabs = [
@@ -358,13 +382,10 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
 
             <button 
               className="btn-primary rv-survey-submit"
-              disabled={surveyScore === 0}
-              onClick={() => {
-                setIsSurveyCompleted(true);
-                setShowSurveyModal(false);
-              }}
+              disabled={surveyScore === 0 || isSubmitting}
+              onClick={handleSurveySubmit}
             >
-              제출하고 결과 보기
+              {isSubmitting ? '제출 중...' : '제출하고 결과 보기'}
             </button>
           </div>
         </div>
