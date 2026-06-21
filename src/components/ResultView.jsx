@@ -8,6 +8,10 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
   const [subTab, setSubTab] = useState('Front');
   const [sliderPosition, setSliderPosition] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
+  const [isSurveyCompleted, setIsSurveyCompleted] = useState(false);
+  const [showSurveyModal, setShowSurveyModal] = useState(false);
+  const [surveyScore, setSurveyScore] = useState(0);
+  const [surveyFeedback, setSurveyFeedback] = useState('');
   const sliderRef = useRef(null);
 
   const norwood = diagnosisData?.norwood || '분석 중...';
@@ -278,9 +282,12 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
             </div>
           )}
 
-          <div className="rv-card">
+          <div className="rv-card" style={{ position: 'relative' }}>
             <span className="rv-card-badge">AI 분석 상세</span>
-            <div className="rv-explanation-text" style={{ whiteSpace: 'pre-line', lineHeight: '1.6' }}>
+            <div 
+              className={`rv-explanation-text ${!isSurveyCompleted ? 'rv-blurred' : ''}`} 
+              style={{ whiteSpace: 'pre-line', lineHeight: '1.6' }}
+            >
               {diagnosisData?.detailedExplanation ? (
                 <div dangerouslySetInnerHTML={{ 
                   __html: diagnosisData.detailedExplanation
@@ -291,6 +298,16 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
                 features.explanation || summary
               )}
             </div>
+
+            {!isSurveyCompleted && (
+              <div className="rv-unlock-overlay fade-in">
+                <span className="material-symbols-outlined rv-lock-icon">lock</span>
+                <p>설문을 완료하면 상세 분석 결과를 확인할 수 있습니다.</p>
+                <button className="btn-primary" onClick={() => setShowSurveyModal(true)}>
+                  설문 작성하고 결과 보기
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Chat Section removed from here, moving to AvatarView */}
@@ -303,6 +320,55 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
           나의 아바타 만나러 가기
         </button>
       </div>
+
+      {/* Survey Modal */}
+      {showSurveyModal && (
+        <div className="rv-modal-overlay">
+          <div className="rv-modal-content fade-in">
+            <button className="rv-modal-close" onClick={() => setShowSurveyModal(false)}>
+              <span className="material-symbols-outlined">close</span>
+            </button>
+            <h2 className="rv-modal-title">AI 정확도 평가</h2>
+            <p className="rv-modal-desc">결과를 확인하기 위해 짧은 의견을 남겨주세요!</p>
+
+            <div className="rv-survey-group">
+              <label>1. AI 진단 결과가 평소 느끼는 상태와 비슷합니까?</label>
+              <div className="rv-score-buttons">
+                {[1, 2, 3, 4, 5].map(score => (
+                  <button 
+                    key={score}
+                    className={`rv-score-btn ${surveyScore === score ? 'selected' : ''}`}
+                    onClick={() => setSurveyScore(score)}
+                  >
+                    {score}점
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="rv-survey-group">
+              <label>2. 앱에 바라는 점이나 아쉬운 점을 자유롭게 적어주세요.</label>
+              <textarea 
+                className="rv-survey-textarea"
+                placeholder="의견을 남겨주시면 큰 도움이 됩니다!"
+                value={surveyFeedback}
+                onChange={(e) => setSurveyFeedback(e.target.value)}
+              />
+            </div>
+
+            <button 
+              className="btn-primary rv-survey-submit"
+              disabled={surveyScore === 0}
+              onClick={() => {
+                setIsSurveyCompleted(true);
+                setShowSurveyModal(false);
+              }}
+            >
+              제출하고 결과 보기
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
