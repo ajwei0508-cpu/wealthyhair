@@ -34,7 +34,7 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
             score: surveyScore,
             feedback: surveyFeedback,
             norwood: norwood,
-            has_hair_loss: features.mShapeRecession || features.vertexThinning ? true : false
+            has_hair_loss: norwood !== 'Stage I (정상)' && norwood !== 'Normal (정상)'
           }
         ]);
         
@@ -44,7 +44,7 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
       setShowSurveyModal(false);
     } catch (error) {
       console.error('Error submitting survey:', error);
-      alert('설문 제출 중 오류가 발생했습니다. 브라우저 콘솔을 확인해주세요.');
+      alert(`오류: ${error.message || JSON.stringify(error)}`);
     } finally {
       setIsSubmitting(false);
     }
