@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { db } from '../firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { supabase } from '../supabase';
 import './ResultView.css';
 
 // --- Removed Chat Component (Moved to AvatarView) ---
@@ -28,13 +27,19 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
     if (surveyScore === 0) return;
     setIsSubmitting(true);
     try {
-      await addDoc(collection(db, 'surveys'), {
-        score: surveyScore,
-        feedback: surveyFeedback,
-        createdAt: serverTimestamp(),
-        norwood: norwood,
-        hasHairLoss: features.mShapeRecession || features.vertexThinning ? true : false
-      });
+      const { error } = await supabase
+        .from('surveys')
+        .insert([
+          {
+            score: surveyScore,
+            feedback: surveyFeedback,
+            norwood: norwood,
+            has_hair_loss: features.mShapeRecession || features.vertexThinning ? true : false
+          }
+        ]);
+        
+      if (error) throw error;
+      
       setIsSurveyCompleted(true);
       setShowSurveyModal(false);
     } catch (error) {
