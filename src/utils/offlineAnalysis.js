@@ -52,6 +52,11 @@ const analyzeVertexDensity = (imageSrc) => {
 
         let densityLossPercent = 0;
         if (totalHairAreaPixels > 0) {
+          // Check if image is completely dark/invalid
+          if (scalpPixels === 0 && r === 0 && g === 0 && b === 0) {
+             resolve(-1.0); // Special flag for invalid image
+             return;
+          }
           // 중앙부에서 두피(살색)가 차지하는 비율 계산
           const scalpRatio = scalpPixels / totalHairAreaPixels;
           
@@ -79,6 +84,16 @@ const analyzeVertexDensity = (imageSrc) => {
 export const simulateOfflineAnalysis = async (pointsData, capturedImages) => {
   // 실제 AI 분석처럼 느끼도록 최소 지연시간 보장 (Canvas 분석이 너무 빠를 수 있음)
   await new Promise(resolve => setTimeout(resolve, 800));
+
+  // 1. 유효성 검사 (얼굴 또는 모발이 제대로 찍혔는지)
+  // Mock 데이터(가상 사진 테스트)가 아닌 실제 촬영인데 얼굴이 없으면 반려
+  const isFrontMock = capturedImages?.front?.includes('via.placeholder.com');
+  if (!isFrontMock && pointsData?.front && (!pointsData.front.face || pointsData.front.face.length === 0)) {
+    return {
+      success: false,
+      error: "사진에서 얼굴과 모발이 명확하게 인식되지 않았습니다. 밝은 곳에서 이마와 헤어라인이 잘 보이게 다시 촬영해주세요."
+    };
+  }
 
   // 간단한 좌표 기반 거리 계산 유틸리티
   const calculateRecession = (pts, type) => {
@@ -125,6 +140,13 @@ export const simulateOfflineAnalysis = async (pointsData, capturedImages) => {
   
   // 랜덤 값(가짜 데이터)을 버리고 실제 정수리 이미지 픽셀 기반 알고리즘 적용!!
   const vertex_val = await analyzeVertexDensity(capturedImages?.vertex);
+
+  if (vertex_val === -1.0) {
+    return {
+      success: false,
+      error: "정수리 사진이 너무 어둡거나 두피/모발을 찾을 수 없습니다. 다시 촬영해주세요."
+    };
+  }
 
   // === 상세 원인 분석 문구 생성 로직 (단답형 항목별 요약) ===
   const explanations = [];

@@ -72,8 +72,9 @@ function App() {
         
         setDiagnosisData(result);
       } else {
-        console.error("API Error:", responseData.error);
-        setDiagnosisData(null);
+        alert(responseData.error || "분석을 완료할 수 없습니다. 다시 촬영해주세요.");
+        resetApp();
+        return;
       }
     } catch (error) {
       console.error("Network Error:", error);
