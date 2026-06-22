@@ -49,9 +49,16 @@
 .rv-main-content {
   flex: 1;
   overflow-y: auto;
-  padding-bottom: 120px; /* Space for floating CTA */
+  padding-bottom: 40px; /* Space at the bottom */
   display: flex;
   flex-direction: column;
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.rv-main-content::-webkit-scrollbar {
+  display: none;
 }
 
 /* --- Hero Image Section --- */
@@ -104,7 +111,8 @@
 .rv-image-container {
   position: relative;
   width: 100%;
-  aspect-ratio: 3 / 4; /* Matches CameraView */
+  aspect-ratio: 3 / 4; /* Keep original aspect ratio as max */
+  max-height: 45vh; /* Shrink on tall screens so bottom content peeks out */
   background-color: #f0f0f0;
   overflow: hidden;
   user-select: none;
@@ -508,17 +516,13 @@
   border-left: 2px solid var(--accent-gold);
 }
 
-/* Floating CTA */
+/* Normal CTA at the bottom of the scrollable content */
 .rv-floating-cta {
-  position: absolute;
-  bottom: 0;
-  left: 0;
   width: 100%;
   padding: 20px;
-  background: linear-gradient(to top, var(--bg-main) 80%, transparent);
+  background: var(--bg-main);
   display: flex;
   justify-content: center;
-  z-index: 100;
 }
 
 .rv-cta-btn {

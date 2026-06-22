@@ -341,14 +341,14 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
             </div>
           )}
         </div>
-      </main>
 
-      {/* Floating CTA */}
-      <div className="rv-floating-cta">
-        <button className="rv-cta-btn" onClick={onProceedToAvatar}>
-          나의 아바타 만나러 가기
-        </button>
-      </div>
+        {/* Normal CTA at the bottom of the scrollable content */}
+        <div className="rv-floating-cta">
+          <button className="rv-cta-btn" onClick={onProceedToAvatar}>
+            나의 아바타 만나러 가기
+          </button>
+        </div>
+      </main>
 
       {/* Survey Modal */}
       {showSurveyModal && (
