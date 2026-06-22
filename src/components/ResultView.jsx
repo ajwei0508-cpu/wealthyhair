@@ -260,9 +260,10 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
         </div>
 
         {/* Data Cards */}
-        <div className="rv-cards-container">
+        <div className="rv-cards-container" style={{ position: 'relative' }}>
           
-          <div className="rv-card">
+          <div className={!isSurveyCompleted ? 'rv-blurred' : ''} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className="rv-card">
             <div className="rv-card-row">
               <div>
                 <h3 className="rv-card-title">탈모가 진행 중인가요?</h3>
@@ -311,10 +312,10 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
             </div>
           )}
 
-          <div className="rv-card" style={{ position: 'relative' }}>
+          <div className="rv-card">
             <span className="rv-card-badge">AI 분석 상세</span>
             <div 
-              className={`rv-explanation-text ${!isSurveyCompleted ? 'rv-blurred' : ''}`} 
+              className="rv-explanation-text" 
               style={{ whiteSpace: 'pre-line', lineHeight: '1.6' }}
             >
               {diagnosisData?.detailedExplanation ? (
@@ -327,19 +328,18 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
                 features.explanation || summary
               )}
             </div>
-
-            {!isSurveyCompleted && (
-              <div className="rv-unlock-overlay fade-in">
-                <span className="material-symbols-outlined rv-lock-icon">lock</span>
-                <p>설문을 완료하면 상세 분석 결과를 확인할 수 있습니다.</p>
-                <button className="btn-primary" onClick={() => setShowSurveyModal(true)}>
-                  설문 작성하고 결과 보기
-                </button>
-              </div>
-            )}
           </div>
+          </div> {/* End of blurred wrapper */}
 
-          {/* Chat Section removed from here, moving to AvatarView */}
+          {!isSurveyCompleted && (
+            <div className="rv-unlock-overlay fade-in" style={{ borderRadius: '8px', zIndex: 10 }}>
+              <span className="material-symbols-outlined rv-lock-icon" style={{ fontSize: '48px', marginBottom: '16px' }}>lock</span>
+              <p style={{ fontSize: '16px', fontWeight: 'bold' }}>설문을 완료해야 AI 진단 결과를 확인할 수 있습니다.</p>
+              <button className="btn-primary" onClick={() => setShowSurveyModal(true)}>
+                설문 작성하고 결과 보기
+              </button>
+            </div>
+          )}
         </div>
       </main>
 
