@@ -14,6 +14,10 @@ import QuoteView from './components/QuoteView';
 import RoutineView from './components/RoutineView';
 import ProcedureView from './components/ProcedureView';
 import TogetherView from './components/TogetherView';
+import ExpectationView from './components/ExpectationView';
+import NotificationView from './components/NotificationView';
+import ScanIntroView from './components/ScanIntroView';
+import PhotoGuideView from './components/PhotoGuideView';
 import analyzeHairLoss from './utils/diagnosis';
 import { simulateOfflineAnalysis } from './utils/offlineAnalysis';
 import './index.css';
@@ -21,7 +25,7 @@ import './index.css';
 // CAPTURE_STEPS is now dynamic inside App component
 
 function App() {
-  const [currentView, setCurrentView] = useState('onboarding'); // 'onboarding', 'privacy', 'age', 'ethnicity', 'goal', 'family_history', 'duration', 'quote', 'routine', 'procedure', 'together', 'gender', 'camera', 'loading', 'result', 'avatar'
+  const [currentView, setCurrentView] = useState('onboarding'); // 'onboarding', 'privacy', 'age', 'ethnicity', 'goal', 'family_history', 'duration', 'quote', 'routine', 'procedure', 'together', 'gender', 'expectation', 'notification', 'scan_intro', 'photo_guide', 'camera', 'loading', 'result', 'avatar'
   const [age, setAge] = useState(null);
   const [ethnicity, setEthnicity] = useState(null);
   const [goals, setGoals] = useState([]);
@@ -210,15 +214,27 @@ function App() {
           <h1 style={{ marginBottom: '60px', fontSize: '32px', fontFamily: 'var(--font-serif)', letterSpacing: '-0.02em' }}>당신의 성별을 선택해주세요</h1>
           <div style={{ display: 'flex', gap: '20px', width: '100%', maxWidth: '400px' }}>
             <button 
-              onClick={() => { setGender('male'); setCurrentView('camera'); }}
+              onClick={() => { setGender('male'); setCurrentView('expectation'); }}
               className="btn-secondary"
             >남성</button>
             <button 
-              onClick={() => { setGender('female'); setCurrentView('camera'); }}
+              onClick={() => { setGender('female'); setCurrentView('expectation'); }}
               className="btn-primary"
             >여성</button>
           </div>
         </div>
+      )}
+      {currentView === 'expectation' && (
+        <ExpectationView onContinue={() => setCurrentView('notification')} />
+      )}
+      {currentView === 'notification' && (
+        <NotificationView onContinue={() => setCurrentView('scan_intro')} />
+      )}
+      {currentView === 'scan_intro' && (
+        <ScanIntroView onContinue={() => setCurrentView('photo_guide')} />
+      )}
+      {currentView === 'photo_guide' && (
+        <PhotoGuideView onContinue={() => setCurrentView('camera')} />
       )}
       {currentView === 'camera' && 
         <CameraView 
