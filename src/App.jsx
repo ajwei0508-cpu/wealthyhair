@@ -4,6 +4,7 @@ import AnalysisLoading from './components/AnalysisLoading';
 import ResultView from './components/ResultView';
 import AvatarView from './components/AvatarView';
 import OnboardingView from './components/OnboardingView';
+import PrivacyView from './components/PrivacyView';
 import analyzeHairLoss from './utils/diagnosis';
 import { simulateOfflineAnalysis } from './utils/offlineAnalysis';
 import './index.css';
@@ -11,7 +12,7 @@ import './index.css';
 // CAPTURE_STEPS is now dynamic inside App component
 
 function App() {
-  const [currentView, setCurrentView] = useState('onboarding'); // 'onboarding', 'gender', 'camera', 'loading', 'result', 'avatar'
+  const [currentView, setCurrentView] = useState('onboarding'); // 'onboarding', 'privacy', 'gender', 'camera', 'loading', 'result', 'avatar'
   const [gender, setGender] = useState(null);
   
   const getCaptureSteps = () => gender === 'female' ? ['front', 'vertex'] : ['front', 'left', 'right', 'vertex'];
@@ -96,7 +97,13 @@ function App() {
   return (
     <div className="app-container">
       {currentView === 'onboarding' && (
-        <OnboardingView onStart={() => setCurrentView('gender')} />
+        <OnboardingView onStart={() => setCurrentView('privacy')} />
+      )}
+      {currentView === 'privacy' && (
+        <PrivacyView 
+          onBack={() => setCurrentView('onboarding')}
+          onContinue={() => setCurrentView('gender')}
+        />
       )}
       {currentView === 'gender' && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', padding: '20px', color: 'var(--text-main)', background: 'var(--bg-main)' }}>

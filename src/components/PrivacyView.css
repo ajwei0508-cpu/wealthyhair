@@ -1,0 +1,161 @@
+/* PrivacyView.css */
+
+.pv-wrapper {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100vh;
+  background: linear-gradient(180deg, #111111 0%, #1d1130 100%);
+  color: #ffffff;
+  font-family: var(--font-sans);
+  overflow: hidden;
+}
+
+.pv-header {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+}
+
+.pv-back-btn {
+  background: none;
+  border: none;
+  color: #a0a0a0;
+  cursor: pointer;
+  padding: 8px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: -8px;
+}
+
+.pv-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0 24px;
+  overflow-y: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.pv-content::-webkit-scrollbar {
+  display: none;
+}
+
+.pv-title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 12px 0;
+  line-height: 1.3;
+}
+
+.pv-highlight {
+  color: #cda8fc;
+}
+
+.pv-subtitle {
+  font-size: 15px;
+  color: #a0a0a0;
+  margin: 0 0 32px 0;
+  line-height: 1.5;
+}
+
+.pv-feature-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 40px;
+}
+
+.pv-feature-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.pv-icon-box {
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pv-feature-item span {
+  font-size: 15px;
+  color: #f0f0f0;
+  line-height: 1.4;
+  font-weight: 400;
+}
+
+.pv-feature-item strong {
+  font-weight: 700;
+  color: #ffffff;
+}
+
+/* Shield Graphic */
+.pv-shield-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: auto;
+  margin-bottom: 20px;
+  padding: 40px 0;
+}
+
+.pv-shield-glow {
+  position: absolute;
+  width: 150px;
+  height: 150px;
+  background: radial-gradient(circle, rgba(205, 168, 252, 0.3) 0%, rgba(0,0,0,0) 70%);
+  filter: blur(20px);
+}
+
+.pv-shield-icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+.pv-shield-letter {
+  position: absolute;
+  font-family: var(--font-serif);
+  font-size: 48px;
+  font-weight: 300;
+  font-style: italic;
+  color: #cda8fc;
+}
+
+/* Bottom CTA */
+.pv-bottom {
+  padding: 24px 20px 32px;
+  display: flex;
+  justify-content: center;
+  background: linear-gradient(180deg, transparent 0%, rgba(29, 17, 48, 0.9) 20%, #1d1130 100%);
+}
+
+.pv-continue-btn {
+  width: 100%;
+  max-width: 400px;
+  background-color: #cda8fc;
+  color: #111111;
+  border: none;
+  border-radius: 30px;
+  padding: 16px 24px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.pv-continue-btn:active {
+  opacity: 0.8;
+}
