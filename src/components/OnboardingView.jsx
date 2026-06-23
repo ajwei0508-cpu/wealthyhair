@@ -27,7 +27,7 @@ const OnboardingView = ({ onStart }) => {
           </div>
           <div className="ob-feature-item">
             <Database className="ob-feature-icon" size={20} />
-            <span>100만 건 이상의 헤어라인 분석 데이터 학습</span>
+            <span>한국인 중심으로 헤어라인 분석 데이터 학습</span>
           </div>
         </div>
 
