@@ -1,0 +1,156 @@
+/* EthnicityView.css */
+
+.ev-wrapper {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100vh;
+  background: linear-gradient(180deg, #111111 0%, #1a1025 100%);
+  color: #ffffff;
+  font-family: var(--font-sans);
+  overflow: hidden;
+}
+
+.ev-header {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+}
+
+.ev-back-btn {
+  background: none;
+  border: none;
+  color: #a0a0a0;
+  cursor: pointer;
+  padding: 8px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: -8px;
+}
+
+.ev-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0 24px;
+  overflow-y: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.ev-content::-webkit-scrollbar {
+  display: none;
+}
+
+.ev-title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 12px 0;
+  line-height: 1.3;
+}
+
+.ev-highlight {
+  color: #cda8fc;
+}
+
+.ev-subtitle {
+  font-size: 14px;
+  color: #a0a0a0;
+  margin: 0 0 32px 0;
+  line-height: 1.5;
+}
+
+/* Options List */
+.ev-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 20px;
+}
+
+.ev-option-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ev-option-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ev-option-card.selected {
+  background: rgba(205, 168, 252, 0.15);
+  border-color: #cda8fc;
+}
+
+.ev-option-label {
+  font-size: 15px;
+  font-weight: 500;
+  color: #f0f0f0;
+}
+
+.ev-option-card.selected .ev-option-label {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.ev-radio-circle {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ev-option-card.selected .ev-radio-circle {
+  border-color: #cda8fc;
+}
+
+.ev-radio-inner {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #cda8fc;
+}
+
+/* Bottom CTA */
+.ev-bottom {
+  padding: 24px 20px 32px;
+  display: flex;
+  justify-content: center;
+  background: linear-gradient(180deg, transparent 0%, rgba(26, 16, 37, 0.9) 20%, #1a1025 100%);
+}
+
+.ev-continue-btn {
+  width: 100%;
+  max-width: 400px;
+  background-color: #cda8fc;
+  color: #111111;
+  border: none;
+  border-radius: 30px;
+  padding: 16px 24px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.ev-continue-btn:active {
+  opacity: 0.8;
+}
+
+.ev-continue-btn:disabled {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.3);
+  cursor: not-allowed;
+}
