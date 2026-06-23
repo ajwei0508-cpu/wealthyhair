@@ -7,6 +7,7 @@ import OnboardingView from './components/OnboardingView';
 import PrivacyView from './components/PrivacyView';
 import AgeView from './components/AgeView';
 import EthnicityView from './components/EthnicityView';
+import GoalView from './components/GoalView';
 import analyzeHairLoss from './utils/diagnosis';
 import { simulateOfflineAnalysis } from './utils/offlineAnalysis';
 import './index.css';
@@ -14,9 +15,10 @@ import './index.css';
 // CAPTURE_STEPS is now dynamic inside App component
 
 function App() {
-  const [currentView, setCurrentView] = useState('onboarding'); // 'onboarding', 'privacy', 'age', 'ethnicity', 'gender', 'camera', 'loading', 'result', 'avatar'
+  const [currentView, setCurrentView] = useState('onboarding'); // 'onboarding', 'privacy', 'age', 'ethnicity', 'goal', 'gender', 'camera', 'loading', 'result', 'avatar'
   const [age, setAge] = useState(null);
   const [ethnicity, setEthnicity] = useState(null);
+  const [goals, setGoals] = useState([]);
   const [gender, setGender] = useState(null);
   
   const getCaptureSteps = () => gender === 'female' ? ['front', 'vertex'] : ['front', 'left', 'right', 'vertex'];
@@ -63,7 +65,7 @@ function App() {
       const responseData = await simulateOfflineAnalysis(updatedPoints, updatedImages);
       
       if (responseData.success) {
-        const features = { ...responseData.data.features, gender, age, ethnicity };
+        const features = { ...responseData.data.features, gender, age, ethnicity, goals };
         const result = analyzeHairLoss(features);
         // Include the bounding boxes from backend directly into diagnosisData
         result.boxes = responseData.data.boxes || {};
@@ -96,6 +98,7 @@ function App() {
     setCurrentView('onboarding');
     setAge(null);
     setEthnicity(null);
+    setGoals([]);
     setGender(null);
     setDiagnosisData(null);
   };
@@ -125,6 +128,15 @@ function App() {
           onBack={() => setCurrentView('age')}
           onContinue={(selectedEthnicity) => {
             setEthnicity(selectedEthnicity);
+            setCurrentView('goal');
+          }}
+        />
+      )}
+      {currentView === 'goal' && (
+        <GoalView
+          onBack={() => setCurrentView('ethnicity')}
+          onContinue={(selectedGoals) => {
+            setGoals(selectedGoals);
             setCurrentView('gender');
           }}
         />

@@ -1,0 +1,151 @@
+/* GoalView.css */
+
+.gv-wrapper {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100vh;
+  background: linear-gradient(180deg, #111111 0%, #1a1025 100%);
+  color: #ffffff;
+  font-family: var(--font-sans);
+  overflow: hidden;
+}
+
+.gv-header {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+}
+
+.gv-back-btn {
+  background: none;
+  border: none;
+  color: #a0a0a0;
+  cursor: pointer;
+  padding: 8px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: -8px;
+}
+
+.gv-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0 24px;
+  overflow-y: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.gv-content::-webkit-scrollbar {
+  display: none;
+}
+
+.gv-title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 8px 0;
+  line-height: 1.3;
+}
+
+.gv-highlight {
+  color: #cda8fc;
+}
+
+.gv-subtitle {
+  font-size: 14px;
+  color: #a0a0a0;
+  margin: 0 0 32px 0;
+}
+
+/* Options List */
+.gv-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 20px;
+}
+
+.gv-option-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.gv-option-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.gv-option-card.selected {
+  background: rgba(205, 168, 252, 0.1);
+  border-color: #cda8fc;
+}
+
+.gv-option-label {
+  font-size: 15px;
+  font-weight: 500;
+  color: #f0f0f0;
+}
+
+.gv-option-card.selected .gv-option-label {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.gv-checkbox {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.gv-checkbox.checked {
+  background-color: #cda8fc;
+  border-color: #cda8fc;
+}
+
+/* Bottom CTA */
+.gv-bottom {
+  padding: 24px 20px 32px;
+  display: flex;
+  justify-content: center;
+  background: linear-gradient(180deg, transparent 0%, rgba(26, 16, 37, 0.9) 20%, #1a1025 100%);
+}
+
+.gv-continue-btn {
+  width: 100%;
+  max-width: 400px;
+  background-color: #cda8fc;
+  color: #111111;
+  border: none;
+  border-radius: 30px;
+  padding: 16px 24px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.gv-continue-btn:active {
+  opacity: 0.8;
+}
+
+.gv-continue-btn:disabled {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.3);
+  cursor: not-allowed;
+}
