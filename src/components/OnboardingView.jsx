@@ -9,10 +9,43 @@ const OnboardingView = ({ onStart }) => {
         {/* Logo & Title */}
         <div className="ob-header">
           <div className="ob-logo">
-            {/* Simple stylized H or WealthyHair Logo */}
-            <span className="ob-logo-icon">W</span>
+            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" width="60" height="60">
+              <defs>
+                <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style={{ stopColor: '#D4AF37', stopOpacity: 1 }} />
+                  <stop offset="50%" style={{ stopColor: '#F9E29D', stopOpacity: 1 }} />
+                  <stop offset="100%" style={{ stopColor: '#B8860B', stopOpacity: 1 }} />
+                </linearGradient>
+              </defs>
+              {/* Stylized 'W' integrated with hair-like flowing curves */}
+              <path d="M15 30 
+                       C 15 30, 25 80, 35 80 
+                       C 45 80, 48 40, 50 40 
+                       C 52 40, 55 80, 65 80 
+                       C 75 80, 85 30, 85 30" 
+                    stroke="url(#goldGradient)" 
+                    strokeWidth="4" 
+                    fill="none" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" />
+              {/* Thinner hair strand accents for texture and elegance */}
+              <path d="M22 35 
+                       C 22 35, 30 75, 38 75 
+                       C 46 75, 48 45, 50 45" 
+                    stroke="url(#goldGradient)" 
+                    strokeWidth="1.5" 
+                    fill="none" 
+                    opacity="0.8" />
+              <path d="M78 35 
+                       C 78 35, 70 75, 62 75 
+                       C 54 75, 52 45, 50 45" 
+                    stroke="url(#goldGradient)" 
+                    strokeWidth="1.5" 
+                    fill="none" 
+                    opacity="0.8" />
+            </svg>
           </div>
-          <h1 className="ob-title">부자머리 AI</h1>
+          <h1 className="ob-title">모발부자 AI</h1>
         </div>
 
         {/* Feature List */}
@@ -23,7 +56,7 @@ const OnboardingView = ({ onStart }) => {
           </div>
           <div className="ob-feature-item">
             <ScanFace className="ob-feature-icon" size={20} />
-            <span>세계 최고 수준의 AI 두피·모발 스캔 정확도</span>
+            <span>국제 탈모 진단법의 AI 두피 모발 스캔 정확도</span>
           </div>
           <div className="ob-feature-item">
             <Database className="ob-feature-icon" size={20} />
