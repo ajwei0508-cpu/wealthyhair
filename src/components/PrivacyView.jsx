@@ -53,7 +53,7 @@ const PrivacyView = ({ onBack, onContinue }) => {
         <div className="pv-shield-container">
           <div className="pv-shield-glow"></div>
           <div className="pv-shield-icon-wrapper" style={{ border: 'none', background: 'transparent' }}>
-             <img src="/logo.png" alt="보안 로고" style={{ width: '200px', height: '200px', objectFit: 'contain', mixBlendMode: 'screen' }} />
+             <img src="/logo_transparent.png" alt="보안 로고" style={{ width: '200px', height: '200px', objectFit: 'contain' }} />
           </div>
         </div>
       </div>

@@ -6,14 +6,16 @@ const EthnicityView = ({ onBack, onContinue }) => {
   const [selectedEthnicity, setSelectedEthnicity] = useState(null);
 
   const ethnicities = [
-    { id: 'east_asian', label: '동아시아인 (한국, 일본, 중국 등)' },
+    { id: 'east_asian', label: '동아시아인' },
     { id: 'southeast_asian', label: '동남아시아인' },
     { id: 'south_asian', label: '남아시아인' },
     { id: 'white', label: '백인 / 코카시안' },
     { id: 'black', label: '흑인 / 아프리카계' },
     { id: 'hispanic', label: '히스패닉 / 라틴계' },
     { id: 'middle_eastern', label: '중동 / 북아프리카계' },
-    { id: 'indigenous', label: '원주민 / 네이티브' }
+    { id: 'indigenous', label: '아메리카 원주민 / 태평양 섬주민' },
+    { id: 'mixed', label: '혼혈 / 다인종' },
+    { id: 'other', label: '기타 / 해당 없음' }
   ];
 
   return (

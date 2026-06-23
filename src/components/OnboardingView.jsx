@@ -9,7 +9,7 @@ const OnboardingView = ({ onStart }) => {
         {/* Logo & Title */}
         <div className="ob-header">
           <div className="ob-logo">
-            <img src="/logo.png" alt="모발부자 AI 로고" style={{ width: '120px', height: '120px', objectFit: 'contain', mixBlendMode: 'screen' }} />
+            <img src="/logo_transparent.png" alt="모발부자 AI 로고" style={{ width: '120px', height: '120px', objectFit: 'contain' }} />
           </div>
           <h1 className="ob-title">모발부자 AI</h1>
         </div>
