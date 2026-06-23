@@ -1,556 +1,217 @@
 /* ResultView.css */
 
-.rv-wrapper {
+.resv-wrapper {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background-color: var(--bg-main);
-  color: var(--text-main);
+  background: #0f0817;
+  color: #ffffff;
   font-family: var(--font-sans);
-  overflow: hidden; /* Prevent body scroll */
+  overflow-y: auto;
 }
 
-/* Header */
-.rv-header {
+.resv-top-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  background-color: var(--bg-main);
-  border-bottom: 0.5px solid var(--border-light);
-  z-index: 100;
 }
 
-.rv-header h1 {
-  font-family: var(--font-serif);
-  font-size: 18px;
-  font-weight: 600;
-  margin: 0;
-  color: var(--text-main);
-  letter-spacing: -0.01em;
-}
-
-.rv-icon-btn {
-  background: none;
+.resv-icon-btn {
+  background: transparent;
   border: none;
-  color: var(--text-main);
-  cursor: pointer;
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.2s;
-}
-
-.rv-icon-btn:hover {
-  opacity: 0.7;
-}
-
-/* Main Content Scrollable Area */
-.rv-main-content {
-  flex: 1;
-  overflow-y: auto;
-  padding-bottom: 40px; /* Space at the bottom */
-  display: flex;
-  flex-direction: column;
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
-}
-
-/* Hide scrollbar for Chrome, Safari and Opera */
-.rv-main-content::-webkit-scrollbar {
-  display: none;
-}
-
-/* --- Hero Image Section --- */
-.rv-hero-section {
-  position: relative;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  border-bottom: 0.5px solid var(--border-light);
-}
-
-/* Top Tabs */
-.rv-top-tabs {
-  display: flex;
-  justify-content: space-around;
-  padding: 10px 20px;
-  background-color: var(--bg-surface);
-}
-
-.rv-tab-btn {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  padding: 12px 0;
-  position: relative;
   cursor: pointer;
-  transition: color 0.2s;
+  padding: 8px;
 }
 
-.rv-tab-btn.active {
-  color: var(--text-main);
+.resv-header-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
 }
 
-.rv-tab-btn.active::after {
+.resv-main-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  padding: 0 20px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.resv-tab-btn {
+  background: transparent;
+  border: none;
+  color: #a0a0a0;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 0;
+  cursor: pointer;
+  position: relative;
+}
+
+.resv-tab-btn.active {
+  color: #ffffff;
+}
+
+.resv-tab-btn.active::after {
   content: '';
   position: absolute;
-  bottom: 0;
+  bottom: -17px;
   left: 0;
-  right: 0;
+  width: 100%;
   height: 2px;
-  background-color: var(--accent-gold);
+  background: #cda8fc;
 }
 
-/* Image Viewer Container */
-.rv-image-container {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 3 / 4; /* Keep original aspect ratio as max */
-  max-height: 45vh; /* Shrink on tall screens so bottom content peeks out */
-  background-color: #f0f0f0;
-  overflow: hidden;
-  user-select: none;
-}
-
-.rv-base-image {
-  position: absolute;
-  top: 0; left: 0; width: 100%; height: 100%;
-  object-fit: cover;
-}
-
-.rv-overlay-layer {
-  position: absolute;
-  top: 0; left: 0; width: 100%; height: 100%;
-  pointer-events: none;
-}
-
-/* Before/After Slider */
-.rv-slider-container {
-  position: absolute;
-  top: 0; left: 0; width: 100%; height: 100%;
-  cursor: ew-resize;
-  touch-action: pan-y;
-}
-
-.rv-slider-clip {
-  position: absolute;
-  top: 0; left: 0; width: 100%; height: 100%;
-  overflow: hidden;
-}
-
-.rv-slider-image {
-  position: absolute;
-  top: 0; left: 0; 
-  width: 100%; height: 100%;
-  object-fit: cover;
-  filter: brightness(0.85); /* Dim slightly */
-}
-
-/* Overlays */
-.rv-svg-overlay {
-  position: absolute;
-  top: 0; left: 0; width: 100%; height: 100%;
-}
-
-.rv-slider-line {
-  position: absolute;
-  top: 0; bottom: 0;
-  width: 2px;
-  background-color: var(--accent-gold);
-  z-index: 20;
-  transform: translateX(-50%);
-  box-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
-  pointer-events: none;
-}
-
-.rv-slider-handle {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 24px;
-  height: 48px;
-  background-color: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(4px);
-  border: 1px solid var(--accent-gold);
-  border-radius: 0; /* Sharp corners */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-.rv-slider-handle::before, .rv-slider-handle::after {
-  content: '';
-  width: 0; height: 0;
-  border-style: solid;
-  position: absolute;
-}
-.rv-slider-handle::before {
-  border-width: 5px 6px 5px 0;
-  border-color: transparent var(--accent-gold) transparent transparent;
-  left: 3px;
-}
-.rv-slider-handle::after {
-  border-width: 5px 0 5px 6px;
-  border-color: transparent transparent transparent var(--accent-gold);
-  right: 3px;
-}
-
-/* Bottom Sub-tabs (floating on image) */
-.rv-sub-tabs {
-  position: absolute;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  background-color: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(12px);
-  border-radius: 0;
-  padding: 4px;
-  z-index: 30;
-  border: 1px solid var(--border-light);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-}
-
-.rv-sub-tab-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  font-family: var(--font-sans);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 8px 16px;
-  border-radius: 0;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-
-.rv-sub-tab-btn.active {
-  background-color: var(--text-main);
-  color: var(--bg-surface);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-/* --- Data Cards Section --- */
-.rv-cards-container {
-  padding: 24px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.rv-card {
-  background-color: var(--bg-surface);
-  border-radius: 0;
-  padding: 24px;
-  border: 0.5px solid var(--border-light);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.02);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.rv-card-row {
-  display: flex;
-  justify-content: space-between;
-}
-
-/* =========================================================
-   Blur & Survey Overlay
-   ========================================================= */
-
-.rv-blurred {
-  filter: blur(6px);
-  user-select: none;
-  pointer-events: none;
-  opacity: 0.5;
-  transition: all 0.3s ease;
-}
-
-.rv-unlock-overlay {
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  padding: 20px;
-  background: rgba(17, 17, 17, 0.4);
-  backdrop-filter: blur(2px);
-  z-index: 5;
-}
-
-.rv-lock-icon {
-  font-size: 32px;
-  color: var(--accent-gold);
-  margin-bottom: 12px;
-}
-
-.rv-unlock-overlay p {
-  font-size: 14px;
-  color: var(--text-main);
-  margin-bottom: 20px;
-  font-weight: 500;
-  text-shadow: 0 1px 4px rgba(0,0,0,0.8);
-}
-
-.rv-unlock-overlay .btn-primary {
-  padding: 12px 24px;
-  width: auto;
-  min-width: 200px;
-  border-radius: 4px;
-  background: var(--accent-gold);
-  color: #000;
-}
-
-/* =========================================================
-   Survey Modal
-   ========================================================= */
-
-.rv-modal-overlay {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-  padding: 20px;
-  backdrop-filter: blur(4px);
-}
-
-.rv-modal-content {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-light);
-  width: 100%;
-  max-width: 400px;
-  padding: 24px;
-  position: relative;
-  border-radius: 8px;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-}
-
-.rv-modal-close {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 4px;
-}
-
-.rv-modal-title {
-  font-size: 20px;
-  color: var(--accent-gold);
-  margin-bottom: 8px;
-  font-family: var(--font-serif);
-}
-
-.rv-modal-desc {
-  font-size: 13px;
-  color: var(--text-muted);
-  margin-bottom: 24px;
-}
-
-.rv-survey-group {
-  margin-bottom: 20px;
-  text-align: left;
-}
-
-.rv-survey-group label {
-  display: block;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-main);
-  margin-bottom: 12px;
-  line-height: 1.4;
-}
-
-.rv-score-buttons {
-  display: flex;
-  gap: 8px;
-  justify-content: space-between;
-}
-
-.rv-score-btn {
+.resv-content {
   flex: 1;
-  padding: 10px 0;
-  background: transparent;
-  border: 1px solid var(--border-light);
-  color: var(--text-main);
-  border-radius: 4px;
-  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 20px;
+}
+
+.resv-image-area {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3/4;
+  background: #1a1025;
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.resv-main-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.resv-svg-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.resv-overlay-overview {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at 50% 30%, rgba(205, 168, 252, 0.2), transparent 50%);
+  mix-blend-mode: color-dodge;
+  pointer-events: none;
+}
+
+.resv-overlay-density {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(ellipse at 50% 20%, rgba(255, 0, 0, 0.6) 0%, rgba(255, 255, 0, 0.4) 40%, transparent 70%);
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+.resv-sub-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 32px;
+}
+
+.resv-sub-tab-btn {
+  background: #1a1025;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #a0a0a0;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: 20px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
-.rv-score-btn.selected,
-.rv-score-btn:hover {
-  background: var(--accent-gold);
-  border-color: var(--accent-gold);
-  color: #000;
-  font-weight: bold;
+.resv-sub-tab-btn.active {
+  background: #cda8fc;
+  color: #111111;
+  border-color: #cda8fc;
 }
 
-.rv-survey-textarea {
-  width: 100%;
-  height: 80px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid var(--border-light);
-  color: var(--text-main);
-  border-radius: 4px;
-  padding: 12px;
-  font-size: 14px;
-  font-family: var(--font-sans);
-  resize: none;
-}
-
-.rv-survey-textarea:focus {
-  outline: none;
-  border-color: var(--accent-gold);
-}
-
-.rv-survey-submit {
-  margin-top: 10px;
-  border-radius: 4px;
-}
-
-.rv-survey-submit:disabled {
-  background: var(--border-light);
-  color: var(--text-muted);
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-.rv-card-title {
-  font-family: var(--font-sans);
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-muted);
-  margin: 0;
-  font-weight: 600;
-}
-
-.rv-card-value {
-  font-family: var(--font-serif);
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--text-main);
-  margin: 0;
-}
-
-.rv-card-value.highlight {
-  color: var(--accent-gold);
-}
-
-.rv-card-desc {
-  font-family: var(--font-sans);
-  font-size: 14px;
-  color: var(--text-muted);
-  margin: 0;
-  line-height: 1.5;
-}
-
-/* Density Color Index Bar */
-.rv-density-bar-container {
-  margin-top: 12px;
+.resv-data-area {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 20px;
 }
-.rv-density-bar {
-  width: 100%;
-  height: 4px;
-  border-radius: 0;
-  background: linear-gradient(to right, var(--text-main), var(--accent-gold), var(--error));
-}
-.rv-density-labels {
+
+.resv-data-row {
   display: flex;
   justify-content: space-between;
-  font-family: var(--font-sans);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
-  font-weight: 600;
-}
-
-/* Analysis Details Card */
-.rv-card-badge {
-  display: inline-block;
-  background: var(--text-main);
-  color: var(--bg-surface);
-  padding: 6px 12px;
-  border-radius: 0;
-  font-family: var(--font-sans);
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  margin-bottom: 12px;
-  align-self: flex-start;
-}
-
-.rv-explanation-text {
-  font-family: var(--font-sans);
-  font-size: 14px;
-  color: var(--text-main);
-  line-height: 1.6;
-  margin-top: 12px;
-  background: var(--bg-main);
-  padding: 20px;
-  border-radius: 0;
-  border-left: 2px solid var(--accent-gold);
-}
-
-/* Normal CTA at the bottom of the scrollable content */
-.rv-floating-cta {
-  width: 100%;
-  padding: 20px;
-  background: var(--bg-main);
-  display: flex;
-  justify-content: center;
-}
-
-.rv-cta-btn {
-  width: 100%;
-  max-width: 400px;
-  background: var(--text-main);
-  color: var(--bg-surface);
-  border: none;
-  padding: 18px 24px;
-  border-radius: 0;
-  font-family: var(--font-sans);
-  font-size: 14px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-  transition: transform 0.2s, background 0.2s;
+  padding: 16px 20px;
+  background: #1a1025;
+  border-radius: 12px;
 }
 
-.rv-cta-btn:hover {
-  background: var(--accent-gold);
+.resv-data-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
 }
 
-.rv-cta-btn:active {
-  transform: scale(0.98);
+.resv-data-sub {
+  font-size: 12px;
+  color: #888888;
+  margin-top: 4px;
+}
+
+.resv-data-value {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.resv-data-value.highlight {
+  color: #cda8fc;
+}
+
+.resv-density-section {
+  padding: 16px 20px;
+  background: #1a1025;
+  border-radius: 12px;
+}
+
+.resv-density-bar {
+  height: 8px;
+  background: linear-gradient(90deg, #34d399, #fbbf24, #ef4444);
+  border-radius: 4px;
+  margin: 16px 0 8px;
+}
+
+.resv-density-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #888888;
+  font-weight: 600;
+}
+
+.resv-btn-unlock {
+  margin-top: 24px;
+  width: 100%;
+  padding: 18px;
+  border-radius: 30px;
+  border: none;
+  background: #cda8fc;
+  color: #111111;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
 }

@@ -1,0 +1,121 @@
+/* ReviewView.css */
+
+.rvw-wrapper {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100vh;
+  background: #0f0817;
+  color: #ffffff;
+  font-family: var(--font-sans);
+  overflow: hidden;
+}
+
+.rvw-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+}
+
+.rvw-icon-btn {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 8px;
+}
+
+.rvw-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.rvw-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.rvw-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.rvw-grid-item {
+  position: relative;
+  aspect-ratio: 3/4;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #1a1025;
+}
+
+.rvw-grid-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.rvw-label {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.6);
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  backdrop-filter: blur(4px);
+}
+
+.rvw-check-icon {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.rvw-bottom {
+  padding: 24px 20px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  background: linear-gradient(180deg, transparent 0%, #0f0817 20%);
+}
+
+.rvw-btn-analyze {
+  width: 100%;
+  max-width: 400px;
+  padding: 16px;
+  border-radius: 30px;
+  border: none;
+  background: #cda8fc;
+  color: #111111;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.rvw-btn-retake-all {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  color: #a0a0a0;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}

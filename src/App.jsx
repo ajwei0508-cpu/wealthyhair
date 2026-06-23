@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import CameraView from './components/CameraView';
-import AnalysisLoading from './components/AnalysisLoading';
+import ReviewView from './components/ReviewView';
+import LoadingView from './components/LoadingView';
 import ResultView from './components/ResultView';
 import AvatarView from './components/AvatarView';
 import OnboardingView from './components/OnboardingView';
@@ -25,7 +26,7 @@ import './index.css';
 // CAPTURE_STEPS is now dynamic inside App component
 
 function App() {
-  const [currentView, setCurrentView] = useState('onboarding'); // 'onboarding', 'privacy', 'age', 'ethnicity', 'goal', 'family_history', 'duration', 'quote', 'routine', 'procedure', 'together', 'gender', 'expectation', 'notification', 'scan_intro', 'photo_guide', 'camera', 'loading', 'result', 'avatar'
+  const [currentView, setCurrentView] = useState('onboarding'); // 'onboarding', 'privacy', 'age', 'ethnicity', 'goal', 'family_history', 'duration', 'quote', 'routine', 'procedure', 'together', 'gender', 'expectation', 'notification', 'scan_intro', 'photo_guide', 'camera', 'review', 'loading', 'result', 'avatar'
   const [age, setAge] = useState(null);
   const [ethnicity, setEthnicity] = useState(null);
   const [goals, setGoals] = useState([]);
@@ -54,55 +55,41 @@ function App() {
   const [currentCaptureIndex, setCurrentCaptureIndex] = useState(0);
   const [diagnosisData, setDiagnosisData] = useState(null);
 
-  const handleCapture = async (imageSrc, points) => {
+  const handleCapture = async (imageSrc) => {
     const steps = getCaptureSteps();
     const currentStep = steps[currentCaptureIndex];
     
-    // Update the images object with the new capture
     const updatedImages = { ...capturedImages, [currentStep]: imageSrc };
     setCapturedImages(updatedImages);
 
-    const updatedPoints = { ...capturedAllPoints, [currentStep]: points };
-    setCapturedAllPoints(updatedPoints);
-    
-    // Check if we need more photos
     if (currentCaptureIndex < steps.length - 1) {
       setCurrentCaptureIndex(currentCaptureIndex + 1);
-      return; // Stay on camera view
+      return; 
     }
     
-    // All photos captured, proceed to loading and API call
+    setCurrentView('review');
+  };
+
+  const handleStartAnalysis = async () => {
     setCurrentView('loading');
-    
     try {
-      // 백엔드 API 대신 프론트엔드 오프라인 시뮬레이터 호출 (실제 이미지 픽셀 분석 포함)
-      const responseData = await simulateOfflineAnalysis(updatedPoints, updatedImages);
-      
+      const responseData = await simulateOfflineAnalysis(capturedAllPoints, capturedImages);
       if (responseData.success) {
         const features = { ...responseData.data.features, gender, age, ethnicity, goals, familyHistory, duration, routine, procedure };
         const result = analyzeHairLoss(features);
-        // Include the bounding boxes from backend directly into diagnosisData
         result.boxes = responseData.data.boxes || {};
-        
-        // Use frontend generated highly accurate semantic segmentation masks!
-        result.masks = {
-          front: updatedPoints.front?.mask || null,
-          left: updatedPoints.left?.mask || null,
-          right: updatedPoints.right?.mask || null,
-          vertex: updatedPoints.vertex?.mask || null
-        };
-        
+        result.masks = {};
         setDiagnosisData(result);
       } else {
-        alert(responseData.error || "분석을 완료할 수 없습니다. 다시 촬영해주세요.");
-        resetApp();
-        return;
+        setDiagnosisData(null);
       }
     } catch (error) {
       console.error("Network Error:", error);
       setDiagnosisData(null); 
     }
-    
+  };
+
+  const handleLoadingComplete = () => {
     setCurrentView('result');
   };
 
@@ -242,15 +229,29 @@ function App() {
           currentStep={currentCaptureSteps[currentCaptureIndex]} 
           stepIndex={currentCaptureIndex + 1}
           totalSteps={currentCaptureSteps.length}
-          gender={gender}
         />
       }
-      {currentView === 'loading' && <AnalysisLoading image={capturedImages.front} />}
+      {currentView === 'review' && (
+        <ReviewView 
+          photos={capturedImages}
+          onStartAnalysis={handleStartAnalysis}
+          onRetakeAll={() => {
+            setCapturedImages({ front: null, left: null, right: null, vertex: null });
+            setCurrentCaptureIndex(0);
+            setCurrentView('camera');
+          }}
+          onBack={() => {
+            setCurrentCaptureIndex(currentCaptureSteps.length - 1);
+            setCurrentView('camera');
+          }}
+        />
+      )}
+      {currentView === 'loading' && <LoadingView onComplete={handleLoadingComplete} />}
       {currentView === 'result' && diagnosisData && 
         <ResultView 
           diagnosisData={diagnosisData} 
           images={capturedImages} 
-          onRetake={() => setCurrentView('gender')}
+          onReset={() => setCurrentView('gender')}
           onProceedToAvatar={() => setCurrentView('avatar')}
         />
       }
