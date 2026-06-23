@@ -1,0 +1,265 @@
+/* TogetherView.css */
+
+.tv-wrapper {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100vh;
+  background: linear-gradient(180deg, #111111 0%, #1a1025 100%);
+  color: #ffffff;
+  font-family: var(--font-sans);
+  overflow: hidden;
+}
+
+.tv-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 40px 24px 0;
+  overflow: hidden; /* Hide overflow so the mockup looks cut off cleanly */
+}
+
+.tv-title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 16px 0;
+  line-height: 1.3;
+}
+
+.tv-highlight {
+  color: #cda8fc;
+}
+
+.tv-subtitle {
+  font-size: 14px;
+  color: #a0a0a0;
+  margin: 0 0 32px 0;
+  line-height: 1.5;
+}
+
+/* Mockup Container */
+.tv-mockup-container {
+  flex: 1;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin: 0 -24px; /* bleed to edges */
+  overflow: hidden;
+}
+
+.tv-mockup-phone {
+  width: 90%;
+  max-width: 360px;
+  background: linear-gradient(180deg, #161616 0%, #111111 100%);
+  border-radius: 32px 32px 0 0;
+  border: 4px solid #2a2a2a;
+  border-bottom: none;
+  padding: 24px 16px 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Chart Area */
+.tv-mockup-chart {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tv-chart-svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.tv-chart-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  color: #666666;
+}
+
+.tv-chart-active {
+  background: #cda8fc;
+  color: #111111;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+/* Tabs */
+.tv-mockup-tabs {
+  display: flex;
+  gap: 24px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tv-tab {
+  font-size: 14px;
+  color: #888888;
+  font-weight: 500;
+  position: relative;
+}
+
+.tv-tab.active {
+  color: #ffffff;
+}
+
+.tv-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -9px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: #cda8fc;
+}
+
+/* List Area */
+.tv-mockup-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.tv-list-item {
+  display: flex;
+  gap: 12px;
+}
+
+.tv-item-date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  flex-shrink: 0;
+  background: rgba(205, 168, 252, 0.2);
+  border-radius: 8px;
+  padding: 8px 0;
+}
+
+.tv-date-day {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.tv-date-month {
+  font-size: 10px;
+  color: #cda8fc;
+  font-weight: 600;
+}
+
+.tv-item-card {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tv-item-img-placeholder {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tv-item-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tv-item-details {
+  display: flex;
+  justify-content: space-between;
+  flex: 1;
+}
+
+.tv-detail-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tv-detail-label {
+  font-size: 10px;
+  color: #888888;
+}
+
+.tv-detail-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.tv-detail-sub {
+  font-size: 10px;
+  color: #666666;
+  font-weight: 400;
+}
+
+.tv-detail-single {
+  font-size: 14px;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+/* Fade at bottom to show it continues */
+.tv-mockup-fade {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 80px;
+  background: linear-gradient(0deg, #111111 0%, transparent 100%);
+  z-index: 2;
+}
+
+/* Bottom CTA */
+.tv-bottom {
+  padding: 24px 20px 32px;
+  display: flex;
+  justify-content: center;
+  background: linear-gradient(180deg, transparent 0%, rgba(26, 16, 37, 0.9) 20%, #1a1025 100%);
+  position: relative;
+  z-index: 10;
+}
+
+.tv-continue-btn {
+  width: 100%;
+  max-width: 400px;
+  background-color: #cda8fc;
+  color: #111111;
+  border: none;
+  border-radius: 30px;
+  padding: 16px 24px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.tv-continue-btn:active {
+  opacity: 0.8;
+}
