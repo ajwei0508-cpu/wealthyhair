@@ -15,15 +15,15 @@ const PhotoGuideView = ({ onContinue }) => {
 
         <div className="pgv-list">
           <div className="pgv-list-item">
-            <div className="pgv-icon-box"><Sparkles size={20} color="#cda8fc" /></div>
+            <div className="pgv-icon-box"><Sparkles size={20} color="#D4AF37" /></div>
             <span className="pgv-list-text">렌즈를 깨끗한 천으로 닦아주세요</span>
           </div>
           <div className="pgv-list-item">
-            <div className="pgv-icon-box"><Sun size={20} color="#cda8fc" /></div>
+            <div className="pgv-icon-box"><Sun size={20} color="#D4AF37" /></div>
             <span className="pgv-list-text">밝은 자연광이 있는 곳에서 촬영해 주세요</span>
           </div>
           <div className="pgv-list-item">
-            <div className="pgv-icon-box"><RefreshCcw size={20} color="#cda8fc" /></div>
+            <div className="pgv-icon-box"><RefreshCcw size={20} color="#D4AF37" /></div>
             <span className="pgv-list-text">매번 비슷한 환경에서 스캔해 주세요</span>
           </div>
         </div>

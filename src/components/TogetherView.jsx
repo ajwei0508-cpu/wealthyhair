@@ -18,14 +18,14 @@ const TogetherView = ({ onContinue }) => {
             {/* Chart Area */}
             <div className="tv-mockup-chart">
               <svg viewBox="0 0 100 30" className="tv-chart-svg">
-                <path d="M 5,25 L 20,22 L 35,24 L 50,18 L 65,15 L 80,10 L 95,12" fill="none" stroke="#6b528b" strokeWidth="1" />
-                <circle cx="5" cy="25" r="1.5" fill="#cda8fc" />
-                <circle cx="20" cy="22" r="1.5" fill="#cda8fc" />
-                <circle cx="35" cy="24" r="1.5" fill="#cda8fc" />
-                <circle cx="50" cy="18" r="1.5" fill="#cda8fc" />
-                <circle cx="65" cy="15" r="1.5" fill="#cda8fc" />
-                <circle cx="80" cy="10" r="1.5" fill="#cda8fc" />
-                <circle cx="95" cy="12" r="1.5" fill="#cda8fc" />
+                <path d="M 5,25 L 20,22 L 35,24 L 50,18 L 65,15 L 80,10 L 95,12" fill="none" stroke="#D4AF37" strokeWidth="1" />
+                <circle cx="5" cy="25" r="1.5" fill="#D4AF37" />
+                <circle cx="20" cy="22" r="1.5" fill="#D4AF37" />
+                <circle cx="35" cy="24" r="1.5" fill="#D4AF37" />
+                <circle cx="50" cy="18" r="1.5" fill="#D4AF37" />
+                <circle cx="65" cy="15" r="1.5" fill="#D4AF37" />
+                <circle cx="80" cy="10" r="1.5" fill="#D4AF37" />
+                <circle cx="95" cy="12" r="1.5" fill="#D4AF37" />
               </svg>
               <div className="tv-chart-labels">
                 <span>1개월</span>
@@ -52,7 +52,7 @@ const TogetherView = ({ onContinue }) => {
                 </div>
                 <div className="tv-item-card">
                   <div className="tv-item-img-placeholder" style={{ background: 'linear-gradient(45deg, #2a1b38, #3b2850)' }}>
-                    <Activity size={20} color="#cda8fc" />
+                    <Activity size={20} color="#D4AF37" />
                   </div>
                   <div className="tv-item-details">
                     <div className="tv-detail-col">

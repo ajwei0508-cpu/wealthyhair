@@ -65,7 +65,7 @@ const LoadingView = ({ onComplete }) => {
           <div className="lv-progress-circle-wrap">
             <svg height={radius * 2} width={radius * 2}>
               <circle
-                stroke="rgba(205, 168, 252, 0.2)"
+                stroke="rgba(212, 175, 55, 0.2)"
                 fill="transparent"
                 strokeWidth={strokeWidth}
                 r={normalizedRadius}
@@ -73,7 +73,7 @@ const LoadingView = ({ onComplete }) => {
                 cy={radius}
               />
               <circle
-                stroke="#cda8fc"
+                stroke="#D4AF37"
                 fill="transparent"
                 strokeWidth={strokeWidth}
                 strokeDasharray={circumference + ' ' + circumference}

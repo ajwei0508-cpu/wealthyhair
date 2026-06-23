@@ -22,28 +22,28 @@ const PrivacyView = ({ onBack, onContinue }) => {
         <div className="pv-feature-list">
           <div className="pv-feature-item">
             <div className="pv-icon-box">
-              <UserX size={20} color="#b88cf9" />
+              <UserX size={20} color="#D4AF37" />
             </div>
             <span><strong>이름</strong>을 수집하지 않습니다</span>
           </div>
 
           <div className="pv-feature-item">
             <div className="pv-icon-box">
-              <UserSquare2 size={20} color="#b88cf9" />
+              <UserSquare2 size={20} color="#D4AF37" />
             </div>
             <span><strong>개인정보</strong>를 요구하지 않습니다</span>
           </div>
 
           <div className="pv-feature-item">
             <div className="pv-icon-box">
-              <Smartphone size={20} color="#b88cf9" />
+              <Smartphone size={20} color="#D4AF37" />
             </div>
             <span>모든 데이터는 기기에 <strong>안전하게 비공개로 유지</strong>됩니다</span>
           </div>
 
           <div className="pv-feature-item">
             <div className="pv-icon-box">
-              <ImageOff size={20} color="#b88cf9" />
+              <ImageOff size={20} color="#D4AF37" />
             </div>
             <span>고객님의 <strong>사진을 절대 저장하지 않습니다</strong></span>
           </div>
@@ -53,7 +53,7 @@ const PrivacyView = ({ onBack, onContinue }) => {
         <div className="pv-shield-container">
           <div className="pv-shield-glow"></div>
           <div className="pv-shield-icon-wrapper">
-             <Shield size={100} strokeWidth={1} color="#cda8fc" />
+             <Shield size={100} strokeWidth={1} color="#D4AF37" />
              <span className="pv-shield-letter">W</span>
           </div>
         </div>

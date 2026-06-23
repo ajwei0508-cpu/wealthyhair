@@ -18,22 +18,22 @@ const ReviewView = ({ photos, onStartAnalysis, onRetakeAll, onBack }) => {
           <div className="rvw-grid-item">
             <img src={photos.front} alt="Front" />
             <div className="rvw-label">FRONT</div>
-            <CheckCircle className="rvw-check-icon" size={20} color="#cda8fc" fill="#2a1b3d" />
+            <CheckCircle className="rvw-check-icon" size={20} color="#D4AF37" fill="#111111" />
           </div>
           <div className="rvw-grid-item">
             <img src={photos.left} alt="Left" />
             <div className="rvw-label">LEFT</div>
-            <CheckCircle className="rvw-check-icon" size={20} color="#cda8fc" fill="#2a1b3d" />
+            <CheckCircle className="rvw-check-icon" size={20} color="#D4AF37" fill="#111111" />
           </div>
           <div className="rvw-grid-item">
             <img src={photos.right} alt="Right" />
             <div className="rvw-label">RIGHT</div>
-            <CheckCircle className="rvw-check-icon" size={20} color="#cda8fc" fill="#2a1b3d" />
+            <CheckCircle className="rvw-check-icon" size={20} color="#D4AF37" fill="#111111" />
           </div>
           <div className="rvw-grid-item">
             <img src={photos.vertex} alt="Top" />
             <div className="rvw-label">TOP</div>
-            <CheckCircle className="rvw-check-icon" size={20} color="#cda8fc" fill="#2a1b3d" />
+            <CheckCircle className="rvw-check-icon" size={20} color="#D4AF37" fill="#111111" />
           </div>
         </div>
       </div>

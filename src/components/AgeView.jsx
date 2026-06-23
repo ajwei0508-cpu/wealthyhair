@@ -85,7 +85,7 @@ const AgeView = ({ onBack, onContinue }) => {
         <div className="av-info-card">
           <div className="av-info-header">
             <div className="av-info-icon">
-              <Info size={14} color="#cda8fc" />
+              <Info size={14} color="#D4AF37" />
             </div>
             <span>왜 나이를 묻나요?</span>
           </div>

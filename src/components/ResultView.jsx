@@ -43,10 +43,10 @@ const ResultView = ({ images = {}, onReset, diagnosisData, onProceedToAvatar }) 
     if (mainTab === 'Hairline') {
       return (
         <svg className="resv-svg-overlay" viewBox="0 0 100 100" preserveAspectRatio="none">
-          <path d="M 20,40 Q 50,20 80,40" fill="none" stroke="#cda8fc" strokeWidth="1" strokeDasharray="2,2" />
-          <circle cx="20" cy="40" r="1.5" fill="#cda8fc" />
-          <circle cx="50" cy="27" r="1.5" fill="#cda8fc" />
-          <circle cx="80" cy="40" r="1.5" fill="#cda8fc" />
+          <path d="M 20,40 Q 50,20 80,40" fill="none" stroke="#D4AF37" strokeWidth="1" strokeDasharray="2,2" />
+          <circle cx="20" cy="40" r="1.5" fill="#D4AF37" />
+          <circle cx="50" cy="27" r="1.5" fill="#D4AF37" />
+          <circle cx="80" cy="40" r="1.5" fill="#D4AF37" />
         </svg>
       );
     }
@@ -120,7 +120,7 @@ const ResultView = ({ images = {}, onReset, diagnosisData, onProceedToAvatar }) 
                 <div className="resv-data-label">Hairline Type</div>
                 <div className="resv-data-sub">Classification</div>
               </div>
-              <div className="resv-data-value" style={{color: '#cda8fc'}}>Receding</div>
+              <div className="resv-data-value" style={{color: '#D4AF37'}}>Receding</div>
             </div>
           )}
 

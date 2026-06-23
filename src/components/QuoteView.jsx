@@ -7,7 +7,7 @@ const QuoteView = ({ onContinue }) => {
     <div className="qv-wrapper">
       <div className="qv-content">
         <div className="qv-quote-icon">
-          <Quote size={40} color="#6b528b" fill="#6b528b" />
+          <Quote size={40} color="#D4AF37" fill="#D4AF37" />
         </div>
         
         <h1 className="qv-quote-text">

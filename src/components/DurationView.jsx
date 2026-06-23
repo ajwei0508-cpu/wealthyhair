@@ -45,7 +45,7 @@ const DurationView = ({ onBack, onContinue }) => {
         <div className="dv-info-card">
           <div className="dv-info-header">
             <div className="dv-info-icon">
-              <Info size={14} color="#cda8fc" />
+              <Info size={14} color="#D4AF37" />
             </div>
             <span>왜 중요한가요?</span>
           </div>
