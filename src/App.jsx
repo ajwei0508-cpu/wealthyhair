@@ -11,6 +11,7 @@ import GoalView from './components/GoalView';
 import FamilyHistoryView from './components/FamilyHistoryView';
 import DurationView from './components/DurationView';
 import QuoteView from './components/QuoteView';
+import RoutineView from './components/RoutineView';
 import analyzeHairLoss from './utils/diagnosis';
 import { simulateOfflineAnalysis } from './utils/offlineAnalysis';
 import './index.css';
@@ -18,12 +19,13 @@ import './index.css';
 // CAPTURE_STEPS is now dynamic inside App component
 
 function App() {
-  const [currentView, setCurrentView] = useState('onboarding'); // 'onboarding', 'privacy', 'age', 'ethnicity', 'goal', 'family_history', 'duration', 'quote', 'gender', 'camera', 'loading', 'result', 'avatar'
+  const [currentView, setCurrentView] = useState('onboarding'); // 'onboarding', 'privacy', 'age', 'ethnicity', 'goal', 'family_history', 'duration', 'quote', 'routine', 'gender', 'camera', 'loading', 'result', 'avatar'
   const [age, setAge] = useState(null);
   const [ethnicity, setEthnicity] = useState(null);
   const [goals, setGoals] = useState([]);
   const [familyHistory, setFamilyHistory] = useState(null);
   const [duration, setDuration] = useState(null);
+  const [routine, setRoutine] = useState(null);
   const [gender, setGender] = useState(null);
   
   const getCaptureSteps = () => gender === 'female' ? ['front', 'vertex'] : ['front', 'left', 'right', 'vertex'];
@@ -70,7 +72,7 @@ function App() {
       const responseData = await simulateOfflineAnalysis(updatedPoints, updatedImages);
       
       if (responseData.success) {
-        const features = { ...responseData.data.features, gender, age, ethnicity, goals, familyHistory, duration };
+        const features = { ...responseData.data.features, gender, age, ethnicity, goals, familyHistory, duration, routine };
         const result = analyzeHairLoss(features);
         // Include the bounding boxes from backend directly into diagnosisData
         result.boxes = responseData.data.boxes || {};
@@ -106,6 +108,7 @@ function App() {
     setGoals([]);
     setFamilyHistory(null);
     setDuration(null);
+    setRoutine(null);
     setGender(null);
     setDiagnosisData(null);
   };
@@ -169,6 +172,15 @@ function App() {
       {currentView === 'quote' && (
         <QuoteView
           onContinue={() => {
+            setCurrentView('routine');
+          }}
+        />
+      )}
+      {currentView === 'routine' && (
+        <RoutineView
+          onBack={() => setCurrentView('duration')}
+          onContinue={(selectedRoutine) => {
+            setRoutine(selectedRoutine);
             setCurrentView('gender');
           }}
         />
