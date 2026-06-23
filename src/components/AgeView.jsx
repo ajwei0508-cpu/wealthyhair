@@ -16,7 +16,11 @@ const AgeView = ({ onBack, onContinue }) => {
       // Each item is 80px wide. Default age 30 is at index (30 - 15) = 15
       const itemWidth = 80;
       const targetScroll = (30 - MIN_AGE) * itemWidth;
-      scrollRef.current.scrollLeft = targetScroll;
+      setTimeout(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollLeft = targetScroll;
+        }
+      }, 50);
     }
   }, []);
 
@@ -30,6 +34,59 @@ const AgeView = ({ onBack, onContinue }) => {
     if (newAge >= MIN_AGE && newAge <= MAX_AGE && newAge !== selectedAge) {
       setSelectedAge(newAge);
     }
+  };
+
+  const handleItemClick = (age) => {
+    const itemWidth = 80;
+    const targetScroll = (age - MIN_AGE) * itemWidth;
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({
+        left: targetScroll,
+        behavior: 'smooth'
+      });
+      setSelectedAge(age);
+    }
+  };
+
+  // Mouse Drag to Scroll Logic
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeftState, setScrollLeftState] = useState(0);
+
+  const handleMouseDown = (e) => {
+    setIsDragging(true);
+    setStartX(e.pageX - scrollRef.current.offsetLeft);
+    setScrollLeftState(scrollRef.current.scrollLeft);
+    scrollRef.current.style.scrollBehavior = 'auto';
+    scrollRef.current.style.scrollSnapType = 'none';
+  };
+
+  const snapToNearest = () => {
+    if (scrollRef.current) {
+      const itemWidth = 80;
+      const centerIndex = Math.round(scrollRef.current.scrollLeft / itemWidth);
+      scrollRef.current.scrollTo({
+        left: centerIndex * itemWidth,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  const handleMouseLeaveOrUp = () => {
+    if (isDragging) {
+      setIsDragging(false);
+      scrollRef.current.style.scrollBehavior = 'smooth';
+      scrollRef.current.style.scrollSnapType = 'x mandatory';
+      snapToNearest();
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startX) * 1.5;
+    scrollRef.current.scrollLeft = scrollLeftState - walk;
   };
 
   return (
@@ -48,9 +105,13 @@ const AgeView = ({ onBack, onContinue }) => {
         {/* Horizontal Age Picker */}
         <div className="av-picker-wrapper">
           <div 
-            className="av-picker-container" 
+            className={`av-picker-container ${isDragging ? 'dragging' : ''}`}
             ref={scrollRef}
             onScroll={handleScroll}
+            onMouseDown={handleMouseDown}
+            onMouseLeave={handleMouseLeaveOrUp}
+            onMouseUp={handleMouseLeaveOrUp}
+            onMouseMove={handleMouseMove}
           >
             {ages.map((age) => {
               const isActive = age === selectedAge;
@@ -64,7 +125,7 @@ const AgeView = ({ onBack, onContinue }) => {
               else className += " hidden";
 
               return (
-                <div key={age} className="av-picker-item">
+                <div key={age} className="av-picker-item" onClick={() => handleItemClick(age)} style={{ cursor: 'pointer' }}>
                   <div className={className}>{age}</div>
                   <div className="av-ticks">
                     <div className="av-tick small"></div>

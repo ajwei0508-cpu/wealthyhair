@@ -1,4 +1,4 @@
-﻿/* AgeView.css */
+/* AgeView.css */
 
 .av-wrapper {
   display: flex;
@@ -63,10 +63,13 @@
   scrollbar-width: none;
   scroll-behavior: smooth;
   height: 100%;
-  /* Assuming item is 80px wide. 50vw - 40px ensures center alignment, 
-     but using precise calc requires knowing container width.
-     Let's use a wide padding to ensure first/last items can reach center. */
-  padding: 0 calc(50vw - 40px);
+  /* Ensuring item is 80px wide. 50% - 40px ensures center alignment within the container */
+  padding: 0 calc(50% - 40px);
+}
+
+.av-picker-container.dragging {
+  cursor: grabbing;
+  user-select: none;
 }
 
 .av-picker-container::-webkit-scrollbar {
