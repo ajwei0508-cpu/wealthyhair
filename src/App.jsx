@@ -10,6 +10,7 @@ import EthnicityView from './components/EthnicityView';
 import GoalView from './components/GoalView';
 import FamilyHistoryView from './components/FamilyHistoryView';
 import DurationView from './components/DurationView';
+import QuoteView from './components/QuoteView';
 import analyzeHairLoss from './utils/diagnosis';
 import { simulateOfflineAnalysis } from './utils/offlineAnalysis';
 import './index.css';
@@ -17,7 +18,7 @@ import './index.css';
 // CAPTURE_STEPS is now dynamic inside App component
 
 function App() {
-  const [currentView, setCurrentView] = useState('onboarding'); // 'onboarding', 'privacy', 'age', 'ethnicity', 'goal', 'family_history', 'duration', 'gender', 'camera', 'loading', 'result', 'avatar'
+  const [currentView, setCurrentView] = useState('onboarding'); // 'onboarding', 'privacy', 'age', 'ethnicity', 'goal', 'family_history', 'duration', 'quote', 'gender', 'camera', 'loading', 'result', 'avatar'
   const [age, setAge] = useState(null);
   const [ethnicity, setEthnicity] = useState(null);
   const [goals, setGoals] = useState([]);
@@ -161,6 +162,13 @@ function App() {
           onBack={() => setCurrentView('family_history')}
           onContinue={(selectedDuration) => {
             setDuration(selectedDuration);
+            setCurrentView('quote');
+          }}
+        />
+      )}
+      {currentView === 'quote' && (
+        <QuoteView
+          onContinue={() => {
             setCurrentView('gender');
           }}
         />

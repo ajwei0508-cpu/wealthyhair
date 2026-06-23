@@ -1,0 +1,139 @@
+/* QuoteView.css */
+
+.qv-wrapper {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100vh;
+  background: linear-gradient(180deg, #111111 0%, #1a1025 100%);
+  color: #ffffff;
+  font-family: var(--font-sans);
+  overflow: hidden;
+}
+
+.qv-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 40px 24px 0;
+  overflow-y: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.qv-content::-webkit-scrollbar {
+  display: none;
+}
+
+.qv-quote-icon {
+  margin-bottom: 16px;
+  opacity: 0.8;
+}
+
+.qv-quote-text {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 32px 0;
+  line-height: 1.25;
+}
+
+.qv-highlight {
+  color: #cda8fc;
+}
+
+.qv-divider {
+  width: 100%;
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.15);
+  margin-bottom: 24px;
+}
+
+.qv-source-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.qv-article-link {
+  color: #ffffff;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  display: inline-block;
+}
+
+.qv-date {
+  color: #888888;
+  font-size: 14px;
+  margin: 0;
+}
+
+.qv-author {
+  color: #cccccc;
+  font-size: 16px;
+  margin: 0 0 24px 0;
+}
+
+.qv-publisher {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.qv-publisher-logo-placeholder {
+  width: 32px;
+  height: 36px;
+  background-color: #7b1113; /* Harvard crimson */
+  border-radius: 4px 4px 16px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.qv-publisher-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.qv-pub-name {
+  font-family: serif;
+  font-size: 16px;
+  color: #ffffff;
+}
+
+.qv-pub-sub {
+  font-size: 10px;
+  color: #888888;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Bottom CTA */
+.qv-bottom {
+  padding: 24px 20px 32px;
+  display: flex;
+  justify-content: center;
+  background: linear-gradient(180deg, transparent 0%, rgba(26, 16, 37, 0.9) 20%, #1a1025 100%);
+}
+
+.qv-continue-btn {
+  width: 100%;
+  max-width: 400px;
+  background-color: #cda8fc;
+  color: #111111;
+  border: none;
+  border-radius: 30px;
+  padding: 16px 24px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.qv-continue-btn:active {
+  opacity: 0.8;
+}
