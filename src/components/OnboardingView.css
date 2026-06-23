@@ -1,0 +1,222 @@
+/* OnboardingView.css */
+
+.ob-wrapper {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100vh;
+  /* Use a dark background with a subtle purple gradient at the bottom */
+  background: linear-gradient(180deg, #0a0a0a 0%, #1a1025 100%);
+  color: #ffffff;
+  font-family: var(--font-sans);
+  overflow: hidden;
+}
+
+.ob-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px 0;
+  overflow-y: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.ob-content::-webkit-scrollbar {
+  display: none;
+}
+
+/* Header */
+.ob-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 40px;
+  margin-top: 20px;
+}
+
+.ob-logo {
+  margin-bottom: 16px;
+}
+
+.ob-logo-icon {
+  font-family: var(--font-serif);
+  font-size: 60px;
+  font-style: italic;
+  font-weight: 300;
+  color: #ffffff;
+  line-height: 1;
+}
+
+.ob-title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+/* Features */
+.ob-features {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 400px;
+  margin-bottom: 40px;
+}
+
+.ob-feature-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.ob-feature-icon {
+  color: #b88cf9; /* Lavender/purple check icon */
+  flex-shrink: 0;
+}
+
+.ob-feature-item span {
+  font-size: 15px;
+  font-weight: 500;
+  color: #f0f0f0;
+  line-height: 1.4;
+}
+
+/* Badge */
+.ob-badge-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 40px;
+}
+
+.ob-badge-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.ob-badge-content h2 {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.ob-stars {
+  display: flex;
+  gap: 2px;
+}
+
+/* Simulated Laurels (we use CSS or unicode if SVG is too complex, but let's use simple CSS leaves for now or just skip complex laurels to keep it clean, the prompt didn't strictly ask for laurel SVGs, but I can add unicode 🌿 or just border styling. Let's use unicode for simplicity) */
+.ob-laurel.left::before { content: '🌿'; font-size: 24px; display: inline-block; transform: scaleX(-1); filter: sepia(1) saturate(5) hue-rotate(10deg); }
+.ob-laurel.right::before { content: '🌿'; font-size: 24px; filter: sepia(1) saturate(5) hue-rotate(10deg); }
+
+/* Reviews Slider */
+.ob-reviews-slider {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  width: 100%;
+  padding-bottom: 10px;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  scroll-snap-type: x mandatory;
+}
+
+.ob-reviews-slider::-webkit-scrollbar {
+  display: none;
+}
+
+.ob-review-card {
+  flex: 0 0 85%;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 20px;
+  scroll-snap-align: center;
+}
+
+.ob-review-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.ob-reviewer {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ob-review-stars {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 12px;
+}
+
+.ob-review-text {
+  font-size: 14px;
+  color: #cccccc;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Dots */
+.ob-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 16px;
+  margin-bottom: 20px;
+}
+
+.ob-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.ob-dot.active {
+  background-color: #b88cf9;
+}
+
+/* Bottom CTA */
+.ob-bottom {
+  padding: 24px 20px 32px;
+  background: linear-gradient(180deg, transparent 0%, rgba(26, 16, 37, 0.9) 20%, #1a1025 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ob-continue-btn {
+  width: 100%;
+  max-width: 400px;
+  background-color: #cda8fc;
+  color: #111111;
+  border: none;
+  border-radius: 30px;
+  padding: 16px 24px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-bottom: 16px;
+  transition: opacity 0.2s;
+}
+
+.ob-continue-btn:active {
+  opacity: 0.8;
+}
+
+.ob-terms {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  text-align: center;
+  margin: 0;
+  max-width: 300px;
+  line-height: 1.4;
+}

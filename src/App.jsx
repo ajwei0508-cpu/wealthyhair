@@ -3,6 +3,7 @@ import CameraView from './components/CameraView';
 import AnalysisLoading from './components/AnalysisLoading';
 import ResultView from './components/ResultView';
 import AvatarView from './components/AvatarView';
+import OnboardingView from './components/OnboardingView';
 import analyzeHairLoss from './utils/diagnosis';
 import { simulateOfflineAnalysis } from './utils/offlineAnalysis';
 import './index.css';
@@ -10,7 +11,7 @@ import './index.css';
 // CAPTURE_STEPS is now dynamic inside App component
 
 function App() {
-  const [currentView, setCurrentView] = useState('gender'); // 'gender', 'camera', 'loading', 'result', 'avatar'
+  const [currentView, setCurrentView] = useState('onboarding'); // 'onboarding', 'gender', 'camera', 'loading', 'result', 'avatar'
   const [gender, setGender] = useState(null);
   
   const getCaptureSteps = () => gender === 'female' ? ['front', 'vertex'] : ['front', 'left', 'right', 'vertex'];
@@ -87,13 +88,16 @@ function App() {
   const resetApp = () => {
     setCapturedImages({ front: null, left: null, right: null, vertex: null });
     setCurrentCaptureIndex(0);
-    setCurrentView('gender');
+    setCurrentView('onboarding');
     setGender(null);
     setDiagnosisData(null);
   };
 
   return (
     <div className="app-container">
+      {currentView === 'onboarding' && (
+        <OnboardingView onStart={() => setCurrentView('gender')} />
+      )}
       {currentView === 'gender' && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', padding: '20px', color: 'var(--text-main)', background: 'var(--bg-main)' }}>
           <h1 style={{ marginBottom: '60px', fontSize: '32px', fontFamily: 'var(--font-serif)', letterSpacing: '-0.02em' }}>당신의 성별을 선택해주세요</h1>
