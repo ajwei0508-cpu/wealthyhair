@@ -5,8 +5,8 @@
   flex-direction: column;
   justify-content: space-between;
   height: 100vh;
-  /* Use a dark background with a subtle purple gradient at the bottom */
-  background: linear-gradient(180deg, #0a0a0a 0%, #1a1025 100%);
+  /* Use a dark background */
+  background: #000000;
   color: #ffffff;
   font-family: var(--font-sans);
   overflow: hidden;
@@ -73,7 +73,7 @@
 }
 
 .ob-feature-icon {
-  color: #b88cf9; /* Lavender/purple check icon */
+  color: #D4AF37; /* Gold check icon */
   flex-shrink: 0;
 }
 
@@ -84,110 +84,26 @@
   line-height: 1.4;
 }
 
-/* Badge */
-.ob-badge-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
+/* Reservation Badge */
+.ob-reservation-badge {
+  display: inline-block;
+  margin-top: 20px;
   margin-bottom: 40px;
-}
-
-.ob-badge-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.ob-badge-content h2 {
-  font-size: 20px;
+  padding: 12px 24px;
+  font-size: 18px;
   font-weight: 700;
-  margin: 0;
-}
-
-.ob-stars {
-  display: flex;
-  gap: 2px;
-}
-
-/* Simulated Laurels (we use CSS or unicode if SVG is too complex, but let's use simple CSS leaves for now or just skip complex laurels to keep it clean, the prompt didn't strictly ask for laurel SVGs, but I can add unicode 🌿 or just border styling. Let's use unicode for simplicity) */
-.ob-laurel.left::before { content: '🌿'; font-size: 24px; display: inline-block; transform: scaleX(-1); filter: sepia(1) saturate(5) hue-rotate(10deg); }
-.ob-laurel.right::before { content: '🌿'; font-size: 24px; filter: sepia(1) saturate(5) hue-rotate(10deg); }
-
-/* Reviews Slider */
-.ob-reviews-slider {
-  display: flex;
-  gap: 16px;
-  overflow-x: auto;
-  width: 100%;
-  padding-bottom: 10px;
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-  scroll-snap-type: x mandatory;
-}
-
-.ob-reviews-slider::-webkit-scrollbar {
-  display: none;
-}
-
-.ob-review-card {
-  flex: 0 0 85%;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 16px;
-  padding: 20px;
-  scroll-snap-align: center;
-}
-
-.ob-review-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
-.ob-reviewer {
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.ob-review-stars {
-  display: flex;
-  gap: 2px;
-  margin-bottom: 12px;
-}
-
-.ob-review-text {
-  font-size: 14px;
-  color: #cccccc;
-  line-height: 1.5;
-  margin: 0;
-}
-
-/* Dots */
-.ob-dots {
-  display: flex;
-  justify-content: center;
-  gap: 6px;
-  margin-top: 16px;
-  margin-bottom: 20px;
-}
-
-.ob-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: rgba(255, 255, 255, 0.2);
-}
-
-.ob-dot.active {
-  background-color: #b88cf9;
+  color: #D4AF37;
+  border: 1px solid #D4AF37;
+  border-radius: 30px;
+  letter-spacing: 1px;
+  text-align: center;
+  background-color: rgba(212, 175, 55, 0.05);
 }
 
 /* Bottom CTA */
 .ob-bottom {
   padding: 24px 20px 32px;
-  background: linear-gradient(180deg, transparent 0%, rgba(26, 16, 37, 0.9) 20%, #1a1025 100%);
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.9) 20%, #000000 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -196,7 +112,7 @@
 .ob-continue-btn {
   width: 100%;
   max-width: 400px;
-  background-color: #cda8fc;
+  background-color: #D4AF37;
   color: #111111;
   border: none;
   border-radius: 30px;

@@ -64,64 +64,9 @@ const OnboardingView = ({ onStart }) => {
           </div>
         </div>
 
-        {/* Badge */}
-        <div className="ob-badge-container">
-          <div className="ob-laurel left"></div>
-          <div className="ob-badge-content">
-            <h2>#1 탈모 분석 AI 앱</h2>
-            <div className="ob-stars">
-              <Star fill="#D4AF37" color="#D4AF37" size={16} />
-              <Star fill="#D4AF37" color="#D4AF37" size={16} />
-              <Star fill="#D4AF37" color="#D4AF37" size={16} />
-              <Star fill="#D4AF37" color="#D4AF37" size={16} />
-              <Star fill="#D4AF37" color="#D4AF37" size={16} />
-            </div>
-          </div>
-          <div className="ob-laurel right"></div>
-        </div>
-
-        {/* Reviews Horizontal Scroll */}
-        <div className="ob-reviews-slider">
-          <div className="ob-review-card">
-            <div className="ob-review-header">
-              <span className="ob-reviewer">김**</span>
-              <span className="ob-flag">🇰🇷</span>
-            </div>
-            <div className="ob-review-stars">
-              <Star fill="#D4AF37" color="#D4AF37" size={12} />
-              <Star fill="#D4AF37" color="#D4AF37" size={12} />
-              <Star fill="#D4AF37" color="#D4AF37" size={12} />
-              <Star fill="#D4AF37" color="#D4AF37" size={12} />
-              <Star fill="#D4AF37" color="#D4AF37" size={12} />
-            </div>
-            <p className="ob-review-text">
-              "병원 가기 전에 집에서 정확하게 진단해 볼 수 있어서 너무 좋았습니다. 전체적인 매핑이 아주 선명해요."
-            </p>
-          </div>
-
-          <div className="ob-review-card">
-            <div className="ob-review-header">
-              <span className="ob-reviewer">이**</span>
-              <span className="ob-flag">🇰🇷</span>
-            </div>
-            <div className="ob-review-stars">
-              <Star fill="#D4AF37" color="#D4AF37" size={12} />
-              <Star fill="#D4AF37" color="#D4AF37" size={12} />
-              <Star fill="#D4AF37" color="#D4AF37" size={12} />
-              <Star fill="#D4AF37" color="#D4AF37" size={12} />
-              <Star fill="#D4AF37" color="#D4AF37" size={12} />
-            </div>
-            <p className="ob-review-text">
-              "다른 앱들도 써봤지만 이게 훨씬 진짜 같아요. 15년 경력 한의사 원장님 데이터라니 믿음이 갑니다."
-            </p>
-          </div>
-        </div>
-        
-        {/* Dots */}
-        <div className="ob-dots">
-          <span className="ob-dot active"></span>
-          <span className="ob-dot"></span>
-          <span className="ob-dot"></span>
+        {/* Reservation Badge */}
+        <div className="ob-reservation-badge">
+          탈모 분석 앱 1위 예약
         </div>
       </div>
 
