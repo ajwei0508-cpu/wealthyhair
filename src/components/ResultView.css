@@ -1,4 +1,4 @@
-/* ResultView.css */
+﻿/* ResultView.css */
 
 .resv-wrapper {
   display: flex;
@@ -64,7 +64,7 @@
   left: 0;
   width: 100%;
   height: 2px;
-  background: #cda8fc;
+  background: #D4AF37;
 }
 
 .resv-content {
@@ -78,7 +78,7 @@
   position: relative;
   width: 100%;
   aspect-ratio: 3/4;
-  background: #1a1025;
+  background: #000000;
   border-radius: 16px;
   overflow: hidden;
   margin-bottom: 16px;
@@ -105,7 +105,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: radial-gradient(circle at 50% 30%, rgba(205, 168, 252, 0.2), transparent 50%);
+  background: radial-gradient(circle at 50% 30%, rgba(212, 175, 55, 0.2), transparent 50%);
   mix-blend-mode: color-dodge;
   pointer-events: none;
 }
@@ -129,7 +129,7 @@
 }
 
 .resv-sub-tab-btn {
-  background: #1a1025;
+  background: #000000;
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: #a0a0a0;
   font-size: 12px;
@@ -141,9 +141,9 @@
 }
 
 .resv-sub-tab-btn.active {
-  background: #cda8fc;
+  background: #D4AF37;
   color: #111111;
-  border-color: #cda8fc;
+  border-color: #D4AF37;
 }
 
 .resv-data-area {
@@ -157,7 +157,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  background: #1a1025;
+  background: #000000;
   border-radius: 12px;
 }
 
@@ -179,12 +179,12 @@
 }
 
 .resv-data-value.highlight {
-  color: #cda8fc;
+  color: #D4AF37;
 }
 
 .resv-density-section {
   padding: 16px 20px;
-  background: #1a1025;
+  background: #000000;
   border-radius: 12px;
 }
 
@@ -209,7 +209,7 @@
   padding: 18px;
   border-radius: 30px;
   border: none;
-  background: #cda8fc;
+  background: #D4AF37;
   color: #111111;
   font-weight: 700;
   font-size: 16px;

@@ -1,4 +1,4 @@
-/* CameraView.css */
+﻿/* CameraView.css */
 
 .cv-wrapper {
   position: relative;
@@ -57,7 +57,7 @@
 }
 
 .cv-pill-icon {
-  color: #cda8fc;
+  color: #D4AF37;
 }
 
 /* Video & Overlays */
@@ -91,9 +91,9 @@
   width: 320px;
   height: 320px;
   border-radius: 50%;
-  border: 4px solid #cda8fc;
+  border: 4px solid #D4AF37;
   box-sizing: border-box;
-  box-shadow: 0 0 20px rgba(205, 168, 252, 0.5);
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
 }
 
 /* Guides inside circle */
@@ -204,7 +204,7 @@
 }
 
 .cv-step-bar.active {
-  background: #cda8fc;
+  background: #D4AF37;
 }
 
 /* Preview Mode */
@@ -254,7 +254,7 @@
   padding: 16px;
   border-radius: 30px;
   border: none;
-  background: #cda8fc;
+  background: #D4AF37;
   color: #111111;
   font-weight: 600;
   font-size: 16px;

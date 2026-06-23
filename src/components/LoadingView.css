@@ -1,11 +1,11 @@
-/* LoadingView.css */
+﻿/* LoadingView.css */
 
 .lv-wrapper {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   height: 100vh;
-  background: linear-gradient(180deg, #111111 0%, #1a1025 100%);
+  background: linear-gradient(180deg, #111111 0%, #000000 100%);
   color: #ffffff;
   font-family: var(--font-sans);
   overflow: hidden;
@@ -55,7 +55,7 @@
   position: absolute;
   width: 2px;
   height: 8px;
-  background: #cda8fc;
+  background: #D4AF37;
   border-radius: 1px;
   transform-origin: center 110px;
   transition: opacity 0.1s;
@@ -95,7 +95,7 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  border: 2px solid #1a1025;
+  border: 2px solid #000000;
 }
 
 .lv-avatar-ai {
@@ -113,3 +113,4 @@
   font-size: 13px;
   color: #888888;
 }
+

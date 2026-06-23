@@ -1,11 +1,11 @@
-/* AgeView.css */
+﻿/* AgeView.css */
 
 .av-wrapper {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   height: 100vh;
-  background: linear-gradient(180deg, #111111 0%, #1a1025 100%);
+  background: linear-gradient(180deg, #111111 0%, #000000 100%);
   color: #ffffff;
   font-family: var(--font-sans);
   overflow: hidden;
@@ -45,7 +45,7 @@
 }
 
 .av-highlight {
-  color: #cda8fc;
+  color: #D4AF37;
 }
 
 /* Horizontal Picker */
@@ -140,7 +140,7 @@
 }
 
 .av-tick.main.active {
-  background-color: #cda8fc;
+  background-color: #D4AF37;
   height: 24px;
   width: 2px;
 }
@@ -152,7 +152,7 @@
   transform: translateX(-50%);
   width: 2px;
   height: 30px;
-  background-color: #cda8fc;
+  background-color: #D4AF37;
   border-radius: 2px;
   z-index: 2;
   pointer-events: none;
@@ -161,7 +161,7 @@
 /* Info Card */
 .av-info-card {
   background: rgba(255, 255, 255, 0.05);
-  border: 1px dashed rgba(205, 168, 252, 0.3);
+  border: 1px dashed rgba(212, 175, 55, 0.3);
   border-radius: 16px;
   padding: 20px;
 }
@@ -177,7 +177,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(205, 168, 252, 0.15);
+  background: rgba(212, 175, 55, 0.15);
   width: 20px;
   height: 20px;
   border-radius: 50%;
@@ -186,7 +186,7 @@
 .av-info-header span {
   font-size: 14px;
   font-weight: 600;
-  color: #cda8fc;
+  color: #D4AF37;
 }
 
 .av-info-text {
@@ -201,13 +201,13 @@
   padding: 24px 20px 32px;
   display: flex;
   justify-content: center;
-  background: linear-gradient(180deg, transparent 0%, rgba(26, 16, 37, 0.9) 20%, #1a1025 100%);
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.9) 20%, #000000 100%);
 }
 
 .av-continue-btn {
   width: 100%;
   max-width: 400px;
-  background-color: #cda8fc;
+  background-color: #D4AF37;
   color: #111111;
   border: none;
   border-radius: 30px;
@@ -221,3 +221,4 @@
 .av-continue-btn:active {
   opacity: 0.8;
 }
+

@@ -1,4 +1,4 @@
-/* PrivacyView.css */
+﻿/* PrivacyView.css */
 
 .pv-wrapper {
   display: flex;
@@ -52,7 +52,7 @@
 }
 
 .pv-highlight {
-  color: #cda8fc;
+  color: #D4AF37;
 }
 
 .pv-subtitle {
@@ -113,7 +113,7 @@
   position: absolute;
   width: 150px;
   height: 150px;
-  background: radial-gradient(circle, rgba(205, 168, 252, 0.3) 0%, rgba(0,0,0,0) 70%);
+  background: radial-gradient(circle, rgba(212, 175, 55, 0.3) 0%, rgba(0,0,0,0) 70%);
   filter: blur(20px);
 }
 
@@ -131,7 +131,7 @@
   font-size: 48px;
   font-weight: 300;
   font-style: italic;
-  color: #cda8fc;
+  color: #D4AF37;
 }
 
 /* Bottom CTA */
@@ -145,7 +145,7 @@
 .pv-continue-btn {
   width: 100%;
   max-width: 400px;
-  background-color: #cda8fc;
+  background-color: #D4AF37;
   color: #111111;
   border: none;
   border-radius: 30px;
@@ -159,3 +159,4 @@
 .pv-continue-btn:active {
   opacity: 0.8;
 }
+

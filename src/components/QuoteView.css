@@ -1,11 +1,11 @@
-/* QuoteView.css */
+﻿/* QuoteView.css */
 
 .qv-wrapper {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   height: 100vh;
-  background: linear-gradient(180deg, #111111 0%, #1a1025 100%);
+  background: linear-gradient(180deg, #111111 0%, #000000 100%);
   color: #ffffff;
   font-family: var(--font-sans);
   overflow: hidden;
@@ -39,7 +39,7 @@
 }
 
 .qv-highlight {
-  color: #cda8fc;
+  color: #D4AF37;
 }
 
 .qv-divider {
@@ -117,13 +117,13 @@
   padding: 24px 20px 32px;
   display: flex;
   justify-content: center;
-  background: linear-gradient(180deg, transparent 0%, rgba(26, 16, 37, 0.9) 20%, #1a1025 100%);
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.9) 20%, #000000 100%);
 }
 
 .qv-continue-btn {
   width: 100%;
   max-width: 400px;
-  background-color: #cda8fc;
+  background-color: #D4AF37;
   color: #111111;
   border: none;
   border-radius: 30px;
@@ -137,3 +137,4 @@
 .qv-continue-btn:active {
   opacity: 0.8;
 }
+

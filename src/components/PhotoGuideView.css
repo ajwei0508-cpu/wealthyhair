@@ -1,11 +1,11 @@
-/* PhotoGuideView.css */
+﻿/* PhotoGuideView.css */
 
 .pgv-wrapper {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   height: 100vh;
-  background: linear-gradient(180deg, #111111 0%, #1a1025 100%);
+  background: linear-gradient(180deg, #111111 0%, #000000 100%);
   color: #ffffff;
   font-family: var(--font-sans);
   overflow: hidden;
@@ -28,7 +28,7 @@
 }
 
 .pgv-highlight {
-  color: #cda8fc;
+  color: #D4AF37;
 }
 
 .pgv-subtitle {
@@ -58,7 +58,7 @@
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: rgba(205, 168, 252, 0.1);
+  background: rgba(212, 175, 55, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -145,7 +145,7 @@
   padding: 24px 20px 32px;
   display: flex;
   justify-content: center;
-  background: linear-gradient(180deg, transparent 0%, rgba(26, 16, 37, 0.9) 20%, #1a1025 100%);
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.9) 20%, #000000 100%);
   position: relative;
   z-index: 10;
 }
@@ -153,7 +153,7 @@
 .pgv-continue-btn {
   width: 100%;
   max-width: 400px;
-  background-color: #cda8fc;
+  background-color: #D4AF37;
   color: #111111;
   border: none;
   border-radius: 30px;
@@ -167,3 +167,4 @@
 .pgv-continue-btn:active {
   opacity: 0.8;
 }
+

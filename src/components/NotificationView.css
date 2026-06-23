@@ -1,11 +1,11 @@
-/* NotificationView.css */
+﻿/* NotificationView.css */
 
 .nv-wrapper {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   height: 100vh;
-  background: linear-gradient(180deg, #111111 0%, #1a1025 100%);
+  background: linear-gradient(180deg, #111111 0%, #000000 100%);
   color: #ffffff;
   font-family: var(--font-sans);
   overflow: hidden;
@@ -28,7 +28,7 @@
 }
 
 .nv-highlight {
-  color: #cda8fc;
+  color: #D4AF37;
 }
 
 .nv-mockup-area {
@@ -78,7 +78,7 @@
   padding: 24px 20px 32px;
   display: flex;
   justify-content: center;
-  background: linear-gradient(180deg, transparent 0%, rgba(26, 16, 37, 0.9) 20%, #1a1025 100%);
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.9) 20%, #000000 100%);
   position: relative;
   z-index: 10;
 }
@@ -100,3 +100,4 @@
 .nv-continue-btn:active {
   background-color: rgba(255, 255, 255, 0.1);
 }
+

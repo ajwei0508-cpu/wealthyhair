@@ -1,4 +1,4 @@
-.av-container {
+﻿.av-container {
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -328,3 +328,4 @@
 .av-modal-btn:hover {
   background: var(--accent-gold);
 }
+

@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   --al-gold: #D4AF37;
   --al-gold-glow: rgba(212, 175, 55, 0.8);
   --al-bg: #F9F8F3;
@@ -264,3 +264,4 @@
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
+
