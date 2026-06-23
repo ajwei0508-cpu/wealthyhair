@@ -52,9 +52,8 @@ const PrivacyView = ({ onBack, onContinue }) => {
         {/* Big Shield Graphic */}
         <div className="pv-shield-container">
           <div className="pv-shield-glow"></div>
-          <div className="pv-shield-icon-wrapper">
-             <Shield size={100} strokeWidth={1} color="#D4AF37" />
-             <span className="pv-shield-letter">W</span>
+          <div className="pv-shield-icon-wrapper" style={{ border: 'none', background: 'transparent' }}>
+             <img src="/logo.png" alt="보안 로고" style={{ width: '100px', height: '100px', objectFit: 'contain' }} />
           </div>
         </div>
       </div>
