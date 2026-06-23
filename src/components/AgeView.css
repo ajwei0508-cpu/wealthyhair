@@ -1,0 +1,223 @@
+/* AgeView.css */
+
+.av-wrapper {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100vh;
+  background: linear-gradient(180deg, #111111 0%, #1a1025 100%);
+  color: #ffffff;
+  font-family: var(--font-sans);
+  overflow: hidden;
+}
+
+.av-header {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+}
+
+.av-back-btn {
+  background: none;
+  border: none;
+  color: #a0a0a0;
+  cursor: pointer;
+  padding: 8px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: -8px;
+}
+
+.av-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0 24px;
+}
+
+.av-title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 60px 0;
+  line-height: 1.3;
+}
+
+.av-highlight {
+  color: #cda8fc;
+}
+
+/* Horizontal Picker */
+.av-picker-wrapper {
+  position: relative;
+  width: 100%;
+  height: 140px;
+  margin-bottom: 60px;
+}
+
+.av-picker-container {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  scroll-behavior: smooth;
+  height: 100%;
+  /* Assuming item is 80px wide. 50vw - 40px ensures center alignment, 
+     but using precise calc requires knowing container width.
+     Let's use a wide padding to ensure first/last items can reach center. */
+  padding: 0 calc(50vw - 40px);
+}
+
+.av-picker-container::-webkit-scrollbar {
+  display: none;
+}
+
+.av-picker-item {
+  min-width: 80px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  scroll-snap-align: center;
+}
+
+.av-number {
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.1);
+  transition: all 0.2s ease;
+}
+
+.av-number.active {
+  font-size: 48px;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.av-number.near {
+  font-size: 32px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.av-number.far {
+  font-size: 28px;
+  color: rgba(255, 255, 255, 0.2);
+}
+
+.av-number.hidden {
+  color: rgba(255, 255, 255, 0.05);
+}
+
+/* Ruler Ticks */
+.av-ticks {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: flex-end;
+  height: 20px;
+  margin-top: 20px;
+  padding: 0 4px;
+}
+
+.av-tick {
+  width: 1px;
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.av-tick.small {
+  height: 8px;
+}
+
+.av-tick.main {
+  height: 16px;
+  background-color: rgba(255, 255, 255, 0.4);
+}
+
+.av-tick.main.active {
+  background-color: #cda8fc;
+  height: 24px;
+  width: 2px;
+}
+
+.av-center-indicator {
+  position: absolute;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 30px;
+  background-color: #cda8fc;
+  border-radius: 2px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Info Card */
+.av-info-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px dashed rgba(205, 168, 252, 0.3);
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.av-info-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.av-info-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(205, 168, 252, 0.15);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+}
+
+.av-info-header span {
+  font-size: 14px;
+  font-weight: 600;
+  color: #cda8fc;
+}
+
+.av-info-text {
+  font-size: 14px;
+  color: #cccccc;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Bottom CTA */
+.av-bottom {
+  padding: 24px 20px 32px;
+  display: flex;
+  justify-content: center;
+  background: linear-gradient(180deg, transparent 0%, rgba(26, 16, 37, 0.9) 20%, #1a1025 100%);
+}
+
+.av-continue-btn {
+  width: 100%;
+  max-width: 400px;
+  background-color: #cda8fc;
+  color: #111111;
+  border: none;
+  border-radius: 30px;
+  padding: 16px 24px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.av-continue-btn:active {
+  opacity: 0.8;
+}

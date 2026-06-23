@@ -5,6 +5,7 @@ import ResultView from './components/ResultView';
 import AvatarView from './components/AvatarView';
 import OnboardingView from './components/OnboardingView';
 import PrivacyView from './components/PrivacyView';
+import AgeView from './components/AgeView';
 import analyzeHairLoss from './utils/diagnosis';
 import { simulateOfflineAnalysis } from './utils/offlineAnalysis';
 import './index.css';
@@ -12,7 +13,8 @@ import './index.css';
 // CAPTURE_STEPS is now dynamic inside App component
 
 function App() {
-  const [currentView, setCurrentView] = useState('onboarding'); // 'onboarding', 'privacy', 'gender', 'camera', 'loading', 'result', 'avatar'
+  const [currentView, setCurrentView] = useState('onboarding'); // 'onboarding', 'privacy', 'age', 'gender', 'camera', 'loading', 'result', 'avatar'
+  const [age, setAge] = useState(null);
   const [gender, setGender] = useState(null);
   
   const getCaptureSteps = () => gender === 'female' ? ['front', 'vertex'] : ['front', 'left', 'right', 'vertex'];
@@ -59,7 +61,7 @@ function App() {
       const responseData = await simulateOfflineAnalysis(updatedPoints, updatedImages);
       
       if (responseData.success) {
-        const features = { ...responseData.data.features, gender };
+        const features = { ...responseData.data.features, gender, age };
         const result = analyzeHairLoss(features);
         // Include the bounding boxes from backend directly into diagnosisData
         result.boxes = responseData.data.boxes || {};
@@ -90,6 +92,7 @@ function App() {
     setCapturedImages({ front: null, left: null, right: null, vertex: null });
     setCurrentCaptureIndex(0);
     setCurrentView('onboarding');
+    setAge(null);
     setGender(null);
     setDiagnosisData(null);
   };
@@ -102,7 +105,16 @@ function App() {
       {currentView === 'privacy' && (
         <PrivacyView 
           onBack={() => setCurrentView('onboarding')}
-          onContinue={() => setCurrentView('gender')}
+          onContinue={() => setCurrentView('age')}
+        />
+      )}
+      {currentView === 'age' && (
+        <AgeView
+          onBack={() => setCurrentView('privacy')}
+          onContinue={(selectedAge) => {
+            setAge(selectedAge);
+            setCurrentView('gender');
+          }}
         />
       )}
       {currentView === 'gender' && (
