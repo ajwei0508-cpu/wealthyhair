@@ -55,12 +55,15 @@ function App() {
   const [currentCaptureIndex, setCurrentCaptureIndex] = useState(0);
   const [diagnosisData, setDiagnosisData] = useState(null);
 
-  const handleCapture = async (imageSrc) => {
+  const handleCapture = async (imageSrc, points) => {
     const steps = getCaptureSteps();
     const currentStep = steps[currentCaptureIndex];
     
     const updatedImages = { ...capturedImages, [currentStep]: imageSrc };
     setCapturedImages(updatedImages);
+
+    const updatedPoints = { ...capturedAllPoints, [currentStep]: points };
+    setCapturedAllPoints(updatedPoints);
 
     if (currentCaptureIndex < steps.length - 1) {
       setCurrentCaptureIndex(currentCaptureIndex + 1);
@@ -78,7 +81,12 @@ function App() {
         const features = { ...responseData.data.features, gender, age, ethnicity, goals, familyHistory, duration, routine, procedure };
         const result = analyzeHairLoss(features);
         result.boxes = responseData.data.boxes || {};
-        result.masks = {};
+        result.masks = {
+          front: capturedAllPoints.front?.mask || null,
+          left: capturedAllPoints.left?.mask || null,
+          right: capturedAllPoints.right?.mask || null,
+          vertex: capturedAllPoints.vertex?.mask || null
+        };
         setDiagnosisData(result);
       } else {
         setDiagnosisData(null);
