@@ -17,6 +17,7 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
   const sliderRef = useRef(null);
 
   const norwood = diagnosisData?.norwood || '분석 중...';
+  const ludwig = diagnosisData?.ludwig || '분석 중...';
   const basp = diagnosisData?.basp || '분석 중...';
   const summary = diagnosisData?.summary || '진단 데이터를 불러오지 못했습니다.';
   const features = diagnosisData?.features || {};
@@ -33,7 +34,7 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
           {
             score: surveyScore,
             feedback: surveyFeedback,
-            norwood: norwood,
+            norwood: features.gender === 'female' ? ludwig : norwood,
             has_hair_loss: features.mShapeRecession || features.vertexThinning ? true : false
           }
         ]);
@@ -277,11 +278,11 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
             <div className="rv-card-row">
               <div>
                 <h3 className="rv-card-title">탈모 진행 단계</h3>
-                <p className="rv-card-desc">노우드(Norwood) 척도 기준</p>
+                <p className="rv-card-desc">{features.gender === 'female' ? '루드비히(Ludwig)' : '노우드(Norwood)'} 척도 기준</p>
               </div>
             </div>
             <div style={{marginTop: '12px'}}>
-              <h2 className="rv-card-value" style={{color: 'var(--accent-gold)'}}>{norwood}</h2>
+              <h2 className="rv-card-value" style={{color: 'var(--accent-gold)'}}>{features.gender === 'female' ? ludwig : norwood}</h2>
             </div>
           </div>
 
