@@ -229,6 +229,7 @@ function App() {
           currentStep={currentCaptureSteps[currentCaptureIndex]} 
           stepIndex={currentCaptureIndex + 1}
           totalSteps={currentCaptureSteps.length}
+          gender={gender}
         />
       }
       {currentView === 'review' && (

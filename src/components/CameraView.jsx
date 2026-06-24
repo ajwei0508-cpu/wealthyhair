@@ -10,7 +10,7 @@ const refImages = {
   vertex: 'https://via.placeholder.com/160/222222/cda8fc?text=Top'
 };
 
-const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalSteps = 4 }) => {
+const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalSteps = 4, gender = 'male' }) => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const [hasCamera, setHasCamera] = useState(false);
@@ -20,12 +20,22 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
   const [previewImage, setPreviewImage] = useState(null);
 
   const getStepInstruction = () => {
-    switch (currentStep) {
-      case 'front': return "정면을 보고 얼굴을 중앙에 맞춰주세요.";
-      case 'left': return "고개를 완전히 오른쪽으로 돌려주세요.";
-      case 'right': return "고개를 완전히 왼쪽으로 돌려주세요.";
-      case 'vertex': return "고개를 완전히 아래로 숙여주세요.";
-      default: return "얼굴을 중앙에 맞춰주세요.";
+    if (gender === 'female') {
+      switch (currentStep) {
+        case 'front': return "정면을 보고 정상적인 헤어라인이 보이도록 이마를 드러내주세요.";
+        case 'left': return "고개를 오른쪽으로 돌려 좌측 가르마 부근의 숱을 보여주세요.";
+        case 'right': return "고개를 왼쪽으로 돌려 우측 가르마 부근의 숱을 보여주세요.";
+        case 'vertex': return "고개를 푹 숙이고, 머리를 가운데 가르마로 선명하게 타주세요.";
+        default: return "얼굴을 가이드라인에 맞춰주세요.";
+      }
+    } else {
+      switch (currentStep) {
+        case 'front': return "정면을 보고 이마 라인을 수평선에 맞추세요.";
+        case 'left': return "고개를 오른쪽으로 돌려 왼쪽 M자 부위를 보여주세요.";
+        case 'right': return "고개를 왼쪽으로 돌려 오른쪽 M자 부위를 보여주세요.";
+        case 'vertex': return "고개를 푹 숙여 정수리 중앙을 화면에 꽉 채워주세요.";
+        default: return "얼굴을 가이드라인에 맞춰주세요.";
+      }
     }
   };
 
