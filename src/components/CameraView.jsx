@@ -225,59 +225,67 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
         if (Camera) {
           cameraInstance = new Camera(videoRef.current, {
             onFrame: async () => {
-              if (videoRef.current && active && !previewImage && currentStep !== 'vertex') {
-                // FaceMesh 업데이트 (백그라운드용 좌표 저장)
-                await faceMesh.send({image: videoRef.current});
+              if (videoRef.current && active && !previewImage) {
+                // FaceMesh 업데이트 (정수리 촬영 제외)
+                if (currentStep !== 'vertex') {
+                  try {
+                    // await을 빼거나 백그라운드에서 처리되도록 하여 Segmenter 블로킹을 방지합니다.
+                    faceMesh.send({image: videoRef.current}).catch(e => console.log("FaceMesh error:", e));
+                  } catch (e) {}
+                }
                 
-                // 실시간 Segmentation (하늘색 머리카락 마스크 그리기)
+                // 실시간 Segmentation (하늘색/골드색 머리카락 마스크 그리기) - 모든 스텝에서 항상 실행
                 if (segmenterRef.current && drawingCanvasRef.current) {
-                  const canvas = drawingCanvasRef.current;
-                  const ctx = canvas.getContext('2d');
-                  
-                  segmenterRef.current.segmentForVideo(videoRef.current, performance.now(), (result) => {
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    
-                    if (result && result.categoryMask) {
-                      const mask = result.categoryMask;
-                      // Hair class is usually 1 in selfie_multiclass
-                      const maskImageData = new ImageData(mask.width, mask.height);
-                      const data = maskImageData.data;
-                      const maskData = mask.getAsUint8Array();
+                  try {
+                    segmenterRef.current.segmentForVideo(videoRef.current, performance.now(), (result) => {
+                      const canvas = drawingCanvasRef.current;
+                      if(!canvas) return;
+                      const ctx = canvas.getContext('2d');
+                      ctx.clearRect(0, 0, canvas.width, canvas.height);
                       
-                      for (let i = 0; i < maskData.length; i++) {
-                        if (maskData[i] === 1) { // Hair class
-                          data[i * 4] = 212;     // R (Gold)
-                          data[i * 4 + 1] = 175; // G
-                          data[i * 4 + 2] = 55;  // B
-                          data[i * 4 + 3] = 120; // Alpha (반투명 골드)
-                        } else {
-                          data[i * 4 + 3] = 0; // 투명
+                      if (result && result.categoryMask) {
+                        const mask = result.categoryMask;
+                        const maskImageData = new ImageData(mask.width, mask.height);
+                        const data = maskImageData.data;
+                        const maskData = mask.getAsUint8Array();
+                        
+                        for (let i = 0; i < maskData.length; i++) {
+                          if (maskData[i] === 1) { // Hair class
+                            data[i * 4] = 212;     // R (Gold)
+                            data[i * 4 + 1] = 175; // G
+                            data[i * 4 + 2] = 55;  // B
+                            data[i * 4 + 3] = 120; // Alpha (반투명 골드)
+                          } else {
+                            data[i * 4 + 3] = 0; // 투명
+                          }
                         }
+                        
+                        // 거울 모드 대응 (수평 뒤집기)
+                        ctx.save();
+                        ctx.translate(canvas.width, 0);
+                        ctx.scale(-1, 1);
+                        
+                        // ImageData를 캔버스에 그리기 위해 임시 캔버스 사용
+                        const tempCanvas = document.createElement('canvas');
+                        tempCanvas.width = mask.width;
+                        tempCanvas.height = mask.height;
+                        tempCanvas.getContext('2d').putImageData(maskImageData, 0, 0);
+                        
+                        ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
+                        ctx.restore();
+                        
+                        // 텍스트 안내
+                        ctx.fillStyle = 'rgba(212, 175, 55, 1)';
+                        ctx.font = 'bold 16px sans-serif';
+                        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+                        ctx.shadowBlur = 4;
+                        ctx.fillText('AI 실시간 모발 영역 인식 중...', 20, 30);
+                        ctx.shadowBlur = 0;
                       }
-                      
-                      // 거울 모드 대응 (수평 뒤집기)
-                      ctx.save();
-                      ctx.translate(canvas.width, 0);
-                      ctx.scale(-1, 1);
-                      
-                      // ImageData를 캔버스에 그리기 위해 임시 캔버스 사용
-                      const tempCanvas = document.createElement('canvas');
-                      tempCanvas.width = mask.width;
-                      tempCanvas.height = mask.height;
-                      tempCanvas.getContext('2d').putImageData(maskImageData, 0, 0);
-                      
-                      ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
-                      ctx.restore();
-                      
-                      // 텍스트 안내
-                      ctx.fillStyle = 'rgba(212, 175, 55, 1)';
-                      ctx.font = 'bold 16px sans-serif';
-                      ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-                      ctx.shadowBlur = 4;
-                      ctx.fillText('AI 실시간 모발 영역 인식 중...', 20, 30);
-                      ctx.shadowBlur = 0;
-                    }
-                  });
+                    });
+                  } catch (e) {
+                    console.log("Segmenter error:", e);
+                  }
                 }
               }
             },
