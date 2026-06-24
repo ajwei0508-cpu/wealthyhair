@@ -20,7 +20,7 @@ import NotificationView from './components/NotificationView';
 import ScanIntroView from './components/ScanIntroView';
 import PhotoGuideView from './components/PhotoGuideView';
 import analyzeHairLoss from './utils/diagnosis';
-import { simulateOfflineAnalysis } from './utils/offlineAnalysis';
+import { performOfflineAnalysis } from './utils/offlineAnalysis';
 import './index.css';
 
 // CAPTURE_STEPS is now dynamic inside App component
@@ -76,7 +76,7 @@ function App() {
   const handleStartAnalysis = async () => {
     setCurrentView('loading');
     try {
-      const responseData = await simulateOfflineAnalysis(capturedAllPoints, capturedImages);
+      const responseData = await performOfflineAnalysis(capturedAllPoints, capturedImages);
       if (responseData.success) {
         const features = { ...responseData.data.features, gender, age, ethnicity, goals, familyHistory, duration, routine, procedure };
         const result = analyzeHairLoss(features);
@@ -89,7 +89,9 @@ function App() {
         };
         setDiagnosisData(result);
       } else {
+        alert(responseData.error || "분석에 실패했습니다.");
         setDiagnosisData(null);
+        setCurrentView('review');
       }
     } catch (error) {
       console.error("Network Error:", error);

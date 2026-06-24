@@ -28,12 +28,13 @@ const analyzeVertexDensity = (imageSrc) => {
         const startY = Math.floor(canvas.height * 0.25);
         const endY = Math.floor(canvas.height * 0.75);
 
+        let r = 0, g = 0, b = 0;
         for (let y = startY; y < endY; y++) {
           for (let x = startX; x < endX; x++) {
             const idx = (y * canvas.width + x) * 4;
-            const r = data[idx];
-            const g = data[idx + 1];
-            const b = data[idx + 2];
+            r = data[idx];
+            g = data[idx + 1];
+            b = data[idx + 2];
 
             // 살색(두피) 감지 휴리스틱 (Skin-tone detection)
             // 두피는 머리카락보다 밝고, 약간의 붉은빛/노란빛을 띔
@@ -81,7 +82,7 @@ const analyzeVertexDensity = (imageSrc) => {
   });
 };
 
-export const simulateOfflineAnalysis = async (pointsData, capturedImages) => {
+export const performOfflineAnalysis = async (pointsData, capturedImages) => {
   // 실제 AI 분석처럼 느끼도록 최소 지연시간 보장 (Canvas 분석이 너무 빠를 수 있음)
   await new Promise(resolve => setTimeout(resolve, 800));
 
@@ -182,12 +183,16 @@ export const simulateOfflineAnalysis = async (pointsData, capturedImages) => {
 
   const explanation_text = explanations.join("\n");
 
+  // 여성의 경우 정수리 숱(가르마 밀도)과 가르마 폭(mm)은 밀접한 상관관계가 있으므로 이를 바탕으로 계산
+  const parting_width_mm = (vertex_val / 100.0) * 15.0 + 1.0; 
+
   const features = {
       frontalRecessionCm: front_val,
       templeRecessionCm: temple_val,
       leftRecessionCm: left_val,
       rightRecessionCm: right_val,
       vertexThinningPercent: vertex_val,
+      partingWidthMm: parting_width_mm,
       explanation: explanation_text
   };
 
