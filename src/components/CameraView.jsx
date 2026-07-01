@@ -332,7 +332,9 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
   }, []);
 
   useEffect(() => {
+    let hasReceivedEvent = false;
     const handleOrientation = (event) => {
+      hasReceivedEvent = true;
       const { beta, gamma } = event;
       if (beta !== null && gamma !== null) {
         setDeviceAngles({ beta, gamma });
@@ -348,6 +350,13 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
 
     if (window.DeviceOrientationEvent) {
       window.addEventListener('deviceorientation', handleOrientation);
+      // iOS 기기 등에서 자이로스코프 권한이 없어서 이벤트가 발생하지 않을 경우,
+      // 1초 뒤 강제로 자세를 통과(isLevel=true)시켜서 모발 인식만으로 자동 촬영되게 합니다.
+      setTimeout(() => {
+        if (!hasReceivedEvent) {
+          setIsLevel(true);
+        }
+      }, 1000);
     } else {
       setTimeout(() => setIsLevel(true), 0);
     }
