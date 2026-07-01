@@ -143,7 +143,8 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
               style={{ 
                 objectFit: 'cover', 
                 pointerEvents: 'none',
-                filter: 'drop-shadow(0 0 8px rgba(0, 230, 118, 0.4))'
+                filter: 'drop-shadow(0 0 8px rgba(0, 230, 118, 0.4))',
+                transform: 'scaleX(-1)'
               }} 
               alt="Hair Mask" 
             />

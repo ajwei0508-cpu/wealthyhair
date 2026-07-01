@@ -155,7 +155,12 @@ const analyzeVertexDensity = (imageSrc, maskSrc = null, facePts = null) => {
           mCanvas.width = canvas.width;
           mCanvas.height = canvas.height;
           const mCtx = mCanvas.getContext('2d');
+          
+          // 마스크를 원본 사진과 동일한 거울 모드(좌우 반전)로 맞추어 그립니다.
+          mCtx.translate(canvas.width, 0);
+          mCtx.scale(-1, 1);
           mCtx.drawImage(maskImg, 0, 0, canvas.width, canvas.height);
+          
           const maskData = mCtx.getImageData(0, 0, canvas.width, canvas.height).data;
           processAnalysis(maskData);
         };
