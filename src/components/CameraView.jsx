@@ -451,21 +451,33 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
     setCountdown(null);
   };
 
+  const cancelTimerRef = useRef(null);
+
   useEffect(() => {
     if (previewImage) {
       setTimeout(() => setCountdown(null), 0);
       if (countdownTimerRef.current) clearTimeout(countdownTimerRef.current);
+      if (cancelTimerRef.current) clearTimeout(cancelTimerRef.current);
       return;
     }
 
     if (isLevel && isTargetDetected) {
+      if (cancelTimerRef.current) {
+        clearTimeout(cancelTimerRef.current);
+        cancelTimerRef.current = null;
+      }
       if (countdown === null) {
         setTimeout(() => setCountdown(3), 0);
       }
     } else {
-      setTimeout(() => setCountdown(null), 0);
-      if (countdownTimerRef.current) {
-        clearTimeout(countdownTimerRef.current);
+      if (countdown !== null && !cancelTimerRef.current) {
+        // 취소가 너무 예민하게 되는 것을 막기 위해 1.5초의 여유(Tolerance)를 줍니다.
+        // 1.5초 안에 다시 각도를 맞추면 카운트다운이 취소되지 않고 이어서 진행됩니다.
+        cancelTimerRef.current = setTimeout(() => {
+          setCountdown(null);
+          if (countdownTimerRef.current) clearTimeout(countdownTimerRef.current);
+          cancelTimerRef.current = null;
+        }, 1500);
       }
     }
   }, [isLevel, isTargetDetected, previewImage]);
