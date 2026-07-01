@@ -261,10 +261,10 @@
    ========================================================= */
 
 .rv-blurred {
-  filter: blur(6px);
+  filter: blur(3px);
   user-select: none;
   pointer-events: none;
-  opacity: 0.5;
+  opacity: 0.85;
   transition: all 0.3s ease;
 }
 

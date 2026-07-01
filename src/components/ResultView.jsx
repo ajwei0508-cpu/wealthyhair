@@ -233,9 +233,20 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
             <button 
               key={tab.id} 
               className={`rv-tab-btn ${mainTab === tab.id ? 'active' : ''}`}
-              onClick={() => setMainTab(tab.id)}
+              onClick={() => {
+                if (tab.id === 'Overview') {
+                  setMainTab(tab.id);
+                } else {
+                  // 영구 잠금 처리
+                  alert("준비 중인 기능입니다.");
+                }
+              }}
+              style={{ opacity: tab.id !== 'Overview' ? 0.6 : 1 }}
             >
-              {tab.label}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                {tab.label}
+                {tab.id !== 'Overview' && <span className="material-symbols-outlined" style={{fontSize: '12px'}}>lock</span>}
+              </div>
             </button>
           ))}
         </div>
@@ -378,11 +389,11 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
       {/* Floating CTA */}
       <div className="rv-floating-cta">
         <button 
-          className={`rv-cta-btn ${!isSurveyCompleted ? 'disabled' : ''}`} 
-          onClick={isSurveyCompleted ? onProceedToAvatar : null}
-          style={{ opacity: isSurveyCompleted ? 1 : 0.5, cursor: isSurveyCompleted ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+          className="rv-cta-btn disabled" 
+          onClick={() => alert("준비 중인 기능입니다.")}
+          style={{ opacity: 0.5, cursor: 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
         >
-          {!isSurveyCompleted && <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>lock</span>}
+          <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>lock</span>
           나의 아바타 만나러 가기
         </button>
       </div>
