@@ -80,6 +80,7 @@ function App() {
       if (responseData.success) {
         const features = { ...responseData.data.features, gender, age, ethnicity, goals, familyHistory, duration, routine, procedure };
         const result = analyzeHairLoss(features);
+        result.features = features;
         result.boxes = responseData.data.boxes || {};
         result.masks = {
           front: capturedAllPoints.front?.mask || null,

@@ -260,19 +260,14 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
                           }
                         }
                         
-                        // 거울 모드 대응 (수평 뒤집기)
-                        ctx.save();
-                        ctx.translate(canvas.width, 0);
-                        ctx.scale(-1, 1);
-                        
                         // ImageData를 캔버스에 그리기 위해 임시 캔버스 사용
                         const tempCanvas = document.createElement('canvas');
                         tempCanvas.width = mask.width;
                         tempCanvas.height = mask.height;
                         tempCanvas.getContext('2d').putImageData(maskImageData, 0, 0);
                         
+                        // 이미 CSS로 transform: scaleX(-1)가 적용되어 있으므로 바로 그립니다.
                         ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
-                        ctx.restore();
                         
                         // 텍스트 안내
                         ctx.fillStyle = 'rgba(212, 175, 55, 1)';
@@ -553,6 +548,12 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
                 
                 {currentStep === 'vertex' && (
                   <div className="cv-vertex-circle">
+                    {gender === 'female' && (
+                      <>
+                        <div className="cv-parting-guide-line"></div>
+                        <span className="cv-parting-label" style={{ top: '-30px' }}>가르마 선을 이 선에 맞춰주세요</span>
+                      </>
+                    )}
                     <span className="cv-circle-label">정수리 중앙</span>
                   </div>
                 )}

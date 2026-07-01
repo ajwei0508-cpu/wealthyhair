@@ -87,13 +87,10 @@ export const performOfflineAnalysis = async (pointsData, capturedImages) => {
   await new Promise(resolve => setTimeout(resolve, 800));
 
   // 1. 유효성 검사 (얼굴 또는 모발이 제대로 찍혔는지)
-  // Mock 데이터(가상 사진 테스트)가 아닌 실제 촬영인데 얼굴이 없으면 반려
+  // 강제로 반려하면 사용자 경험을 해치므로, 인식이 안 되었을 때는 기본값(0.0)으로 처리하도록 완화합니다.
   const isFrontMock = capturedImages?.front?.includes('via.placeholder.com');
   if (!isFrontMock && pointsData?.front && (!pointsData.front.face || pointsData.front.face.length === 0)) {
-    return {
-      success: false,
-      error: "사진에서 얼굴과 모발이 명확하게 인식되지 않았습니다. 밝은 곳에서 이마와 헤어라인이 잘 보이게 다시 촬영해주세요."
-    };
+    console.warn("사진에서 얼굴이 완벽하게 인식되지 않았으나 분석을 계속 진행합니다.");
   }
 
   // 간단한 좌표 기반 거리 계산 유틸리티
@@ -196,12 +193,23 @@ export const performOfflineAnalysis = async (pointsData, capturedImages) => {
       explanation: explanation_text
   };
 
+  const getBox = (pts) => {
+    if (!pts || !pts.face || pts.face.length === 0) return [0, 0, 0, 0];
+    const xs = pts.face.map(p => p.x);
+    const ys = pts.face.map(p => p.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    return [Math.floor(minX), Math.floor(minY), Math.floor(maxX - minX), Math.floor(maxY - minY)];
+  };
+
   // 바운딩 박스
   const boxes = {
-    front: [0, 0, 0, 0],
-    left: [0, 0, 0, 0],
-    right: [0, 0, 0, 0],
-    vertex: [0, 0, 0, 0]
+    front: getBox(pointsData?.front),
+    left: getBox(pointsData?.left),
+    right: getBox(pointsData?.right),
+    vertex: [160, 120, 320, 240] // 640x480의 중앙 50% 영역 (startX, startY, width, height)
   };
 
   return {

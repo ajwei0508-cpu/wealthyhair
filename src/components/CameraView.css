@@ -451,7 +451,9 @@
 .cv-step-title { font-family: var(--font-serif); font-size: 20px; font-weight: 600; color: var(--accent-gold); margin: 0 0 4px 0; }
 .cv-step-instruction { font-family: var(--font-sans); font-size: 14px; opacity: 0.8; color: var(--bg-main); margin: 0; }
 .cv-vertex-circle { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 200px; height: 200px; border: 1px dashed rgba(212, 175, 55, 0.5); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-.cv-circle-label { color: var(--accent-gold); font-family: var(--font-sans); font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; background: rgba(0,0,0,0.8); padding: 4px 8px; }
+.cv-circle-label { color: var(--accent-gold); font-family: var(--font-sans); font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; background: rgba(0,0,0,0.8); padding: 4px 8px; z-index: 2; }
+.cv-parting-guide-line { position: absolute; top: 10%; bottom: 10%; left: 50%; width: 2px; background: rgba(255, 255, 255, 0.1); transform: translateX(-50%); border-left: 2px dashed rgba(212, 175, 55, 0.8); z-index: 1; }
+.cv-parting-label { position: absolute; background: transparent; color: var(--accent-gold); font-family: var(--font-sans); padding: 2px 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; white-space: nowrap; }
 
 /* Preview UI */
 .cv-preview-wrapper {

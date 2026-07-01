@@ -45,7 +45,9 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
       setShowSurveyModal(false);
     } catch (error) {
       console.error('Error submitting survey:', error);
-      alert('설문 제출 중 오류가 발생했습니다. 브라우저 콘솔을 확인해주세요.');
+      alert('네트워크 연결 문제로 설문이 정상적으로 저장되지 않았습니다. 그래도 결과를 확인하실 수 있도록 화면을 이동합니다.');
+      setIsSurveyCompleted(true);
+      setShowSurveyModal(false);
     } finally {
       setIsSubmitting(false);
     }
@@ -123,29 +125,49 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
     const [bx, by, bw, bh] = currentBox;
 
     if (mainTab === 'Overview') {
-      if (currentMask) {
-        return (
-          <img 
-            src={currentMask} 
-            className="rv-svg-overlay" 
-            style={{ 
-              objectFit: 'cover', 
-              pointerEvents: 'none',
-              filter: 'drop-shadow(0 0 8px rgba(0, 230, 118, 0.4))'
-            }} 
-            alt="Hair Mask" 
-          />
-        );
-      }
       return (
-        <svg className="rv-svg-overlay" viewBox="0 0 640 480" preserveAspectRatio="xMidYMid slice">
-          <rect 
-            x={bx} y={by} width={bw} height={bh} 
-            fill="rgba(212, 175, 55, 0.2)" 
-            stroke="var(--accent-gold)" strokeWidth="3" rx="0"
-          />
-          <text x={bx + 5} y={by + 20} fill="var(--accent-gold)" fontSize="16" fontWeight="bold">감지됨</text>
-        </svg>
+        <>
+          {currentMask && (
+            <img 
+              src={currentMask} 
+              className="rv-svg-overlay" 
+              style={{ 
+                objectFit: 'cover', 
+                pointerEvents: 'none',
+                filter: 'drop-shadow(0 0 8px rgba(0, 230, 118, 0.4))'
+              }} 
+              alt="Hair Mask" 
+            />
+          )}
+          <svg className="rv-svg-overlay" viewBox="0 0 640 480" preserveAspectRatio="xMidYMid slice" style={{ zIndex: 10, pointerEvents: 'none' }}>
+            {subTab === 'Top' ? (
+              <>
+                {/* 좌측 분석 영역 (푸른빛) */}
+                <rect x={bx} y={by} width={bw/2} height={bh} fill="rgba(0, 150, 255, 0.15)" stroke="rgba(0, 150, 255, 0.8)" strokeWidth="2" strokeDasharray="4,4" />
+                <text x={bx + 5} y={by + 20} fill="rgba(0, 150, 255, 1)" fontSize="14" fontWeight="bold">좌측 분석</text>
+
+                {/* 우측 분석 영역 (붉은빛) */}
+                <rect x={bx + bw/2} y={by} width={bw/2} height={bh} fill="rgba(255, 82, 82, 0.15)" stroke="rgba(255, 82, 82, 0.8)" strokeWidth="2" strokeDasharray="4,4" />
+                <text x={bx + bw/2 + 5} y={by + 20} fill="rgba(255, 82, 82, 1)" fontSize="14" fontWeight="bold">우측 분석</text>
+
+                {/* 중앙 가르마 선 */}
+                <line x1={bx + bw/2} y1={by} x2={bx + bw/2} y2={by + bh} stroke="var(--accent-gold)" strokeWidth="3" />
+                <text x={bx + bw/2 - 35} y={by - 10} fill="var(--accent-gold)" fontSize="14" fontWeight="bold" textAnchor="middle">가르마 중심</text>
+              </>
+            ) : (
+              !currentMask && (
+                <>
+                  <rect 
+                    x={bx} y={by} width={bw} height={bh} 
+                    fill="rgba(212, 175, 55, 0.2)" 
+                    stroke="var(--accent-gold)" strokeWidth="3" rx="0"
+                  />
+                  <text x={bx + 5} y={by + 20} fill="var(--accent-gold)" fontSize="16" fontWeight="bold">감지됨</text>
+                </>
+              )
+            )}
+          </svg>
+        </>
       );
     }
     

@@ -169,12 +169,12 @@ export function analyzeHairLoss(features) {
   } else {
     if (ludwig.includes('Normal')) {
       details.push(`- **Ludwig Normal (정상)**: 여성 탈모 기준인 루드비히 척도에서 가르마가 빽빽하고 정상적인 상태를 의미합니다.`);
-    } else if (ludwig.includes('Grade I')) {
-      details.push(`- **Ludwig Grade 1 (1단계)**: 가르마 선을 중심으로 모발이 가늘어지며 두피가 살짝 비쳐 보이기 시작하는 초기 여성형 탈모입니다.`);
-    } else if (ludwig.includes('Grade II')) {
-      details.push(`- **Ludwig Grade 2 (2단계)**: 가르마 선 주변의 모발 숱이 현저히 줄어들어 두피가 넓게 노출되는 중기 여성형 탈모입니다.`);
     } else if (ludwig.includes('Grade III')) {
       details.push(`- **Ludwig Grade 3 (3단계)**: 정수리 부위 모발이 거의 소실되어 훤하게 드러나는 심각한 여성형 탈모 상태입니다.`);
+    } else if (ludwig.includes('Grade II')) {
+      details.push(`- **Ludwig Grade 2 (2단계)**: 가르마 선 주변의 모발 숱이 현저히 줄어들어 두피가 넓게 노출되는 중기 여성형 탈모입니다.`);
+    } else if (ludwig.includes('Grade I')) {
+      details.push(`- **Ludwig Grade 1 (1단계)**: 가르마 선을 중심으로 모발이 가늘어지며 두피가 살짝 비쳐 보이기 시작하는 초기 여성형 탈모입니다.`);
     }
   }
 
