@@ -1,9 +1,9 @@
 // src/utils/offlineAnalysis.js
 
-const analyzeVertexDensity = (imageSrc, maskSrc = null) => {
+const analyzeVertexDensity = (imageSrc, maskSrc = null, facePts = null) => {
   return new Promise((resolve) => {
     if (!imageSrc) {
-      resolve({ densityLossPercent: 10.0, box: [160, 120, 320, 240] });
+      resolve({ densityLossPercent: 10.0, left_val: 5.0, right_val: 5.0, box: [160, 120, 320, 240] });
       return;
     }
 
@@ -24,14 +24,14 @@ const analyzeVertexDensity = (imageSrc, maskSrc = null) => {
           let endX = Math.floor(canvas.width * 0.75);
           let startY = Math.floor(canvas.height * 0.25);
           let endY = Math.floor(canvas.height * 0.75);
+          let bestX = Math.floor(canvas.width / 2);
 
-          // 마스크가 주어졌다면 마스크 영역(모발)의 바운딩 박스를 찾아 그 중심부를 분석합니다.
           if (maskData) {
             let minX = canvas.width, maxX = 0, minY = canvas.height, maxY = 0;
             for (let y = 0; y < canvas.height; y++) {
               for (let x = 0; x < canvas.width; x++) {
                 const idx = (y * canvas.width + x) * 4;
-                if (maskData[idx + 3] > 0) { // 투명하지 않은 픽셀 (모발 마스크)
+                if (maskData[idx + 3] > 0) { 
                   if (x < minX) minX = x;
                   if (x > maxX) maxX = x;
                   if (y < minY) minY = y;
@@ -43,17 +43,23 @@ const analyzeVertexDensity = (imageSrc, maskSrc = null) => {
               const hairWidth = maxX - minX;
               const hairHeight = maxY - minY;
               
-              // 1. 가르마 X좌표 자동 탐색 (두피 픽셀이 가장 밀집된 X 기둥 찾기)
-              let bestX = Math.floor(minX + hairWidth / 2);
+              bestX = Math.floor(minX + hairWidth / 2);
               let maxScalpCount = -1;
-              const colWidth = Math.floor(canvas.width * 0.04); // 탐색 너비 (화면의 약 4%)
+              const colWidth = Math.floor(canvas.width * 0.04); 
               
-              // 모발 영역의 좌우 20%~80% 사이에서 탐색
               const searchMinX = Math.floor(minX + hairWidth * 0.2);
               const searchMaxX = Math.floor(maxX - hairWidth * 0.2);
-              // 이마나 얼굴 피부가 오인식되는 것을 방지하기 위해 정수리 상단(10%~50%)만 탐색
-              const searchMinY = Math.floor(minY + hairHeight * 0.1);
-              const searchMaxY = Math.floor(minY + hairHeight * 0.5);
+              
+              let searchMinY = Math.floor(minY + hairHeight * 0.1);
+              let searchMaxY = Math.floor(minY + hairHeight * 0.5);
+
+              // 얼굴 랜드마크가 있다면 이마 아래로는 탐색하지 않도록 강력 제한 (이마 오인식 완벽 차단)
+              if (facePts && facePts.length > 0) {
+                 const minFaceY = Math.min(...facePts.map(p => p.y));
+                 if (minFaceY > searchMinY && minFaceY < maxY) {
+                    searchMaxY = Math.min(searchMaxY, Math.floor(minFaceY));
+                 }
+              }
 
               for (let cx = searchMinX; cx < searchMaxX; cx += 4) {
                 let scalpCount = 0;
@@ -62,15 +68,12 @@ const analyzeVertexDensity = (imageSrc, maskSrc = null) => {
                     if (wx < 0 || wx >= canvas.width) continue;
                     const idx = (y * canvas.width + wx) * 4;
                     
-                    // 모발 마스크 밖의 픽셀(배경, 옷 등)은 가르마 탐색에서 완전히 제외!
-                    if (maskData && maskData[idx + 3] === 0) continue;
+                    if (maskData[idx + 3] === 0) continue;
 
                     const r = data[idx], g = data[idx + 1], b = data[idx + 2];
-                    
                     const isSkinTone = (r > 120 && g > 100 && b > 90 && r > g && r > b && (r - Math.min(g, b)) > 10);
                     const brightness = (r * 0.299 + g * 0.587 + b * 0.114);
                     
-                    // 빛 반사(눈부심) 오인식을 줄이기 위해 밝기 기준 상향 (170 -> 190)
                     if (isSkinTone || brightness > 190) {
                       scalpCount++;
                     }
@@ -83,12 +86,10 @@ const analyzeVertexDensity = (imageSrc, maskSrc = null) => {
               }
 
               if (maxScalpCount === 0) {
-                bestX = Math.floor(minX + hairWidth / 2); // 탐색 실패시 중앙값 유지
+                bestX = Math.floor(minX + hairWidth / 2); 
               }
 
-              // 2. 찾은 가르마 좌표(bestX)를 정중앙으로 하여 60% 크기의 분석 영역 박스 생성
               const analysisWidth = Math.floor(hairWidth * 0.6);
-              
               startX = Math.max(0, Math.floor(bestX - analysisWidth / 2));
               endX = Math.min(canvas.width, Math.floor(bestX + analysisWidth / 2));
               startY = Math.floor(minY + hairHeight * 0.2);
@@ -98,44 +99,55 @@ const analyzeVertexDensity = (imageSrc, maskSrc = null) => {
 
           let totalHairAreaPixels = 0;
           let scalpPixels = 0;
-
+          let leftCount = 0;
+          let rightCount = 0;
           let r = 0, g = 0, b = 0;
           for (let y = startY; y < endY; y++) {
             for (let x = startX; x < endX; x++) {
               const idx = (y * canvas.width + x) * 4;
-              r = data[idx];
-              g = data[idx + 1];
-              b = data[idx + 2];
+              r = data[idx]; g = data[idx + 1]; b = data[idx + 2];
 
               const isSkinTone = (r > 120 && g > 100 && b > 90 && r > g && r > b && (r - Math.min(g, b)) > 10);
               const brightness = (r * 0.299 + g * 0.587 + b * 0.114);
               const isScalp = isSkinTone || brightness > 180;
 
-              if (isScalp) {
-                scalpPixels++;
+              if (maskData && maskData[idx + 3] > 0) {
+                if (x < bestX) leftCount += (isScalp ? 2.5 : 0);
+                else rightCount += (isScalp ? 2.5 : 0);
               }
+
+              if (isScalp) scalpPixels++;
               totalHairAreaPixels++;
             }
           }
 
           let densityLossPercent = 0;
+          let physical_left_val = 0;
+          let physical_right_val = 0;
+
           if (totalHairAreaPixels > 0) {
             if (scalpPixels === 0 && r === 0 && g === 0 && b === 0) {
-               resolve({ densityLossPercent: -1.0, box: [160, 120, 320, 240] });
+               resolve({ densityLossPercent: -1.0, left_val: -1.0, right_val: -1.0, box: [160, 120, 320, 240] });
                return;
             }
             const scalpRatio = scalpPixels / totalHairAreaPixels;
-            densityLossPercent = scalpRatio * 100 * 2.5; 
-            densityLossPercent = Math.min(Math.max(densityLossPercent, 0), 100);
+            densityLossPercent = Math.min(Math.max(scalpRatio * 100 * 2.5, 0), 100);
+
+            // 거울 모드이므로 이미지의 왼쪽(leftCount)은 사용자의 실제 오른쪽 머리입니다.
+            const totalLR = leftCount + rightCount || 1;
+            physical_left_val = Math.min(Math.max((rightCount / totalLR) * 100, 0), 100);
+            physical_right_val = Math.min(Math.max((leftCount / totalLR) * 100, 0), 100);
           }
 
           resolve({
             densityLossPercent: parseFloat(densityLossPercent.toFixed(2)),
+            left_val: parseFloat(physical_left_val.toFixed(2)),
+            right_val: parseFloat(physical_right_val.toFixed(2)),
             box: [startX, startY, endX - startX, endY - startY]
           });
         } catch (e) {
           console.error("Canvas image data read error:", e);
-          resolve({ densityLossPercent: 10.0, box: [160, 120, 320, 240] });
+          resolve({ densityLossPercent: 10.0, left_val: 5.0, right_val: 5.0, box: [160, 120, 320, 240] });
         }
       };
 
@@ -221,8 +233,14 @@ export const performOfflineAnalysis = async (pointsData, capturedImages) => {
   const temple_val = Math.max(left_val, right_val);
   
   // 랜덤 값 대신 실제 마스크와 정수리 픽셀을 결합한 분석 적용!
-  const vertexResult = await analyzeVertexDensity(capturedImages?.vertex, pointsData?.vertex?.mask);
+  const vertexResult = await analyzeVertexDensity(
+    capturedImages?.vertex, 
+    pointsData?.vertex?.mask, 
+    pointsData?.vertex?.face
+  );
   const vertex_val = vertexResult.densityLossPercent;
+  const vertex_left = vertexResult.left_val;
+  const vertex_right = vertexResult.right_val;
   const vertex_box = vertexResult.box;
 
   if (vertex_val === -1.0) {
@@ -275,6 +293,8 @@ export const performOfflineAnalysis = async (pointsData, capturedImages) => {
       leftRecessionCm: left_val,
       rightRecessionCm: right_val,
       vertexThinningPercent: vertex_val,
+      vertexLeftPercent: vertex_left,
+      vertexRightPercent: vertex_right,
       partingWidthMm: parting_width_mm,
       explanation: explanation_text
   };

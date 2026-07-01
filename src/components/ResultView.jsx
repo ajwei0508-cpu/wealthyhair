@@ -151,13 +151,13 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
           <svg className="rv-svg-overlay" viewBox={`0 0 ${imgDim.width} ${imgDim.height}`} preserveAspectRatio="xMidYMid slice" style={{ zIndex: 10, pointerEvents: 'none' }}>
             {subTab === 'Top' ? (
               <>
-                {/* 좌측 분석 영역 (푸른빛) */}
-                <rect x={bx} y={by} width={bw/2} height={bh} fill="rgba(0, 150, 255, 0.15)" stroke="rgba(0, 150, 255, 0.8)" strokeWidth="2" strokeDasharray="4,4" />
-                <text x={bx + 5} y={by + 20} fill="rgba(0, 150, 255, 1)" fontSize="14" fontWeight="bold">좌측 분석</text>
+                {/* 사용자의 실제 우측 머리 (거울 모드이므로 화면상 좌측) */}
+                <rect x={bx} y={by} width={bw/2} height={bh} fill="rgba(255, 82, 82, 0.15)" stroke="rgba(255, 82, 82, 0.8)" strokeWidth="2" strokeDasharray="4,4" />
+                <text x={bx + 5} y={by + 20} fill="rgba(255, 82, 82, 1)" fontSize="14" fontWeight="bold">우측 분석</text>
 
-                {/* 우측 분석 영역 (붉은빛) */}
-                <rect x={bx + bw/2} y={by} width={bw/2} height={bh} fill="rgba(255, 82, 82, 0.15)" stroke="rgba(255, 82, 82, 0.8)" strokeWidth="2" strokeDasharray="4,4" />
-                <text x={bx + bw/2 + 5} y={by + 20} fill="rgba(255, 82, 82, 1)" fontSize="14" fontWeight="bold">우측 분석</text>
+                {/* 사용자의 실제 좌측 머리 (거울 모드이므로 화면상 우측) */}
+                <rect x={bx + bw/2} y={by} width={bw/2} height={bh} fill="rgba(0, 150, 255, 0.15)" stroke="rgba(0, 150, 255, 0.8)" strokeWidth="2" strokeDasharray="4,4" />
+                <text x={bx + bw/2 + 5} y={by + 20} fill="rgba(0, 150, 255, 1)" fontSize="14" fontWeight="bold">좌측 분석</text>
 
                 {/* 중앙 가르마 선 */}
                 <line x1={bx + bw/2} y1={by} x2={bx + bw/2} y2={by + bh} stroke="var(--accent-gold)" strokeWidth="3" />
