@@ -35,7 +35,15 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
             score: surveyScore,
             feedback: surveyFeedback,
             norwood: features.gender === 'female' ? ludwig : norwood,
-            has_hair_loss: features.mShapeRecession || features.vertexThinning ? true : false
+            has_hair_loss: features.mShapeRecession || features.vertexThinning ? true : false,
+            gender: features.gender || null,
+            age: features.age || null,
+            ethnicity: features.ethnicity || null,
+            goals: features.goals ? features.goals.join(', ') : null,
+            family_history: features.familyHistory || null,
+            duration: features.duration || null,
+            routine: features.routine || null,
+            procedure: features.procedure || null
           }
         ]);
         
