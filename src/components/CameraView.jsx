@@ -14,73 +14,51 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
   
   // 상태 관리
   const [isLevel, setIsLevel] = useState(false);
+  const [isTargetDetected, setIsTargetDetected] = useState(false);
   const [countdown, setCountdown] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
-  const [showGuide, setShowGuide] = useState(true);
   const [capturedPoints, setCapturedPoints] = useState(null); // { hairline: [], face: [], mask: '' }
   
   const latestHairlineRef = useRef([]);
   const latestFaceRef = useRef([]);
   const countdownTimerRef = useRef(null);
-  const guideTimerRef = useRef(null);
   const segmenterRef = useRef(null);
 
-  // 스텝이 바뀔 때마다 가이드 다시 보여주기
+  // 최신 상태를 Camera 콜백에서 읽기 위한 Refs
+  const currentStepRef = useRef(currentStep);
+  const previewImageRef = useRef(previewImage);
+
+  useEffect(() => {
+    currentStepRef.current = currentStep;
+    previewImageRef.current = previewImage;
+  }, [currentStep, previewImage]);
+
+  // 스텝이 바뀔 때마다 초기화
   useEffect(() => {
     setTimeout(() => {
-      setShowGuide(true);
       setPreviewImage(null);
       setCountdown(null);
     }, 0);
-    if (guideTimerRef.current) clearTimeout(guideTimerRef.current);
     if (countdownTimerRef.current) clearTimeout(countdownTimerRef.current);
-
-    guideTimerRef.current = setTimeout(() => {
-      setShowGuide(false);
-    }, 3000); // 3초간 가이드 애니메이션 노출
-
-    return () => {
-      if (guideTimerRef.current) clearTimeout(guideTimerRef.current);
-    };
   }, [currentStep]);
 
   const getStepInstruction = () => {
-    if (gender === 'female') {
-      switch (currentStep) {
-        case 'front': return "정면을 보고 정상적인 헤어라인이 보이도록 이마를 드러내주세요.";
-        case 'left': return "고개를 오른쪽으로 돌려 좌측 가르마 부근의 숱을 보여주세요.";
-        case 'right': return "고개를 왼쪽으로 돌려 우측 가르마 부근의 숱을 보여주세요.";
-        case 'vertex': return "고개를 푹 숙이고, 머리를 가운데 가르마로 선명하게 타주세요.";
-        default: return "얼굴을 가이드라인에 맞춰주세요.";
-      }
-    } else {
-      switch (currentStep) {
-        case 'front': return "정면을 보고 이마 라인을 수평선에 맞추세요.";
-        case 'left': return "고개를 오른쪽으로 돌려 왼쪽 M자 부위를 보여주세요.";
-        case 'right': return "고개를 왼쪽으로 돌려 오른쪽 M자 부위를 보여주세요.";
-        case 'vertex': return "고개를 푹 숙여 정수리 중앙을 화면에 꽉 채워주세요.";
-        default: return "얼굴을 가이드라인에 맞춰주세요.";
-      }
+    switch (currentStep) {
+      case 'front': return "정면을 보고 이마 라인을 수평선에 맞추세요.";
+      case 'left': return "고개를 오른쪽으로 돌려 왼쪽 M자 부위를 보여주세요.";
+      case 'right': return "고개를 왼쪽으로 돌려 오른쪽 M자 부위를 보여주세요.";
+      case 'vertex': return "고개를 푹 숙여 정수리 중앙을 화면에 꽉 채워주세요.";
+      default: return "얼굴을 가이드라인에 맞춰주세요.";
     }
   };
 
   const getStepTitle = () => {
-    if (gender === 'female') {
-      switch (currentStep) {
-        case 'front': return "정면 헤어라인 촬영";
-        case 'left': return "좌측 모발 촬영";
-        case 'right': return "우측 모발 촬영";
-        case 'vertex': return "정수리 가르마 촬영";
-        default: return "촬영";
-      }
-    } else {
-      switch (currentStep) {
-        case 'front': return "정면 이마선 촬영";
-        case 'left': return "좌측 M자 파임 촬영";
-        case 'right': return "우측 M자 파임 촬영";
-        case 'vertex': return "정수리 밀도 촬영";
-        default: return "촬영";
-      }
+    switch (currentStep) {
+      case 'front': return "정면 이마선 촬영";
+      case 'left': return "좌측 M자 파임 촬영";
+      case 'right': return "우측 M자 파임 촬영";
+      case 'vertex': return "정수리 밀도 촬영";
+      default: return "촬영";
     }
   };
 
@@ -121,7 +99,7 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
     }
 
     // 정수리 모드일 때 FaceMesh 캔버스는 초기화하지만, 카메라는 계속 켜져야 하므로 return 하지 않음.
-    if (currentStep === 'vertex') {
+    if (currentStepRef.current === 'vertex') {
       if (drawingCanvasRef.current) {
         const ctx = drawingCanvasRef.current.getContext('2d');
         ctx.clearRect(0, 0, drawingCanvasRef.current.width, drawingCanvasRef.current.height);
@@ -142,13 +120,13 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
     });
 
     faceMesh.onResults((results) => {
-      if (!drawingCanvasRef.current || !videoRef.current || previewImage) return;
+      if (!drawingCanvasRef.current || !videoRef.current || previewImageRef.current) return;
       const width = drawingCanvasRef.current.width;
       const height = drawingCanvasRef.current.height;
       
       if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
         for (const landmarks of results.multiFaceLandmarks) {
-          if (currentStep !== 'vertex') {
+          if (currentStepRef.current !== 'vertex') {
             const pTop = landmarks[10];
             const pNose = landmarks[8];
             const pChin = landmarks[152];
@@ -160,13 +138,13 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
             let ptsFace = [];
             let ptsHair = [];
             
-            if (currentStep === 'left' || currentStep === 'right') {
+            if (currentStepRef.current === 'left' || currentStepRef.current === 'right') {
               const topY = (pTop.y - fH * 0.08) * height;
               const topX = mirrorX(pTop.x);
               const noseY = pNose.y * height;
               const noseX = mirrorX(pNose.x);
               
-              const dir = (currentStep === 'left') ? 1 : -1;
+              const dir = (currentStepRef.current === 'left') ? 1 : -1;
               
               ptsHair = [
                 { x: topX, y: topY },
@@ -225,9 +203,9 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
         if (Camera) {
           cameraInstance = new Camera(videoRef.current, {
             onFrame: async () => {
-              if (videoRef.current && active && !previewImage) {
+              if (videoRef.current && active && !previewImageRef.current) {
                 // FaceMesh 업데이트 (정수리 촬영 제외)
-                if (currentStep !== 'vertex') {
+                if (currentStepRef.current !== 'vertex') {
                   try {
                     // await을 빼거나 백그라운드에서 처리되도록 하여 Segmenter 블로킹을 방지합니다.
                     faceMesh.send({image: videoRef.current}).catch(e => console.log("FaceMesh error:", e));
@@ -250,10 +228,15 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
                         const maskData = mask.getAsUint8Array();
                         
                         const halfWidth = mask.width / 2;
+                        let targetPixelCount = 0;
                         
                         for (let i = 0; i < maskData.length; i++) {
-                          if (maskData[i] === 1) { // Hair class
-                            if (currentStep === 'vertex') {
+                          // 1: Hair, 2: Body-skin, 3: Face-skin
+                          if (maskData[i] === 1 || maskData[i] === 2 || maskData[i] === 3) {
+                            targetPixelCount++;
+                          }
+                          if (maskData[i] === 1) {
+                            if (currentStepRef.current === 'vertex') {
                               const x = i % mask.width;
                               if (x < halfWidth) {
                                 // 좌측 분석 영역 (파란색 계열)
@@ -279,6 +262,10 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
                           }
                         }
                         
+                        // 모든 단계에서 피부(얼굴/몸)나 모발이 화면의 2% 이상 잡히면 타겟 인식으로 간주
+                        // FaceMesh는 측면 얼굴이나 깜빡임에 취약하므로 Segmenter의 픽셀 면적을 기준으로 판정합니다.
+                        setIsTargetDetected(targetPixelCount > (mask.width * mask.height * 0.02));
+                        
                         // ImageData를 캔버스에 그리기 위해 임시 캔버스 사용
                         const tempCanvas = document.createElement('canvas');
                         tempCanvas.width = mask.width;
@@ -289,7 +276,7 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
                         ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
                         
                         // 폴리곤 가이드 (금색 테두리) 다시 그리기
-                        if (currentStep !== 'vertex' && latestFaceRef.current && latestFaceRef.current.length > 0) {
+                        if (currentStepRef.current !== 'vertex' && latestFaceRef.current && latestFaceRef.current.length > 0) {
                           ctx.beginPath();
                           latestFaceRef.current.forEach((pt, index) => {
                             if (index === 0) ctx.moveTo(pt.x, pt.y);
@@ -308,7 +295,7 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
                         ctx.font = 'bold 16px sans-serif';
                         ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
                         ctx.shadowBlur = 4;
-                        ctx.fillText(currentStep === 'vertex' ? '좌우 가르마 영역 실시간 분석 중...' : 'AI 실시간 모발 영역 인식 중...', 20, 30);
+                        ctx.fillText(currentStepRef.current === 'vertex' ? '좌우 가르마 영역 실시간 분석 중...' : 'AI 실시간 모발 영역 인식 중...', 20, 30);
                         ctx.shadowBlur = 0;
                       }
                     });
@@ -342,7 +329,7 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
         stream.getTracks().forEach(track => track.stop());
       }
     };
-  }, [currentStep, previewImage]);
+  }, []);
 
   useEffect(() => {
     const handleOrientation = (event) => {
@@ -446,21 +433,16 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
   const retakeCapture = () => {
     setPreviewImage(null);
     setCountdown(null);
-    setShowGuide(true);
-    if (guideTimerRef.current) clearTimeout(guideTimerRef.current);
-    guideTimerRef.current = setTimeout(() => {
-      setShowGuide(false);
-    }, 3000);
   };
 
   useEffect(() => {
-    if (showGuide || previewImage) {
+    if (previewImage) {
       setTimeout(() => setCountdown(null), 0);
       if (countdownTimerRef.current) clearTimeout(countdownTimerRef.current);
       return;
     }
 
-    if (isLevel) {
+    if (isLevel && isTargetDetected) {
       if (countdown === null) {
         setTimeout(() => setCountdown(3), 0);
       }
@@ -470,7 +452,7 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
         clearTimeout(countdownTimerRef.current);
       }
     }
-  }, [isLevel, showGuide, previewImage]);
+  }, [isLevel, isTargetDetected, previewImage]);
 
   useEffect(() => {
     if (countdown !== null && countdown > 0) {
@@ -504,7 +486,7 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
         <p className="cv-step-instruction">{getStepInstruction()}</p>
       </div>
 
-      {previewImage ? (
+      {previewImage && (
         <div className="cv-preview-wrapper">
           <img src={previewImage} alt="Preview" className="cv-preview-image" />
           
@@ -533,130 +515,136 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
             </div>
           </div>
         </div>
-      ) : (
-        <>
-          <div className="cv-video-wrapper">
-            <video 
-              ref={videoRef} 
-              autoPlay 
-              playsInline 
-              muted 
-              className="cv-video" 
-              style={{ display: hasCamera ? 'block' : 'none', opacity: showGuide ? 0 : 1 }} 
-            />
-            
-            {!hasCamera && (
-              <div className="cv-placeholder">
-                {cameraError ? (
-                  <div className="cv-error-box">
-                    <p className="cv-error-text">{cameraError}</p>
-                    <p className="cv-error-subtext">PC에 웹캠이 없거나 권한이 없습니다.</p>
+      )}
+
+      <div style={{ display: previewImage ? 'none' : 'block', width: '100%', height: '100%' }}>
+        <div className="cv-video-wrapper">
+          <video 
+            ref={videoRef} 
+            autoPlay 
+            playsInline 
+            muted 
+            className="cv-video" 
+            style={{ display: hasCamera ? 'block' : 'none', opacity: 1 }} 
+          />
+          
+          {!hasCamera && (
+            <div className="cv-placeholder">
+              {cameraError ? (
+                <div className="cv-error-box">
+                  <p className="cv-error-text">{cameraError}</p>
+                  <p className="cv-error-subtext">PC에 웹캠이 없거나 권한이 없습니다.</p>
+                </div>
+              ) : (
+                <span className="material-symbols-outlined cv-icon-spin">refresh</span>
+              )}
+            </div>
+          )}
+
+          <canvas 
+            ref={drawingCanvasRef}
+            className="cv-drawing-canvas"
+            width="640"
+            height="480"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              pointerEvents: 'none',
+              zIndex: 10,
+              transform: 'scaleX(-1)',
+              objectFit: 'cover'
+            }}
+          />
+
+          {hasCamera && (
+            <div className={`cv-guideline-overlay strict-guide ${isLevel ? 'level-ok' : ''}`} style={{zIndex: 20}}>
+              {currentStep !== 'vertex' && (
+                <div className="cv-svg-container" style={{ position: 'absolute', top: '45%', left: '50%', transform: 'translate(-50%, -50%)', pointerEvents: 'none' }}>
+                  <div className="cv-corner top-left"></div>
+                  <div className="cv-corner top-right"></div>
+                  <div className="cv-corner bottom-left"></div>
+                  <div className="cv-corner bottom-right"></div>
+                  <div className="cv-ghost">
+                    <svg width="100%" height="100%" viewBox="0 0 320 426" preserveAspectRatio="xMidYMid meet">
+                      <rect x="40" y="20" width="240" height="100" rx="15" fill="rgba(212, 175, 55, 0.15)" stroke="var(--accent-gold)" strokeWidth="2" strokeDasharray="6,4" />
+                      <text x="160" y="75" fill="var(--accent-gold)" fontSize="18" fontWeight="bold" textAnchor="middle" style={{textShadow: '0 2px 4px rgba(0,0,0,0.8)'}}>모발 측정 범위</text>
+                      <ellipse cx="160" cy="260" rx="110" ry="140" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeDasharray="8,6" />
+                      <text x="160" y="260" fill="rgba(255,255,255,0.4)" fontSize="16" textAnchor="middle">얼굴</text>
+                    </svg>
                   </div>
-                ) : (
-                  <span className="material-symbols-outlined cv-icon-spin">refresh</span>
-                )}
-              </div>
-            )}
+                </div>
+              )}
 
-            <canvas 
-              ref={drawingCanvasRef}
-              className="cv-drawing-canvas"
-              width="640"
-              height="480"
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                pointerEvents: 'none',
-                zIndex: 10,
-                transform: 'scaleX(-1)',
-                objectFit: 'cover'
-              }}
-            />
-
-            {hasCamera && !showGuide && (
-              <div className={`cv-guideline-overlay strict-guide ${isLevel ? 'level-ok' : ''}`} style={{zIndex: 20}}>
-                {currentStep === 'front' && <div className="cv-vertical-line"></div>}
-                
-                {currentStep === 'vertex' && (
-                  <div className="cv-vertex-circle">
-                    {gender === 'female' && (
-                      <>
-                        <div className="cv-parting-guide-line"></div>
-                        <span className="cv-parting-label" style={{ top: '-30px' }}>가르마 선을 이 선에 맞춰주세요</span>
-                      </>
-                    )}
+              {currentStep === 'front' && <div className="cv-vertical-line" style={{ zIndex: 21 }}></div>}
+              
+              {currentStep === 'vertex' && (
+                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 20 }}>
+                  <div style={{ marginBottom: '20px', background: 'rgba(0,0,0,0.6)', padding: '8px 16px', borderRadius: '20px', border: '1px solid var(--accent-gold)' }}>
+                    <span style={{ color: 'var(--accent-gold)', fontSize: '18px', fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>모발 측정 범위</span>
+                  </div>
+                  <div className="cv-vertex-circle" style={{ position: 'relative', top: 'auto', left: 'auto', transform: 'none' }}>
                     <span className="cv-circle-label">정수리 중앙</span>
                   </div>
-                )}
-                <div className="cv-status-badge">
-                  {isLevel ? (
-                    countdown !== null && countdown > 0 ? (
-                      <span className="cv-countdown-text">{countdown}초 후 자동 촬영됩니다</span>
-                    ) : (
-                      <span className="cv-success-text">자세가 좋습니다. 유지해주세요.</span>
-                    )
+                </div>
+              )}
+              <div className="cv-status-badge">
+                {!isLevel ? (
+                  <span className="cv-warning-text">{currentStep === 'vertex' ? "기기를 바닥과 평행하게(수평으로) 눕혀주세요" : "기기를 지면과 수직(90도)으로 세우세요"}</span>
+                ) : !isTargetDetected ? (
+                  <span className="cv-warning-text">{currentStep === 'vertex' ? "정수리 피부나 모발이 화면에 잘 보이게 해주세요" : "얼굴이 명확히 인식되지 않았습니다"}</span>
+                ) : (
+                  countdown !== null && countdown > 0 ? (
+                    <span className="cv-countdown-text">{countdown}초 후 자동 촬영됩니다</span>
                   ) : (
-                    <span className="cv-warning-text">{currentStep === 'vertex' ? "기기를 수평(평행)으로 눕혀주세요" : "기기를 지면과 수직(90도)으로 세우세요"}</span>
-                  )}
-                </div>
-
-                <div className="cv-gyro-container">
-                  <div className="cv-gyro-target" style={{ borderColor: isLevel ? 'var(--accent-gold)' : 'rgba(212,175,55,0.3)' }}></div>
-                  <div 
-                    className="cv-gyro-indicator" 
-                    style={{
-                      transform: `translate(calc(-50% + ${Math.max(-20, Math.min(20, deviceAngles.gamma))}px), calc(-50% + ${Math.max(-20, Math.min(20, (currentStep === 'vertex' ? deviceAngles.beta : deviceAngles.beta - 90)))}px))`,
-                      backgroundColor: isLevel ? 'var(--accent-gold)' : 'transparent',
-                      borderColor: isLevel ? 'var(--accent-gold)' : 'var(--text-main)'
-                    }}
-                  ></div>
-                </div>
-                
-                {countdown !== null && countdown > 0 && (
-                  <div className="cv-big-countdown">{countdown}</div>
+                    <span className="cv-success-text">자세가 좋습니다. 유지해주세요.</span>
+                  )
                 )}
               </div>
-            )}
-            
-            {showGuide && (
-              <div className="cv-motion-guide-overlay">
-                <div className="cv-motion-icon-wrapper">
-                  {currentStep === 'left' && <ArrowRight size={80} className="cv-anim-left" />}
-                  {currentStep === 'right' && <ArrowLeft size={80} className="cv-anim-right" />}
-                  {currentStep === 'vertex' && <Smartphone size={80} className="cv-anim-down" />}
-                  {currentStep === 'front' && <User size={80} className="cv-anim-pulse" />}
-                </div>
-                <p className="cv-motion-text">{getStepInstruction()}</p>
+
+              <div className="cv-gyro-container">
+                <div className="cv-gyro-target" style={{ borderColor: isLevel ? 'var(--accent-gold)' : 'rgba(212,175,55,0.3)' }}></div>
+                <div 
+                  className="cv-gyro-indicator" 
+                  style={{
+                    transform: `translate(calc(-50% + ${Math.max(-20, Math.min(20, deviceAngles.gamma))}px), calc(-50% + ${Math.max(-20, Math.min(20, (currentStep === 'vertex' ? deviceAngles.beta : deviceAngles.beta - 90)))}px))`,
+                    backgroundColor: isLevel ? 'var(--accent-gold)' : 'transparent',
+                    borderColor: isLevel ? 'var(--accent-gold)' : 'var(--text-main)'
+                  }}
+                ></div>
               </div>
-            )}
+              
+              {countdown !== null && countdown > 0 && (
+                <div className="cv-big-countdown">{countdown}</div>
+              )}
+            </div>
+          )}
+          
+          <div className="cv-overlay-dim"></div>
+        </div>
 
-            <div className="cv-overlay-dim"></div>
-          </div>
+        <canvas ref={canvasRef} style={{ display: 'none' }}></canvas>
 
-          <canvas ref={canvasRef} style={{ display: 'none' }}></canvas>
+        {/* Bottom Controls */}
+        <div className="cv-bottom-bar">
+          <button className="cv-mock-btn" onClick={mockCapture}>
+            <ImageIcon size={16} /> 가상 사진으로 테스트
+          </button>
 
-          {/* Bottom Controls */}
-          <div className="cv-bottom-bar">
-            <button className="cv-mock-btn" onClick={mockCapture}>
-              <ImageIcon size={16} /> 가상 사진으로 테스트
-            </button>
-
-            {/* 수동 캡처 버튼 (가이드 시에도 누를 수 있도록 허용) */}
-            <button 
-              className="cv-capture-btn" 
-              aria-label="사진 촬영" 
-              onClick={captureFrame} 
-              disabled={!hasCamera} 
-              style={{ opacity: hasCamera ? 1 : 0.5 }}
-            >
-              <div className="cv-capture-inner"></div>
-            </button>
-          </div>
-        </>
-      )}
+          {/* 수동 캡처 버튼 (가이드 시에도 누를 수 있도록 허용) */}
+          <button 
+            className="cv-capture-btn" 
+            aria-label="사진 촬영" 
+            onClick={captureFrame} 
+            disabled={!hasCamera} 
+            style={{ opacity: hasCamera ? 1 : 0.5 }}
+          >
+            <div className="cv-capture-inner"></div>
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
