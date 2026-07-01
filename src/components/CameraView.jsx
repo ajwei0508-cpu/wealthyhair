@@ -249,12 +249,31 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
                         const data = maskImageData.data;
                         const maskData = mask.getAsUint8Array();
                         
+                        const halfWidth = mask.width / 2;
+                        
                         for (let i = 0; i < maskData.length; i++) {
                           if (maskData[i] === 1) { // Hair class
-                            data[i * 4] = 212;     // R (Gold)
-                            data[i * 4 + 1] = 175; // G
-                            data[i * 4 + 2] = 55;  // B
-                            data[i * 4 + 3] = 120; // Alpha (반투명 골드)
+                            if (currentStep === 'vertex') {
+                              const x = i % mask.width;
+                              if (x < halfWidth) {
+                                // 좌측 분석 영역 (파란색 계열)
+                                data[i * 4] = 0;
+                                data[i * 4 + 1] = 150;
+                                data[i * 4 + 2] = 255;
+                                data[i * 4 + 3] = 100;
+                              } else {
+                                // 우측 분석 영역 (붉은색 계열)
+                                data[i * 4] = 255;
+                                data[i * 4 + 1] = 82;
+                                data[i * 4 + 2] = 82;
+                                data[i * 4 + 3] = 100;
+                              }
+                            } else {
+                              data[i * 4] = 212;     // R (Gold)
+                              data[i * 4 + 1] = 175; // G
+                              data[i * 4 + 2] = 55;  // B
+                              data[i * 4 + 3] = 120; // Alpha (반투명 골드)
+                            }
                           } else {
                             data[i * 4 + 3] = 0; // 투명
                           }
@@ -269,12 +288,27 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
                         // 이미 CSS로 transform: scaleX(-1)가 적용되어 있으므로 바로 그립니다.
                         ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
                         
+                        // 폴리곤 가이드 (금색 테두리) 다시 그리기
+                        if (currentStep !== 'vertex' && latestFaceRef.current && latestFaceRef.current.length > 0) {
+                          ctx.beginPath();
+                          latestFaceRef.current.forEach((pt, index) => {
+                            if (index === 0) ctx.moveTo(pt.x, pt.y);
+                            else ctx.lineTo(pt.x, pt.y);
+                          });
+                          ctx.closePath();
+                          ctx.lineWidth = 2;
+                          ctx.strokeStyle = 'rgba(212, 175, 55, 0.8)';
+                          ctx.setLineDash([5, 5]);
+                          ctx.stroke();
+                          ctx.setLineDash([]);
+                        }
+                        
                         // 텍스트 안내
                         ctx.fillStyle = 'rgba(212, 175, 55, 1)';
                         ctx.font = 'bold 16px sans-serif';
                         ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
                         ctx.shadowBlur = 4;
-                        ctx.fillText('AI 실시간 모발 영역 인식 중...', 20, 30);
+                        ctx.fillText(currentStep === 'vertex' ? '좌우 가르마 영역 실시간 분석 중...' : 'AI 실시간 모발 영역 인식 중...', 20, 30);
                         ctx.shadowBlur = 0;
                       }
                     });
