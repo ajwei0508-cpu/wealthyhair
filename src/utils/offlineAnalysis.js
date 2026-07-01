@@ -1,6 +1,6 @@
 // src/utils/offlineAnalysis.js
 
-const analyzeVertexDensity = (imageSrc, maskSrc = null, facePts = null) => {
+const analyzeVertexDensity = (imageSrc, maskSrc = null) => {
   return new Promise((resolve) => {
     if (!imageSrc) {
       resolve({ densityLossPercent: 10.0, box: [160, 120, 320, 240] });
@@ -51,18 +51,9 @@ const analyzeVertexDensity = (imageSrc, maskSrc = null, facePts = null) => {
               // 모발 영역의 좌우 20%~80% 사이에서 탐색
               const searchMinX = Math.floor(minX + hairWidth * 0.2);
               const searchMaxX = Math.floor(maxX - hairWidth * 0.2);
-              
               // 이마나 얼굴 피부가 오인식되는 것을 방지하기 위해 정수리 상단(10%~50%)만 탐색
-              let searchMinY = Math.floor(minY + hairHeight * 0.1);
-              let searchMaxY = Math.floor(minY + hairHeight * 0.5);
-
-              // 얼굴 랜드마크가 있다면, 이마(얼굴의 최상단 Y) 아래로는 탐색하지 않도록 강력히 제한
-              if (facePts && facePts.length > 0) {
-                 const minFaceY = Math.min(...facePts.map(p => p.y));
-                 if (minFaceY > searchMinY && minFaceY < maxY) {
-                    searchMaxY = Math.min(searchMaxY, Math.floor(minFaceY));
-                 }
-              }
+              const searchMinY = Math.floor(minY + hairHeight * 0.1);
+              const searchMaxY = Math.floor(minY + hairHeight * 0.5);
 
               for (let cx = searchMinX; cx < searchMaxX; cx += 4) {
                 let scalpCount = 0;
@@ -230,7 +221,7 @@ export const performOfflineAnalysis = async (pointsData, capturedImages) => {
   const temple_val = Math.max(left_val, right_val);
   
   // 랜덤 값 대신 실제 마스크와 정수리 픽셀을 결합한 분석 적용!
-  const vertexResult = await analyzeVertexDensity(capturedImages?.vertex, pointsData?.vertex?.mask, pointsData?.vertex?.face);
+  const vertexResult = await analyzeVertexDensity(capturedImages?.vertex, pointsData?.vertex?.mask);
   const vertex_val = vertexResult.densityLossPercent;
   const vertex_box = vertexResult.box;
 
