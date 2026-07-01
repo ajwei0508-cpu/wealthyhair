@@ -61,12 +61,17 @@ const analyzeVertexDensity = (imageSrc, maskSrc = null) => {
                   for (let wx = cx - Math.floor(colWidth/2); wx <= cx + Math.floor(colWidth/2); wx++) {
                     if (wx < 0 || wx >= canvas.width) continue;
                     const idx = (y * canvas.width + wx) * 4;
+                    
+                    // 모발 마스크 밖의 픽셀(배경, 옷 등)은 가르마 탐색에서 완전히 제외!
+                    if (maskData && maskData[idx + 3] === 0) continue;
+
                     const r = data[idx], g = data[idx + 1], b = data[idx + 2];
                     
                     const isSkinTone = (r > 120 && g > 100 && b > 90 && r > g && r > b && (r - Math.min(g, b)) > 10);
                     const brightness = (r * 0.299 + g * 0.587 + b * 0.114);
                     
-                    if (isSkinTone || brightness > 170) {
+                    // 빛 반사(눈부심) 오인식을 줄이기 위해 밝기 기준 상향 (170 -> 190)
+                    if (isSkinTone || brightness > 190) {
                       scalpCount++;
                     }
                   }
