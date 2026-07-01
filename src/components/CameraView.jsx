@@ -218,6 +218,13 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
                     segmenterRef.current.segmentForVideo(videoRef.current, performance.now(), (result) => {
                       const canvas = drawingCanvasRef.current;
                       if(!canvas) return;
+                      
+                      // 동적으로 비디오 크기에 맞춰 캔버스 크기 조정 (모바일 해상도 비율 일치용)
+                      if (videoRef.current && videoRef.current.videoWidth > 0 && (canvas.width !== videoRef.current.videoWidth || canvas.height !== videoRef.current.videoHeight)) {
+                        canvas.width = videoRef.current.videoWidth;
+                        canvas.height = videoRef.current.videoHeight;
+                      }
+                      
                       const ctx = canvas.getContext('2d');
                       ctx.clearRect(0, 0, canvas.width, canvas.height);
                       
