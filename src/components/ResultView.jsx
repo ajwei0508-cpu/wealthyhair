@@ -10,6 +10,7 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
   const [sliderPosition, setSliderPosition] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
   const [isSurveyCompleted, setIsSurveyCompleted] = useState(false);
+  const [imgDim, setImgDim] = useState({ width: 640, height: 480 });
   const [showSurveyModal, setShowSurveyModal] = useState(false);
   const [surveyScore, setSurveyScore] = useState(0);
   const [surveyFeedback, setSurveyFeedback] = useState('');
@@ -147,7 +148,7 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
               alt="Hair Mask" 
             />
           )}
-          <svg className="rv-svg-overlay" viewBox="0 0 640 480" preserveAspectRatio="xMidYMid slice" style={{ zIndex: 10, pointerEvents: 'none' }}>
+          <svg className="rv-svg-overlay" viewBox={`0 0 ${imgDim.width} ${imgDim.height}`} preserveAspectRatio="xMidYMid slice" style={{ zIndex: 10, pointerEvents: 'none' }}>
             {subTab === 'Top' ? (
               <>
                 {/* 좌측 분석 영역 (푸른빛) */}
@@ -181,7 +182,7 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
     
     if (mainTab === 'Hairline') {
       return (
-        <svg className="rv-svg-overlay" viewBox="0 0 640 480" preserveAspectRatio="xMidYMid slice">
+        <svg className="rv-svg-overlay" viewBox={`0 0 ${imgDim.width} ${imgDim.height}`} preserveAspectRatio="xMidYMid slice">
           {/* Simulate hairline dots over the box */}
           <polyline 
             points={`${bx},${by+bh} ${bx+bw/4},${by+bh/2} ${bx+bw/2},${by+bh/3} ${bx+(bw*3/4)},${by+bh/2} ${bx+bw},${by+bh}`}
@@ -196,7 +197,7 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
 
     if (mainTab === 'Density') {
       return (
-        <svg className="rv-svg-overlay" viewBox="0 0 640 480" preserveAspectRatio="xMidYMid slice">
+        <svg className="rv-svg-overlay" viewBox={`0 0 ${imgDim.width} ${imgDim.height}`} preserveAspectRatio="xMidYMid slice">
              <defs>
             <radialGradient id="heatGrad" cx="50%" cy="50%" r="50%">
               <stop offset="0%" stopColor="rgba(255, 82, 82, 0.6)" />
@@ -244,7 +245,7 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
           <div className="rv-image-container">
             {/* Before Image (Base) */}
             {currentImageSrc ? (
-              <img src={currentImageSrc} alt="Base" className="rv-base-image" />
+              <img src={currentImageSrc} alt="Base" className="rv-base-image" onLoad={(e) => setImgDim({width: e.target.naturalWidth, height: e.target.naturalHeight})} />
             ) : (
               <div style={{color: '#555', textAlign: 'center', paddingTop: '50%'}}>이미지 없음</div>
             )}
