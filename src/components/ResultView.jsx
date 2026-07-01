@@ -374,20 +374,27 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
           </div>
           </div> {/* End of blurred wrapper */}
 
-          {!isSurveyCompleted && (
-            <div className="rv-unlock-overlay fade-in" style={{ borderRadius: '8px', zIndex: 10 }}>
-              <span className="material-symbols-outlined rv-lock-icon" style={{ fontSize: '48px', marginBottom: '16px' }}>lock</span>
-              <p style={{ fontSize: '16px', fontWeight: 'bold' }}>설문을 완료해야 AI 진단 결과를 확인할 수 있습니다.</p>
-              <button className="btn-primary" onClick={() => setShowSurveyModal(true)}>
-                설문 작성하고 결과 보기
-              </button>
-            </div>
-          )}
         </div>
       </main>
 
       {/* Floating CTA */}
-      <div className="rv-floating-cta">
+      <div className="rv-floating-cta" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {!isSurveyCompleted && (
+          <div className="rv-unlock-overlay-fixed fade-in" style={{
+            background: 'rgba(20, 20, 20, 0.95)',
+            border: '1px solid var(--accent-gold)',
+            borderRadius: '8px',
+            padding: '16px',
+            textAlign: 'center',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+            marginBottom: '4px'
+          }}>
+            <p style={{ fontSize: '14px', fontWeight: 'bold', color: 'var(--text-main)', marginBottom: '12px' }}>설문을 완료해야 AI 진단 결과를 확인할 수 있습니다.</p>
+            <button className="btn-primary" onClick={() => setShowSurveyModal(true)} style={{ width: '100%', padding: '12px', fontSize: '14px', background: 'var(--accent-gold)', color: '#000', borderRadius: '4px' }}>
+              설문 작성하고 결과 보기
+            </button>
+          </div>
+        )}
         <button 
           className="rv-cta-btn disabled" 
           onClick={() => alert("준비 중인 기능입니다.")}
