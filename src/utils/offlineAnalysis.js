@@ -1,9 +1,9 @@
 // src/utils/offlineAnalysis.js
 
-const analyzeVertexDensity = (imageSrc) => {
+const analyzeVertexDensity = (imageSrc, maskSrc = null) => {
   return new Promise((resolve) => {
     if (!imageSrc) {
-      resolve(10.0);
+      resolve({ densityLossPercent: 10.0, box: [160, 120, 320, 240] });
       return;
     }
 
@@ -15,68 +15,147 @@ const analyzeVertexDensity = (imageSrc) => {
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0);
 
-      try {
-        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imgData.data;
+      const processAnalysis = (maskData) => {
+        try {
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const data = imgData.data;
 
-        let totalHairAreaPixels = 0;
-        let scalpPixels = 0;
+          let startX = Math.floor(canvas.width * 0.25);
+          let endX = Math.floor(canvas.width * 0.75);
+          let startY = Math.floor(canvas.height * 0.25);
+          let endY = Math.floor(canvas.height * 0.75);
 
-        // 정수리 사진의 중앙부(가르마 타는 곳) 50% 영역만 집중 분석
-        const startX = Math.floor(canvas.width * 0.25);
-        const endX = Math.floor(canvas.width * 0.75);
-        const startY = Math.floor(canvas.height * 0.25);
-        const endY = Math.floor(canvas.height * 0.75);
-
-        let r = 0, g = 0, b = 0;
-        for (let y = startY; y < endY; y++) {
-          for (let x = startX; x < endX; x++) {
-            const idx = (y * canvas.width + x) * 4;
-            r = data[idx];
-            g = data[idx + 1];
-            b = data[idx + 2];
-
-            // 살색(두피) 감지 휴리스틱 (Skin-tone detection)
-            // 두피는 머리카락보다 밝고, 약간의 붉은빛/노란빛을 띔
-            const isSkinTone = (r > 120 && g > 100 && b > 90 && r > g && r > b && (r - Math.min(g, b)) > 10);
-            
-            // 조명이 밝아 하얗게 날아간(반사된) 두피 부분도 포함
-            const brightness = (r * 0.299 + g * 0.587 + b * 0.114);
-            const isScalp = isSkinTone || brightness > 180;
-
-            if (isScalp) {
-              scalpPixels++;
+          // 마스크가 주어졌다면 마스크 영역(모발)의 바운딩 박스를 찾아 그 중심부를 분석합니다.
+          if (maskData) {
+            let minX = canvas.width, maxX = 0, minY = canvas.height, maxY = 0;
+            for (let y = 0; y < canvas.height; y++) {
+              for (let x = 0; x < canvas.width; x++) {
+                const idx = (y * canvas.width + x) * 4;
+                if (maskData[idx + 3] > 0) { // 투명하지 않은 픽셀 (모발 마스크)
+                  if (x < minX) minX = x;
+                  if (x > maxX) maxX = x;
+                  if (y < minY) minY = y;
+                  if (y > maxY) maxY = y;
+                }
+              }
             }
-            totalHairAreaPixels++;
-          }
-        }
+            if (minX < maxX && minY < maxY) {
+              const hairWidth = maxX - minX;
+              const hairHeight = maxY - minY;
+              
+              // 1. 가르마 X좌표 자동 탐색 (두피 픽셀이 가장 밀집된 X 기둥 찾기)
+              let bestX = Math.floor(minX + hairWidth / 2);
+              let maxScalpCount = -1;
+              const colWidth = Math.floor(canvas.width * 0.04); // 탐색 너비 (화면의 약 4%)
+              
+              // 모발 영역의 좌우 20%~80% 사이에서 탐색
+              const searchMinX = Math.floor(minX + hairWidth * 0.2);
+              const searchMaxX = Math.floor(maxX - hairWidth * 0.2);
+              // 이마나 얼굴 피부가 오인식되는 것을 방지하기 위해 정수리 상단(10%~50%)만 탐색
+              const searchMinY = Math.floor(minY + hairHeight * 0.1);
+              const searchMaxY = Math.floor(minY + hairHeight * 0.5);
 
-        let densityLossPercent = 0;
-        if (totalHairAreaPixels > 0) {
-          // Check if image is completely dark/invalid
-          if (scalpPixels === 0 && r === 0 && g === 0 && b === 0) {
-             resolve(-1.0); // Special flag for invalid image
-             return;
-          }
-          // 중앙부에서 두피(살색)가 차지하는 비율 계산
-          const scalpRatio = scalpPixels / totalHairAreaPixels;
-          
-          // 정상적인 빽빽한 가르마도 약간의 두피는 보임 (기본 2~5%)
-          // 비율을 루드비히 척도(0~100%)로 매핑하기 위해 가중치 부여 (약 2.5배)
-          densityLossPercent = scalpRatio * 100 * 2.5; 
-          densityLossPercent = Math.min(Math.max(densityLossPercent, 0), 100);
-        }
+              for (let cx = searchMinX; cx < searchMaxX; cx += 4) {
+                let scalpCount = 0;
+                for (let y = searchMinY; y < searchMaxY; y++) {
+                  for (let wx = cx - Math.floor(colWidth/2); wx <= cx + Math.floor(colWidth/2); wx++) {
+                    if (wx < 0 || wx >= canvas.width) continue;
+                    const idx = (y * canvas.width + wx) * 4;
+                    const r = data[idx], g = data[idx + 1], b = data[idx + 2];
+                    
+                    const isSkinTone = (r > 120 && g > 100 && b > 90 && r > g && r > b && (r - Math.min(g, b)) > 10);
+                    const brightness = (r * 0.299 + g * 0.587 + b * 0.114);
+                    
+                    if (isSkinTone || brightness > 170) {
+                      scalpCount++;
+                    }
+                  }
+                }
+                if (scalpCount > maxScalpCount) {
+                  maxScalpCount = scalpCount;
+                  bestX = cx;
+                }
+              }
 
-        resolve(parseFloat(densityLossPercent.toFixed(2)));
-      } catch (e) {
-        console.error("Canvas image data read error:", e);
-        // CORS or other errors fallback
-        resolve(10.0);
+              if (maxScalpCount === 0) {
+                bestX = Math.floor(minX + hairWidth / 2); // 탐색 실패시 중앙값 유지
+              }
+
+              // 2. 찾은 가르마 좌표(bestX)를 정중앙으로 하여 60% 크기의 분석 영역 박스 생성
+              const analysisWidth = Math.floor(hairWidth * 0.6);
+              
+              startX = Math.max(0, Math.floor(bestX - analysisWidth / 2));
+              endX = Math.min(canvas.width, Math.floor(bestX + analysisWidth / 2));
+              startY = Math.floor(minY + hairHeight * 0.2);
+              endY = Math.floor(maxY - hairHeight * 0.2);
+            }
+          }
+
+          let totalHairAreaPixels = 0;
+          let scalpPixels = 0;
+
+          let r = 0, g = 0, b = 0;
+          for (let y = startY; y < endY; y++) {
+            for (let x = startX; x < endX; x++) {
+              const idx = (y * canvas.width + x) * 4;
+              r = data[idx];
+              g = data[idx + 1];
+              b = data[idx + 2];
+
+              const isSkinTone = (r > 120 && g > 100 && b > 90 && r > g && r > b && (r - Math.min(g, b)) > 10);
+              const brightness = (r * 0.299 + g * 0.587 + b * 0.114);
+              const isScalp = isSkinTone || brightness > 180;
+
+              if (isScalp) {
+                scalpPixels++;
+              }
+              totalHairAreaPixels++;
+            }
+          }
+
+          let densityLossPercent = 0;
+          if (totalHairAreaPixels > 0) {
+            if (scalpPixels === 0 && r === 0 && g === 0 && b === 0) {
+               resolve({ densityLossPercent: -1.0, box: [160, 120, 320, 240] });
+               return;
+            }
+            const scalpRatio = scalpPixels / totalHairAreaPixels;
+            densityLossPercent = scalpRatio * 100 * 2.5; 
+            densityLossPercent = Math.min(Math.max(densityLossPercent, 0), 100);
+          }
+
+          resolve({
+            densityLossPercent: parseFloat(densityLossPercent.toFixed(2)),
+            box: [startX, startY, endX - startX, endY - startY]
+          });
+        } catch (e) {
+          console.error("Canvas image data read error:", e);
+          resolve({ densityLossPercent: 10.0, box: [160, 120, 320, 240] });
+        }
+      };
+
+      if (maskSrc) {
+        const maskImg = new Image();
+        maskImg.onload = () => {
+          const mCanvas = document.createElement('canvas');
+          mCanvas.width = canvas.width;
+          mCanvas.height = canvas.height;
+          const mCtx = mCanvas.getContext('2d');
+          mCtx.drawImage(maskImg, 0, 0, canvas.width, canvas.height);
+          const maskData = mCtx.getImageData(0, 0, canvas.width, canvas.height).data;
+          processAnalysis(maskData);
+        };
+        maskImg.onerror = () => {
+          processAnalysis(null);
+        };
+        maskImg.src = maskSrc;
+      } else {
+        processAnalysis(null);
       }
     };
     img.onerror = () => {
       console.error("Failed to load image for density analysis");
-      resolve(10.0);
+      resolve({ densityLossPercent: 10.0, box: [160, 120, 320, 240] });
     };
     img.src = imageSrc;
   });
@@ -136,8 +215,10 @@ export const performOfflineAnalysis = async (pointsData, capturedImages) => {
   // 템플(M자)의 대표값은 좌우 중 더 파인 곳으로 설정
   const temple_val = Math.max(left_val, right_val);
   
-  // 랜덤 값(가짜 데이터)을 버리고 실제 정수리 이미지 픽셀 기반 알고리즘 적용!!
-  const vertex_val = await analyzeVertexDensity(capturedImages?.vertex);
+  // 랜덤 값 대신 실제 마스크와 정수리 픽셀을 결합한 분석 적용!
+  const vertexResult = await analyzeVertexDensity(capturedImages?.vertex, pointsData?.vertex?.mask);
+  const vertex_val = vertexResult.densityLossPercent;
+  const vertex_box = vertexResult.box;
 
   if (vertex_val === -1.0) {
     return {
@@ -209,7 +290,7 @@ export const performOfflineAnalysis = async (pointsData, capturedImages) => {
     front: getBox(pointsData?.front),
     left: getBox(pointsData?.left),
     right: getBox(pointsData?.right),
-    vertex: [160, 120, 320, 240] // 640x480의 중앙 50% 영역 (startX, startY, width, height)
+    vertex: vertex_box // 마스크를 기반으로 동적 계산된 영역
   };
 
   return {
