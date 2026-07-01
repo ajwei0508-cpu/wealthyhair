@@ -376,7 +376,12 @@ const ResultView = ({ images, onReset, onRetake, diagnosisData, onProceedToAvata
 
       {/* Floating CTA */}
       <div className="rv-floating-cta">
-        <button className="rv-cta-btn" onClick={onProceedToAvatar}>
+        <button 
+          className={`rv-cta-btn ${!isSurveyCompleted ? 'disabled' : ''}`} 
+          onClick={isSurveyCompleted ? onProceedToAvatar : null}
+          style={{ opacity: isSurveyCompleted ? 1 : 0.5, cursor: isSurveyCompleted ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+        >
+          {!isSurveyCompleted && <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>lock</span>}
           나의 아바타 만나러 가기
         </button>
       </div>
