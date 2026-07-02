@@ -18,7 +18,7 @@ const OnboardingView = ({ onStart }) => {
         <div className="ob-features">
           <div className="ob-feature-item">
             <ShieldCheck className="ob-feature-icon" size={20} />
-            <span>15년 임상 경력 한의사의 탈모 진단 노하우 적용</span>
+            <span>15년 임상 경력 의료인의 탈모 진단 노하우 적용</span>
           </div>
           <div className="ob-feature-item">
             <ScanFace className="ob-feature-icon" size={20} />
