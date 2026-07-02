@@ -19,7 +19,7 @@ const QuoteView = ({ onContinue }) => {
         <div className="qv-divider" style={{ marginTop: '30px', marginBottom: '20px' }}></div>
 
         <div className="qv-source-info" style={{ textAlign: 'right' }}>
-          <p className="qv-author" style={{ fontSize: '18px', fontWeight: '500', color: 'var(--text-secondary)' }}>- 한의사 안정위 -</p>
+          <p className="qv-author" style={{ fontSize: '18px', fontWeight: '500', color: 'var(--text-secondary)' }}>-개발자-</p>
         </div>
       </div>
 
