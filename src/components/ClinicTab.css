@@ -1,0 +1,13 @@
+.av-map-wrapper {
+  margin: 1rem -1rem; /* Full width bleeding */
+  border-top: 1px solid var(--border-gold);
+  border-bottom: 1px solid var(--border-gold);
+}
+
+.leaflet-container {
+  background: var(--bg-main) !important;
+}
+
+.custom-popup {
+  color: #000;
+}

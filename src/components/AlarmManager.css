@@ -1,0 +1,58 @@
+.alarm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.9);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.alarm-content {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-gold);
+  padding: 2rem;
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: 0 0 30px rgba(212, 175, 55, 0.2);
+}
+
+.pulse-text {
+  color: var(--error);
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.alarm-med-name {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--accent-gold);
+  margin-bottom: 0.5rem;
+}
+
+.alarm-time {
+  color: var(--text-muted);
+  margin-bottom: 2rem;
+}
+
+.alarm-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.alarm-force-btn {
+  border-color: var(--error) !important;
+  color: var(--error) !important;
+}

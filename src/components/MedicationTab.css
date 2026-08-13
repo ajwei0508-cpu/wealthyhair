@@ -1,0 +1,63 @@
+.av-input {
+  width: 100%;
+  padding: 1.2rem 1rem;
+  background: var(--bg-main);
+  border: 1px solid var(--border-light);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  outline: none;
+  border-radius: 0;
+  transition: border-color 0.3s;
+}
+
+.av-input:focus {
+  border-color: var(--accent-gold);
+}
+
+.setup-modal {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.av-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+
+.av-calendar-cell {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  font-size: 0.9rem;
+  font-family: var(--font-sans);
+}
+
+.av-calendar-cell.today {
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+  font-weight: bold;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-top: 6px;
+}
+
+.dot-green { background-color: #4ade80; box-shadow: 0 0 5px #4ade80; }
+.dot-orange { background-color: #fb923c; box-shadow: 0 0 5px #fb923c; }
+
+.text-center { text-align: center; }
