@@ -1,0 +1,652 @@
+/* ── Container ── */
+.sim-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding-bottom: 80px;
+}
+
+.sim-content {
+  flex: 1;
+  padding: 0 1rem;
+}
+
+/* ── Stepper ── */
+.sim-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem 1.5rem;
+  gap: 0;
+}
+
+.sim-stepper-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #444;
+  font-family: 'Montserrat', sans-serif;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.sim-stepper-dot.active {
+  border-color: #D4AF37;
+  color: #D4AF37;
+}
+
+.sim-stepper-dot.current {
+  background: #D4AF37;
+  color: #000;
+  border-color: #D4AF37;
+  box-shadow: 0 0 12px rgba(212, 175, 55, 0.4);
+}
+
+.sim-stepper-line {
+  flex: 1;
+  height: 1px;
+  background: #222;
+  transition: background 0.3s;
+  max-width: 60px;
+}
+
+.sim-stepper-line.active {
+  background: #D4AF37;
+}
+
+/* ── Step common ── */
+.sim-step {
+  padding: 0.5rem 0 1rem;
+}
+
+.sim-step-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.sim-step-num {
+  font-family: 'Playfair Display', serif;
+  font-size: 2rem;
+  color: rgba(212, 175, 55, 0.3);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.sim-step-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.2rem;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.sim-step-sub {
+  font-size: 0.78rem;
+  color: #666;
+  font-family: 'Montserrat', sans-serif;
+}
+
+/* ── Drug Selection ── */
+.sim-drug-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.sim-drug-card {
+  background: #111;
+  border: 1px solid #222;
+  padding: 1rem;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+  position: relative;
+  border-radius: 1px;
+}
+
+.sim-drug-card:hover {
+  border-color: rgba(212, 175, 55, 0.4);
+}
+
+.sim-drug-card.selected {
+  border-color: #D4AF37;
+  background: rgba(212, 175, 55, 0.08);
+}
+
+.sim-drug-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.sim-drug-sub {
+  font-size: 0.72rem;
+  color: #666;
+}
+
+.sim-drug-check {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  color: #D4AF37;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.sim-form-group {
+  margin-bottom: 1rem;
+}
+
+.sim-label {
+  display: block;
+  font-size: 0.72rem;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: 'Montserrat', sans-serif;
+  margin-bottom: 0.5rem;
+}
+
+.sim-ref-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  background: #0d0d0d;
+  border-left: 2px solid #333;
+  padding: 0.8rem;
+  font-size: 0.75rem;
+  color: #666;
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+}
+
+.sim-ref-icon {
+  flex-shrink: 0;
+}
+
+.sim-next-btn {
+  margin-top: 0.5rem;
+}
+
+/* ── Photo step ── */
+.sim-guide-box {
+  background: #0d0d0d;
+  border: 0.5px solid #222;
+  padding: 0.9rem 1rem;
+  margin-bottom: 1.2rem;
+  font-size: 0.8rem;
+  color: #888;
+  line-height: 1.7;
+}
+
+.sim-guide-box p {
+  font-weight: 600;
+  color: #D4AF37;
+  margin-bottom: 0.4rem;
+}
+
+.sim-guide-box ul {
+  padding-left: 1.2rem;
+  list-style: disc;
+}
+
+.sim-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.sim-photo-slot {
+  aspect-ratio: 3/4;
+  background: #111;
+  border: 1px dashed #333;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  overflow: hidden;
+  position: relative;
+  border-radius: 1px;
+}
+
+.sim-photo-slot:hover {
+  border-color: #D4AF37;
+}
+
+.sim-photo-slot.has-photo {
+  border-style: solid;
+  border-color: #D4AF37;
+}
+
+.sim-photo-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.sim-photo-label-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+  padding: 0.5rem 0.4rem 0.4rem;
+  font-size: 0.68rem;
+  color: #fff;
+  text-align: center;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.sim-photo-placeholder-icon {
+  font-size: 1.8rem;
+  margin-bottom: 0.3rem;
+  opacity: 0.3;
+}
+
+.sim-photo-label {
+  font-size: 0.72rem;
+  color: #888;
+  font-weight: 600;
+}
+
+.sim-photo-hint {
+  font-size: 0.62rem;
+  color: #555;
+  margin-top: 3px;
+}
+
+.sim-privacy-note {
+  font-size: 0.72rem;
+  color: #555;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.sim-btn-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+/* ── Step 3 Result ── */
+.sim-month-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 0.75rem;
+  border: 0.5px solid #222;
+}
+
+.sim-month-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 0.7rem;
+  font-size: 0.78rem;
+  color: #666;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  transition: all 0.2s;
+  border-right: 0.5px solid #222;
+}
+
+.sim-month-tab:last-child { border-right: none; }
+
+.sim-month-tab.active {
+  background: rgba(212, 175, 55, 0.12);
+  color: #D4AF37;
+}
+
+.sim-view-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.sim-view-tab {
+  background: transparent;
+  border: 0.5px solid #222;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.72rem;
+  color: #666;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  transition: all 0.2s;
+  border-radius: 999px;
+}
+
+.sim-view-tab.active {
+  border-color: #D4AF37;
+  color: #D4AF37;
+  background: rgba(212, 175, 55, 0.08);
+}
+
+.sim-compare {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.sim-compare-col {
+  flex: 1;
+}
+
+.sim-compare-label {
+  font-size: 0.68rem;
+  color: #888;
+  text-align: center;
+  margin-bottom: 0.4rem;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.sim-compare-arrow {
+  font-size: 1.2rem;
+  color: #D4AF37;
+  flex-shrink: 0;
+}
+
+.sim-photo-frame {
+  aspect-ratio: 3/4;
+  background: #111;
+  border: 1px solid #222;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 1px;
+}
+
+.sim-photo-predicted {
+  border-style: solid;
+}
+
+.sim-photo-empty,
+.sim-ai-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #555;
+  font-size: 0.75rem;
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.sim-ai-spinner {
+  width: 28px;
+  height: 28px;
+  border: 2px solid #333;
+  border-top-color: #D4AF37;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+  flex-shrink: 0;
+}
+
+.sim-result-card {
+  background: #111;
+  border: 0.5px solid #222;
+  padding: 1.2rem;
+  margin-bottom: 1rem;
+  border-radius: 1px;
+}
+
+.sim-result-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.sim-result-label {
+  font-size: 0.75rem;
+  color: #888;
+  font-family: 'Montserrat', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.sim-progress-track {
+  height: 6px;
+  background: #1a1a1a;
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 0.8rem;
+}
+
+.sim-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sim-progress-label {
+  display: none;
+}
+
+.sim-result-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  margin-bottom: 0.8rem;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.sim-result-desc {
+  font-size: 0.82rem;
+  color: #888;
+  line-height: 1.7;
+}
+
+/* ── Step 4 Recommendations ── */
+.sim-mech-card {
+  background: #0d0d0d;
+  border-left: 2px solid #D4AF37;
+  padding: 1rem 1.2rem;
+  margin-bottom: 1.5rem;
+}
+
+.sim-mech-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 0.92rem;
+  color: #D4AF37;
+  margin-bottom: 0.5rem;
+}
+
+.sim-mech-desc {
+  font-size: 0.82rem;
+  color: #888;
+  line-height: 1.7;
+}
+
+.sim-section-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1rem;
+  color: #ccc;
+  margin-bottom: 0.8rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 0.5px solid #222;
+}
+
+.sim-treatment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sim-treatment-item {
+  display: flex;
+  gap: 0.8rem;
+  background: #111;
+  border: 0.5px solid #1e1e1e;
+  padding: 1rem;
+  border-radius: 1px;
+  align-items: flex-start;
+}
+
+.sim-treatment-icon {
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.sim-treatment-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sim-treatment-badge {
+  font-size: 0.62rem;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.badge-high { background: rgba(212, 175, 55, 0.2); color: #D4AF37; }
+.badge-mid { background: rgba(76, 175, 80, 0.2); color: #4CAF50; }
+.badge-low { background: rgba(100, 100, 100, 0.2); color: #888; }
+.badge-special { background: rgba(192, 80, 106, 0.2); color: #C0506A; }
+
+.sim-treatment-desc {
+  font-size: 0.78rem;
+  color: #777;
+  line-height: 1.6;
+}
+
+.sim-nutrition-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.sim-nutrition-card {
+  background: #111;
+  border: 0.5px solid #1e1e1e;
+  border-radius: 1px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.sim-nutrition-card.expanded {
+  border-color: #D4AF37;
+}
+
+.sim-nutrition-top {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.8rem 1rem;
+}
+
+.sim-nutrition-img {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.sim-nutrition-emoji {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  background: #1a1a1a;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.sim-nutrition-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.sim-nutrition-foods {
+  font-size: 0.72rem;
+  color: #666;
+  margin-top: 2px;
+}
+
+.sim-nutrition-toggle {
+  margin-left: auto;
+  font-size: 0.7rem;
+  color: #D4AF37;
+  flex-shrink: 0;
+}
+
+.sim-nutrition-detail {
+  padding: 0 1rem 0.8rem;
+  border-top: 0.5px solid #1e1e1e;
+}
+
+.sim-nutrition-reason {
+  font-size: 0.78rem;
+  color: #888;
+  line-height: 1.6;
+  margin-bottom: 0.4rem;
+}
+
+.sim-nutrition-explain {
+  font-size: 0.78rem;
+  color: #666;
+  line-height: 1.6;
+}
+
+/* ── Analyzing overlay ── */
+.sim-analyzing-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 3000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  color: #D4AF37;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.9rem;
+}
+
+.sim-analyzing-spinner {
+  width: 40px;
+  height: 40px;
+  border: 2px solid #333;
+  border-top-color: #D4AF37;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

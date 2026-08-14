@@ -24,3 +24,7 @@ dist-ssr
 *.sw?
 
 backend/venv/
+
+.env
+backend/gcp-key.json
+__pycache__/

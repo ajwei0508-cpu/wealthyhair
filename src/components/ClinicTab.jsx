@@ -2,6 +2,7 @@ import React from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import './ClinicTab.css';
+import './MedicationTab.css';
 import { Info } from 'lucide-react';
 
 delete L.Icon.Default.prototype._getIconUrl;
@@ -26,13 +27,20 @@ const ClinicTab = () => {
   };
 
   return (
-    <div className="av-content fade-in">
-      <h1 className="av-title">
-        주변 <span className="av-highlight">탈모 전문</span> 병원
-      </h1>
+    <div className="av-content fade-in" style={{ padding: 0 }}>
+      {/* Header Banner */}
+      <div className="tab-banner">
+        <img src="/assets/banners/banner_clinic.jpg" alt="병원 찾기" className="tab-banner-img" />
+        <div className="tab-banner-overlay">
+          <h1 className="tab-banner-title">병원 찾기</h1>
+          <p className="tab-banner-sub">내 주변 탈모 전문 클리닉</p>
+        </div>
+      </div>
+
+      <div style={{ padding: '1rem 1rem 80px' }}>
 
       <div className="av-map-wrapper">
-        <MapContainer center={center} zoom={14} style={{ height: '300px', width: '100%' }}>
+        <MapContainer center={center} zoom={14} style={{ height: '250px', width: '100%' }}>
           <TileLayer
             attribution='&copy; OpenStreetMap'
             url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
@@ -79,6 +87,7 @@ const ClinicTab = () => {
             </button>
           </div>
         ))}
+      </div>
       </div>
     </div>
   );

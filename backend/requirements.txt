@@ -5,3 +5,5 @@ opencv-python-headless
 numpy
 mediapipe
 pydantic
+google-cloud-aiplatform
+python-dotenv

@@ -6,6 +6,29 @@ import numpy as np
 import base64
 import json
 import traceback
+import os
+from dotenv import load_dotenv
+
+# Load env variables from project root
+load_dotenv(dotenv_path="../.env")
+
+# Initialize Vertex AI if credentials are provided
+try:
+    import vertexai
+    from vertexai.preview.vision_models import ImageGenerationModel, Image as VertexImage
+    
+    project_id = os.getenv("GCP_PROJECT_ID")
+    if project_id:
+        vertexai.init(project=project_id, location="us-central1")
+        imagen_model = ImageGenerationModel.from_pretrained("imagegeneration@002")
+    else:
+        imagen_model = None
+except ImportError:
+    print("google-cloud-aiplatform not installed.")
+    imagen_model = None
+except Exception as e:
+    print("Failed to init Vertex AI:", e)
+    imagen_model = None
 
 app = FastAPI()
 
@@ -170,6 +193,47 @@ async def analyze_multi_endpoint(
                 "masks": masks
             }
         }
+    except Exception as e:
+        error_msg = str(e) + "\n" + traceback.format_exc()
+        print("API Error:", error_msg)
+        return {"success": False, "error": error_msg}
+
+from pydantic import BaseModel
+
+class SimulateRequest(BaseModel):
+    image: str
+    drug_name: str
+
+@app.post("/api/simulate_hair")
+async def simulate_hair_endpoint(req: SimulateRequest):
+    if not imagen_model:
+        return {"success": False, "error": "Vertex AI is not configured. Check GCP_PROJECT_ID and GOOGLE_APPLICATION_CREDENTIALS in .env."}
+    
+    try:
+        encoded_data = req.image.split(',')[1] if ',' in req.image else req.image
+        image_bytes = base64.b64decode(encoded_data)
+        
+        base_img = VertexImage(image_bytes)
+        prompt = f"Korean male, same face, same glasses, same angle, but with thicker fuller denser hair on top of head, natural hair regrowth after {req.drug_name} hair loss treatment, photorealistic"
+        
+        response = imagen_model.edit_image(
+            base_image=base_img,
+            prompt=prompt,
+            guidance_scale=21,
+        )
+        
+        if response.images:
+            gen_img = response.images[0]
+            b64_output = base64.b64encode(gen_img._image_bytes).decode('utf-8')
+            return {
+                "success": True,
+                "data": {
+                    "predicted_image": f"data:image/jpeg;base64,{b64_output}"
+                }
+            }
+        else:
+            return {"success": False, "error": "No image generated"}
+            
     except Exception as e:
         error_msg = str(e) + "\n" + traceback.format_exc()
         print("API Error:", error_msg)

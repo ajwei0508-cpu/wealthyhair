@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { set, get } from 'idb-keyval';
 import './JournalTab.css';
+import './MedicationTab.css';
 import { Info } from 'lucide-react';
 
 const JournalTab = () => {
@@ -32,7 +33,7 @@ const JournalTab = () => {
     input.capture = 'environment';
     input.onchange = (e) => {
       const file = e.target.files[0];
-      if(file) {
+      if (file) {
         const reader = new FileReader();
         reader.onload = async (ev) => {
           const newPhoto = { id: Date.now(), date: new Date().toISOString().split('T')[0], src: ev.target.result };
@@ -46,57 +47,75 @@ const JournalTab = () => {
     input.click();
   };
 
+  const Banner = () => (
+    <div className="tab-banner">
+      <img src="/assets/banners/banner_journal.jpg" alt="성장 일지" className="tab-banner-img" />
+      <div className="tab-banner-overlay">
+        <h1 className="tab-banner-title">성장 일지</h1>
+        <p className="tab-banner-sub">모발 변화를 객관적으로 기록하세요</p>
+      </div>
+    </div>
+  );
+
   if (!hasConsent) {
     return (
-      <div className="setup-modal">
-        <div className="av-info-card text-center" style={{margin: '2rem', width: '100%'}}>
-          <h1 className="av-title" style={{fontSize: '1.5rem', marginBottom: '1rem'}}>
-            <span className="av-highlight">개인정보 수집</span> 및<br/>사진 저장 동의
-          </h1>
-          <p className="av-info-text" style={{margin: '1.5rem 0'}}>
-            성장 일지 기능은 사용자의 민감한 두피 및 얼굴 사진을 기기 내부에 암호화하여 저장합니다. 원활한 기능 사용을 위해 동의가 필요합니다.
-          </p>
-          <button className="av-continue-btn" onClick={handleConsent}>
-            동의하고 시작하기
-          </button>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <Banner />
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+          <div className="med-card" style={{ width: '100%', textAlign: 'center' }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🔒</div>
+            <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.2rem', color: '#D4AF37', marginBottom: '0.8rem' }}>개인정보 동의 필요</h2>
+            <p style={{ color: '#777', fontSize: '0.85rem', lineHeight: 1.7, marginBottom: '1.5rem' }}>
+              성장 일지는 두피·모발 사진을 기기 내부에 암호화하여 저장합니다. 서버로는 전송되지 않습니다.
+            </p>
+            <button className="med-btn-primary" onClick={handleConsent}>동의하고 시작하기</button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="av-content fade-in">
-      <h1 className="av-title">
-        <span className="av-highlight">모발 성장</span> 일지
-      </h1>
-      
-      <div className="av-info-card text-center" style={{marginTop: 0, padding: '2rem 1.5rem'}}>
-        <p className="av-info-text" style={{marginBottom: '1.5rem'}}>오늘의 모발 상태를 객관적으로 기록해보세요.</p>
-        <button className="av-continue-btn" onClick={takePhoto}>📸 오늘 사진 촬영하기</button>
-      </div>
-
-      <div className="av-photo-grid">
-        {photos.map(p => (
-          <div key={p.id} className="av-photo-card">
-            <img src={p.src} alt={p.date} />
-            <div className="av-photo-date">{p.date}</div>
+    <div className="av-content fade-in" style={{ padding: 0 }}>
+      <Banner />
+      <div style={{ padding: '1rem 1rem 80px' }}>
+        <div className="med-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.4rem' }}>
+          <div>
+            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff' }}>오늘의 모발 기록</div>
+            <div style={{ fontSize: '0.75rem', color: '#666', marginTop: 2 }}>같은 구도로 꾸준히 촬영하세요</div>
           </div>
-        ))}
-        {photos.length === 0 && (
-          <div style={{gridColumn: '1 / -1', textAlign: 'center', padding: '3rem 0', color: 'var(--text-muted)'}}>
-            저장된 사진이 없습니다.
-          </div>
-        )}
-      </div>
-
-      <div className="av-info-card">
-        <div className="av-info-header">
-          <Info size={14} color="#D4AF37" />
-          <span>왜 사진을 남기나요?</span>
+          <button
+            onClick={takePhoto}
+            style={{ background: '#D4AF37', color: '#000', border: 'none', borderRadius: '50%', width: 46, height: 46, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '1.2rem' }}
+          >📸</button>
         </div>
-        <p className="av-info-text">
-          매일 같은 구도로 사진을 찍어두면 미세한 솜털의 성장과 밀도 변화를 객관적으로 파악할 수 있어 약물 치료 효과를 판별하는 가장 훌륭한 기준이 됩니다.
-        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '1rem' }}>
+          {photos.map(p => (
+            <div key={p.id} style={{ position: 'relative', borderRadius: 2, overflow: 'hidden', aspectRatio: '1', background: '#111' }}>
+              <img src={p.src} alt={p.date} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)', padding: '0.5rem', fontSize: '0.7rem', color: 'rgba(255,255,255,0.8)', fontFamily: 'Montserrat, sans-serif' }}>
+                {p.date}
+              </div>
+            </div>
+          ))}
+          {photos.length === 0 && (
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem 0', color: '#555' }}>
+              <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📷</div>
+              <p style={{ fontSize: '0.85rem' }}>아직 기록된 사진이 없습니다</p>
+            </div>
+          )}
+        </div>
+
+        <div className="med-card" style={{ marginTop: '1rem' }}>
+          <div className="med-card-header">
+            <Info size={14} color="#D4AF37" />
+            <span>왜 사진을 남기나요?</span>
+          </div>
+          <p style={{ fontSize: '0.82rem', color: '#777', lineHeight: 1.7 }}>
+            매일 같은 구도로 촬영하면 미세한 솜털 성장과 밀도 변화를 객관적으로 확인할 수 있어, 약물 치료 효과 판단의 가장 확실한 기준이 됩니다.
+          </p>
+        </div>
       </div>
     </div>
   );
