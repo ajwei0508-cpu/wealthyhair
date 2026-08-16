@@ -12,23 +12,30 @@ from dotenv import load_dotenv
 # Load env variables from project root
 load_dotenv(dotenv_path="../.env")
 
-# Initialize Vertex AI if credentials are provided
+# Initialize Gemini image model via google-genai SDK
 try:
-    import vertexai
-    from vertexai.preview.vision_models import ImageGenerationModel, Image as VertexImage
-    
+    from google import genai
+    from google.genai import types as genai_types
+
     project_id = os.getenv("GCP_PROJECT_ID")
-    if project_id:
-        vertexai.init(project=project_id, location="us-central1")
-        imagen_model = ImageGenerationModel.from_pretrained("imagegeneration@002")
+    creds_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+
+    if project_id and creds_path and os.path.exists(creds_path):
+        genai_client = genai.Client(
+            vertexai=True,
+            project=project_id,
+            location="us-central1"
+        )
+        print("Gemini image client initialized successfully (project:", project_id, ")")
     else:
-        imagen_model = None
+        genai_client = None
+        print("GCP credentials not found — genai_client not initialized")
 except ImportError:
-    print("google-cloud-aiplatform not installed.")
-    imagen_model = None
+    print("google-genai not installed.")
+    genai_client = None
 except Exception as e:
-    print("Failed to init Vertex AI:", e)
-    imagen_model = None
+    print("Failed to init genai client:", e)
+    genai_client = None
 
 app = FastAPI()
 
@@ -203,36 +210,137 @@ from pydantic import BaseModel
 class SimulateRequest(BaseModel):
     image: str
     drug_name: str
+    dose: str = ""
+    month: int = 1
+    clinical_detail: str = ""
 
 @app.post("/api/simulate_hair")
 async def simulate_hair_endpoint(req: SimulateRequest):
-    if not imagen_model:
-        return {"success": False, "error": "Vertex AI is not configured. Check GCP_PROJECT_ID and GOOGLE_APPLICATION_CREDENTIALS in .env."}
+    if not genai_client:
+        return {"success": False, "error": "AI 서비스가 설정되지 않았습니다. GCP_PROJECT_ID와 GOOGLE_APPLICATION_CREDENTIALS를 확인하세요."}
     
     try:
+        from google import genai
+        from google.genai import types
+        
+        project_id = os.environ.get("GCP_PROJECT_ID")
+        if not project_id:
+            return {"success": False, "error": "GCP_PROJECT_ID가 설정되지 않았습니다."}
+            
+        # Use Vertex AI mode in GenAI SDK
+        client = genai.Client(vertexai=True, project=project_id, location="us-central1")
+
         encoded_data = req.image.split(',')[1] if ',' in req.image else req.image
         image_bytes = base64.b64decode(encoded_data)
-        
-        base_img = VertexImage(image_bytes)
-        prompt = f"Korean male, same face, same glasses, same angle, but with thicker fuller denser hair on top of head, natural hair regrowth after {req.drug_name} hair loss treatment, photorealistic"
-        
-        response = imagen_model.edit_image(
-            base_image=base_img,
-            prompt=prompt,
-            guidance_scale=21,
+
+        # OpenCV를 사용하여 상단 70% 영역을 마스크로 자동 생성 (모발 영역)
+        np_arr = np.frombuffer(image_bytes, np.uint8)
+        cv_img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        h, w = cv_img.shape[:2]
+        ratio = w / h
+        aspect_ratio_str = "1:1"
+        if ratio <= 0.6:
+            aspect_ratio_str = "9:16"
+        elif ratio <= 0.85:
+            aspect_ratio_str = "3:4"
+        elif ratio >= 1.6:
+            aspect_ratio_str = "16:9"
+        elif ratio >= 1.2:
+            aspect_ratio_str = "4:3"
+
+        prompt = (
+            f"You are a medical simulation AI. Your task is to edit the provided image to simulate {req.month} months of hair loss treatment. "
+            f"CRITICAL INSTRUCTIONS: "
+            f"1. Increase the hair density and thickness ONLY on the top of the head and hairline. "
+            f"2. DO NOT change the zoom, crop, or framing of the image. The output must have the EXACT SAME scale and composition as the input. "
+            f"3. DO NOT hallucinate or complete the rest of the face or body. Keep the face, glasses, and background perfectly identical to the input. "
+            f"4. The image must perfectly align with the original input when overlaid."
         )
-        
-        if response.images:
-            gen_img = response.images[0]
-            b64_output = base64.b64encode(gen_img._image_bytes).decode('utf-8')
-            return {
-                "success": True,
-                "data": {
-                    "predicted_image": f"data:image/jpeg;base64,{b64_output}"
-                }
-            }
-        else:
-            return {"success": False, "error": "No image generated"}
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash-image",
+            contents=[
+                types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
+                prompt
+            ],
+            config=types.GenerateContentConfig(
+                response_modalities=["IMAGE"],
+                image_config=types.ImageConfig(aspect_ratio=aspect_ratio_str)
+            )
+        )
+
+        if response.candidates and len(response.candidates) > 0 and response.candidates[0].content.parts:
+            # Find the image part
+            for part in response.candidates[0].content.parts:
+                if part.inline_data:
+                    edited_image_bytes = part.inline_data.data
+                    
+                    # Post-processing: Soft Alpha Blending to guarantee pixel-perfect face alignment
+                    gen_arr = np.frombuffer(edited_image_bytes, np.uint8)
+                    gen_img = cv2.imdecode(gen_arr, cv2.IMREAD_COLOR)
+
+                    # --- ORB Alignment (Align AI face to Original face) ---
+                    # Convert both to grayscale
+                    orig_gray = cv2.cvtColor(cv_img, cv2.COLOR_BGR2GRAY)
+                    gen_gray = cv2.cvtColor(gen_img, cv2.COLOR_BGR2GRAY)
+                    
+                    gh, gw = gen_img.shape[:2]
+                    
+                    # Create masks to only extract features from the bottom 60% (face area, ignoring hair)
+                    orig_mask = np.zeros_like(orig_gray)
+                    orig_mask[int(h*0.4):, :] = 255
+                    gen_mask = np.zeros_like(gen_gray)
+                    gen_mask[int(gh*0.4):, :] = 255
+
+                    detector = cv2.ORB_create(5000)
+                    kp1, des1 = detector.detectAndCompute(gen_gray, gen_mask)
+                    kp2, des2 = detector.detectAndCompute(orig_gray, orig_mask)
+
+                    aligned_gen = cv2.resize(gen_img, (w, h)) # Fallback
+                    
+                    if des1 is not None and des2 is not None and len(kp1) >= 4 and len(kp2) >= 4:
+                        matcher = cv2.DescriptorMatcher_create(cv2.DESCRIPTOR_MATCHER_BRUTEFORCE_HAMMING)
+                        matches = matcher.match(des1, des2)
+                        matches = sorted(matches, key=lambda x: x.distance)
+                        numGoodMatches = int(len(matches) * 0.15)
+                        
+                        if numGoodMatches >= 4:
+                            matches = matches[:numGoodMatches]
+                            pts1 = np.float32([kp1[m.queryIdx].pt for m in matches])
+                            pts2 = np.float32([kp2[m.trainIdx].pt for m in matches])
+                            
+                            # Estimate affine transform (scale, rotation, translation) from Gen to Orig
+                            M, inliers = cv2.estimateAffinePartial2D(pts1, pts2, method=cv2.RANSAC)
+                            if M is not None:
+                                aligned_gen = cv2.warpAffine(gen_img, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+                    # --------------------------------------------------------
+
+                    # Create a gradient mask: 1.0 at the top (hair), 0.0 at the bottom (face)
+                    mask = np.zeros((h, w, 1), dtype=np.float32)
+                    blend_start = int(h * 0.35)
+                    blend_end = int(h * 0.55)
+                    mask[0:blend_start, :] = 1.0
+                    for y in range(blend_start, blend_end):
+                        alpha = 1.0 - ((y - blend_start) / (blend_end - blend_start))
+                        mask[y, :] = alpha
+                    mask[blend_end:, :] = 0.0
+
+                    # Blend: AI generates top (hair), original provides bottom (face)
+                    orig_float = cv_img.astype(np.float32)
+                    gen_float = aligned_gen.astype(np.float32)
+                    blended = (gen_float * mask + orig_float * (1.0 - mask)).astype(np.uint8)
+
+                    _, blended_buf = cv2.imencode('.png', blended)
+                    b64_output = base64.b64encode(blended_buf.tobytes()).decode('utf-8')
+                    
+                    return {
+                        "success": True,
+                        "data": {
+                            "predicted_image": f"data:image/png;base64,{b64_output}"
+                        }
+                    }
+
+        return {"success": False, "error": "AI가 이미지를 생성하지 못했습니다. 다시 시도해 주세요."}
             
     except Exception as e:
         error_msg = str(e) + "\n" + traceback.format_exc()
