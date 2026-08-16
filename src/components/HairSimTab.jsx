@@ -259,10 +259,10 @@ const PhotoSlot = ({ label, angle, photo, onCapture }) => {
 };
 
 const Step2 = ({ onNext, onBack }) => {
-  const [photos, setPhotos] = useState({ front: null, left: null, right: null });
+  const [photos, setPhotos] = useState({ front: null });
 
   const setPhoto = (key, src) => setPhotos(prev => ({ ...prev, [key]: src }));
-  const canProceed = photos.front; // 정면만 있으면 진행 가능, 좌우는 선택
+  const canProceed = photos.front; // 정면만 있으면 진행 가능
 
   return (
     <div className="sim-step fade-in">
@@ -283,10 +283,8 @@ const Step2 = ({ onNext, onBack }) => {
         </ul>
       </div>
 
-      <div className="sim-photo-grid">
-        <PhotoSlot label="정면" angle="👤" photo={photos.front} onCapture={s => setPhoto('front', s)} />
-        <PhotoSlot label="좌측면" angle="👤" photo={photos.left} onCapture={s => setPhoto('left', s)} />
-        <PhotoSlot label="우측면" angle="👤" photo={photos.right} onCapture={s => setPhoto('right', s)} />
+      <div className="sim-photo-grid" style={{ gridTemplateColumns: '1fr', maxWidth: '300px', margin: '0 auto 1rem' }}>
+        <PhotoSlot label="정면 (또는 치료 부위)" angle="👤" photo={photos.front} onCapture={s => setPhoto('front', s)} />
       </div>
 
       <p className="sim-privacy-note">🔒 사진은 기기 내 임시 저장만 되며, 서버로 전송되지 않습니다.</p>
@@ -424,31 +422,29 @@ const BeforeAfterSlider = ({ beforeSrc, afterSrc, isLoading, apiError, onRetry, 
 
 const Step3 = ({ medInfo, photos, onNext, onBack }) => {
   const [activeMonth, setActiveMonth] = useState(1);
-  const [activeView, setActiveView] = useState('front');
   const [apiResults, setApiResults] = useState({});
   const [loadingKeys, setLoadingKeys] = useState(new Set());
   const [errorKeys, setErrorKeys] = useState({});
 
   const drugData = DRUG_DATA[medInfo.drug];
   const monthData = drugData.months[activeMonth];
-  const viewLabels = { front: '정면', left: '좌측면', right: '우측면' };
   
-  const cacheKey = `${activeMonth}_${activeView}`;
+  const cacheKey = `${activeMonth}`;
   const isLoading = loadingKeys.has(cacheKey);
   const apiError = errorKeys[cacheKey] || null;
 
   React.useEffect(() => {
     if (!apiResults[cacheKey] && !loadingKeys.has(cacheKey) && !errorKeys[cacheKey]) {
-      fetchAiImage(activeMonth, activeView);
+      fetchAiImage(activeMonth);
     }
-  }, [activeMonth, activeView]);
+  }, [activeMonth]);
 
-  const fetchAiImage = async (month, view) => {
-    const key = `${month}_${view}`;
+  const fetchAiImage = async (month) => {
+    const key = `${month}`;
     setLoadingKeys(prev => new Set(prev).add(key));
     try {
       const payload = {
-        image: photos[view] || photos.front,
+        image: photos.front,
         drug_name: drugData?.name || 'Hair loss',
         dose: medInfo.dose,
         month,
@@ -462,7 +458,7 @@ const Step3 = ({ medInfo, photos, onNext, onBack }) => {
       if (!response.ok) throw new Error(`API 오류 ${response.status}`);
       const result = await response.json();
       if (result.success && result.data?.predicted_image) {
-        setApiResults(prev => ({ ...prev, [key]: result.data.predicted_image }));
+        setApiResults(prev => ({ ...prev, [key]: result.data }));
       } else {
         throw new Error(result.error || 'AI 이미지 생성에 실패했습니다.');
       }
@@ -476,7 +472,7 @@ const Step3 = ({ medInfo, photos, onNext, onBack }) => {
 
   const handleRetry = () => {
     setErrorKeys(prev => { const n = { ...prev }; delete n[cacheKey]; return n; });
-    fetchAiImage(activeMonth, activeView);
+    fetchAiImage(activeMonth);
   };
 
   return (
@@ -502,30 +498,43 @@ const Step3 = ({ medInfo, photos, onNext, onBack }) => {
         ))}
       </div>
 
-      {/* View selector */}
-      <div className="sim-view-tabs">
-        {['front', 'left', 'right'].map(v => (
-          <button
-            key={v}
-            className={`sim-view-tab ${activeView === v ? 'active' : ''}`}
-            onClick={() => setActiveView(v)}
-          >
-            {viewLabels[v]}
-          </button>
-        ))}
-      </div>
+      {/* Static Side-by-side Comparison */}
+      {!isLoading && !apiError && apiResults[cacheKey]?.predicted_image && (
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+          <div style={{ flex: 1, border: '1px solid #333', borderRadius: '4px', overflow: 'hidden' }}>
+            <div style={{ background: '#111', padding: '0.3rem', textAlign: 'center', fontSize: '0.7rem', color: '#888' }}>복용 전</div>
+            <img src={photos.front} style={{ width: '100%', display: 'block' }} alt="Before" />
+          </div>
+          <div style={{ flex: 1, border: '1px solid #D4AF37', borderRadius: '4px', overflow: 'hidden' }}>
+            <div style={{ background: 'var(--primary)', padding: '0.3rem', textAlign: 'center', fontSize: '0.7rem', color: '#111', fontWeight: 'bold' }}>{activeMonth}개월 후 예측</div>
+            <img src={apiResults[cacheKey].predicted_image} style={{ width: '100%', display: 'block' }} alt="After" />
+          </div>
+        </div>
+      )}
 
       {/* Premium Before/After Slider */}
+      <h3 className="sim-section-title" style={{ marginTop: '1.5rem', marginBottom: '0.5rem', fontSize: '0.9rem' }}>슬라이더 상세 비교</h3>
       <BeforeAfterSlider
         key={cacheKey}
-        beforeSrc={photos[activeView] || photos.front}
-        afterSrc={apiResults[cacheKey]}
+        beforeSrc={photos.front}
+        afterSrc={apiResults[cacheKey]?.predicted_image}
         isLoading={isLoading}
         apiError={apiError}
         onRetry={handleRetry}
         monthColor={monthData.color}
         month={activeMonth}
       />
+
+      {/* Boundary Analysis Image */}
+      {!isLoading && !apiError && apiResults[cacheKey]?.boundary_image && (
+        <div style={{ marginTop: '1.5rem', background: '#111', borderRadius: '8px', padding: '1rem', border: '1px solid #333' }}>
+          <h3 className="sim-section-title" style={{ marginTop: 0, marginBottom: '0.8rem', fontSize: '0.9rem' }}>🔍 AI 탈모 경계선 분석 리포트</h3>
+          <img src={apiResults[cacheKey].boundary_image} style={{ width: '100%', borderRadius: '4px', display: 'block' }} alt="Boundary Analysis" />
+          <p style={{ fontSize: '0.75rem', color: '#888', marginTop: '0.8rem', textAlign: 'center' }}>
+            의학적 근거에 기반하여 탈모 진행 부위만 정확하게 타겟팅하여 시뮬레이션 하였습니다.
+          </p>
+        </div>
+      )}
 
       {/* Clinical result card */}
       <div className="sim-result-card">
