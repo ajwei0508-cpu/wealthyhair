@@ -1,0 +1,6 @@
+ID,image front,mask front,image top,mask top
+1,1/front.png,1/mask_front.png,1/top.png,1/mask_top.png
+2,2/front.png,2/mask_front.png,2/top.png,2/mask_top.png
+3,3/front.png,3/mask_front.png,3/top.png,3/mask_top.png
+4,4/front.png,4/mask_front.png,4/top.png,4/mask_top.png
+5,5/front.png,5/mask_front.png,5/top.png,5/mask_top.png
