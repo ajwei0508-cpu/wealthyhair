@@ -243,35 +243,103 @@ async def simulate_hair_endpoint(req: SimulateRequest):
         elif ratio <= 0.85: aspect_ratio_str = "3:4"
         elif ratio >= 1.6: aspect_ratio_str = "16:9"
         elif ratio >= 1.2: aspect_ratio_str = "4:3"
+        
+        # 기본 마스크 및 커널 설정
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+        thinning_area = np.zeros((h, w), dtype=np.uint8)
+        
+        # 최신 MediaPipe Tasks API를 이용한 확실한 안면(Face Mesh) 경계선 분리
+        import mediapipe as mp
+        import urllib.request
+        import os
 
-        # 이마/탈모 부위 추정 (HSV 피부색 대신 엣지 기반 텍스처 검출로 빛 반사(Glare) 무시)
+        # 모델 파일 준비 (없으면 자동 다운로드)
+        task_path = "face_landmarker.task"
+        if not os.path.exists(task_path):
+            urllib.request.urlretrieve("https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task", task_path)
+
+        BaseOptions = mp.tasks.BaseOptions
+        FaceLandmarker = mp.tasks.vision.FaceLandmarker
+        FaceLandmarkerOptions = mp.tasks.vision.FaceLandmarkerOptions
+        VisionRunningMode = mp.tasks.vision.RunningMode
+
+        options = FaceLandmarkerOptions(
+            base_options=BaseOptions(model_asset_path=task_path),
+            running_mode=VisionRunningMode.IMAGE,
+            num_faces=1)
+        
+        face_mask = np.zeros((h, w), dtype=np.uint8)
+        
+        with FaceLandmarker.create_from_options(options) as landmarker:
+            rgb_img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_img)
+            face_landmarker_result = landmarker.detect(mp_image)
+            
+            if face_landmarker_result.face_landmarks:
+                face_landmarks = face_landmarker_result.face_landmarks[0]
+                # MediaPipe의 Face Oval 인덱스 하드코딩 (mp.solutions 에 의존하지 않음)
+                face_oval_indices = [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109]
+                
+                pts = np.array([
+                    [int(face_landmarks[idx].x * w), int(face_landmarks[idx].y * h)]
+                    for idx in face_oval_indices
+                ], np.int32)
+                
+                # 얼굴 윤곽(페이스 오벌) 내부를 마스킹
+                hull = cv2.convexHull(pts)
+                cv2.fillConvexPoly(face_mask, hull, 255)
+            else:
+                # 안면 인식이 안될 경우(정수리 사진 등), 하단 40%를 얼굴(마스킹 제외) 영역으로 임시 간주
+                face_mask[int(h*0.6):, :] = 255
+
+        # 피부 영역 탐지 (HSV)
+        hsv = cv2.cvtColor(cv_img, cv2.COLOR_BGR2HSV)
+        # 일반 피부색 (H: 0~20)
+        lower_skin1 = np.array([0, 15, 50], dtype=np.uint8)
+        upper_skin1 = np.array([20, 255, 255], dtype=np.uint8)
+        mask1 = cv2.inRange(hsv, lower_skin1, upper_skin1)
+        # 붉은 피부색 (H: 170~180)
+        lower_skin2 = np.array([170, 15, 50], dtype=np.uint8)
+        upper_skin2 = np.array([180, 255, 255], dtype=np.uint8)
+        mask2 = cv2.inRange(hsv, lower_skin2, upper_skin2)
+        
+        skin_mask = cv2.bitwise_or(mask1, mask2)
+        
+        # 두피 영역(Scalp Mask) = 전체 피부 영역 중 얼굴을 제외한 부분
+        scalp_mask = cv2.bitwise_and(skin_mask, cv2.bitwise_not(face_mask))
+        
+        # 하단부 잔여 피부(어깨, 팔 등) 제거를 위해 관심영역 설정
+        # 얼굴이 인식되었으면 얼굴 상단 주변의 모발 영역만 타겟팅 (하단 40%는 날림)
+        roi_mask = np.zeros_like(scalp_mask)
+        roi_mask[0:int(h*0.65), :] = 255
+        scalp_mask = cv2.bitwise_and(scalp_mask, roi_mask)
+        
+        # 노이즈 제거 (이마 잔주름 등)
+        scalp_mask = cv2.morphologyEx(scalp_mask, cv2.MORPH_OPEN, kernel)
+        
+        # Canny를 이용해 모발/엣지 텍스처(기존 머리카락) 검출
         gray = cv2.cvtColor(cv_img, cv2.COLOR_BGR2GRAY)
-        
-        # 1. 엣지 검출 (모발 텍스처 찾기)
-        edges = cv2.Canny(gray, 30, 100)
-        
-        # 2. 엣지를 팽창시켜 하나의 큰 모발 영역 덩어리(Blob)로 만듦
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
-        hair_blob = cv2.dilate(edges, kernel, iterations=3)
-        hair_blob = cv2.morphologyEx(hair_blob, cv2.MORPH_CLOSE, kernel)
-        
-        # 3. 상단 이마 및 머리 영역(0% ~ 60%)으로 제한
-        roi_mask = np.zeros_like(hair_blob)
-        roi_mask[0:int(h*0.60), :] = 255
+        edges = cv2.Canny(gray, 20, 80)
+        hair_blob = cv2.dilate(edges, kernel, iterations=2)
         hair_blob = cv2.bitwise_and(hair_blob, roi_mask)
         
-        # 4. 가장 큰 컨투어(주요 모발 영역)만 추출
-        contours, _ = cv2.findContours(hair_blob, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        thinning_area = np.zeros_like(hair_blob)
+        # 두피 영역(scalp_mask)과 모발 영역(hair_blob)이 인접한 부분을 탈모 부위로 확장
+        scalp_mask_dilated = cv2.dilate(scalp_mask, kernel, iterations=3)
+        combined_thinning = cv2.bitwise_or(scalp_mask, cv2.bitwise_and(hair_blob, scalp_mask_dilated))
+        
+        # 최종 윤곽선 추출
+        combined_thinning = cv2.morphologyEx(combined_thinning, cv2.MORPH_CLOSE, kernel, iterations=2)
+        contours, _ = cv2.findContours(combined_thinning, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
         if len(contours) > 0:
-            largest_contour = max(contours, key=cv2.contourArea)
-            cv2.drawContours(thinning_area, [largest_contour], -1, 255, thickness=cv2.FILLED)
+            valid_contours = [c for c in contours if cv2.contourArea(c) > 400]
+            if not valid_contours:
+                valid_contours = [max(contours, key=cv2.contourArea)]
             
-            # AI가 탈모 경계선 바깥(맨 이마 쪽)으로도 머리를 자연스럽게 심을 수 있도록 마스크를 넉넉하게 확장
+            cv2.drawContours(thinning_area, valid_contours, -1, 255, thickness=cv2.FILLED)
             thinning_area = cv2.dilate(thinning_area, kernel, iterations=2)
         
         # 부드러운 블렌딩을 위해 가우시안 블러 적용
-        thinning_mask_smooth = cv2.GaussianBlur(thinning_area, (51, 51), 0)
         
         # Gemini 2.5 Flash Image 에 전송할 흑백 마스크 (인코딩)
         _, mask_buf = cv2.imencode('.png', thinning_mask_smooth)
