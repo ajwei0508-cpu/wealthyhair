@@ -96,6 +96,7 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
 
     if (!FaceMesh) {
       console.error("MediaPipe FaceMesh not loaded from CDN.");
+      setCameraError("AI 모델(FaceMesh)을 불러오지 못했습니다. 네트워크 상태를 확인해주세요.");
       return;
     }
 
@@ -205,6 +206,7 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
         setHasCamera(true);
+        videoRef.current.play().catch(e => console.log("Video play error:", e));
         
         if (Camera) {
           cameraInstance = new Camera(videoRef.current, {
