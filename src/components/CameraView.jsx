@@ -27,6 +27,7 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
   // 최신 상태를 Camera 콜백에서 읽기 위한 Refs
   const currentStepRef = useRef(currentStep);
   const previewImageRef = useRef(previewImage);
+  const isProcessingRef = useRef(false);
 
   useEffect(() => {
     currentStepRef.current = currentStep;
@@ -186,6 +187,11 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
 
     let cameraInstance = null;
 
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setCameraError("이 브라우저에서는 카메라를 지원하지 않습니다. (HTTPS 환경이거나 권한을 확인해주세요)");
+      return;
+    }
+
     navigator.mediaDevices.getUserMedia({ 
       video: { 
         facingMode: 'user',
@@ -204,41 +210,27 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
           cameraInstance = new Camera(videoRef.current, {
             onFrame: async () => {
               if (videoRef.current && active && !previewImageRef.current) {
-                // FaceMesh 업데이트 (정수리 촬영 제외)
-                if (currentStepRef.current !== 'vertex') {
-                  try {
-                    // await을 빼거나 백그라운드에서 처리되도록 하여 Segmenter 블로킹을 방지합니다.
-                    faceMesh.send({image: videoRef.current}).catch(e => console.log("FaceMesh error:", e));
-                  } catch (e) {}
-                }
-                
-                // 실시간 Segmentation (하늘색/골드색 머리카락 마스크 그리기) - 모든 스텝에서 항상 실행
-                if (segmenterRef.current && drawingCanvasRef.current) {
-                  try {
+                if (isProcessingRef.current) return;
+                isProcessingRef.current = true;
+                try {
+                  if (segmenterRef.current && drawingCanvasRef.current) {
                     segmenterRef.current.segmentForVideo(videoRef.current, performance.now(), (result) => {
                       const canvas = drawingCanvasRef.current;
                       if(!canvas) return;
-                      
-                      // 동적으로 비디오 크기에 맞춰 캔버스 크기 조정 (모바일 해상도 비율 일치용)
                       if (videoRef.current && videoRef.current.videoWidth > 0 && (canvas.width !== videoRef.current.videoWidth || canvas.height !== videoRef.current.videoHeight)) {
                         canvas.width = videoRef.current.videoWidth;
                         canvas.height = videoRef.current.videoHeight;
                       }
-                      
                       const ctx = canvas.getContext('2d');
                       ctx.clearRect(0, 0, canvas.width, canvas.height);
-                      
                       if (result && result.categoryMask) {
                         const mask = result.categoryMask;
                         const maskImageData = new ImageData(mask.width, mask.height);
                         const data = maskImageData.data;
                         const maskData = mask.getAsUint8Array();
-                        
                         const halfWidth = mask.width / 2;
                         let targetPixelCount = 0;
-                        
                         for (let i = 0; i < maskData.length; i++) {
-                          // 1: Hair, 2: Body-skin, 3: Face-skin
                           if (maskData[i] === 1 || maskData[i] === 2 || maskData[i] === 3) {
                             targetPixelCount++;
                           }
@@ -246,43 +238,33 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
                             if (currentStepRef.current === 'vertex') {
                               const x = i % mask.width;
                               if (x < halfWidth) {
-                                // 좌측 분석 영역 (파란색 계열)
                                 data[i * 4] = 0;
                                 data[i * 4 + 1] = 150;
                                 data[i * 4 + 2] = 255;
                                 data[i * 4 + 3] = 100;
                               } else {
-                                // 우측 분석 영역 (붉은색 계열)
                                 data[i * 4] = 255;
                                 data[i * 4 + 1] = 82;
                                 data[i * 4 + 2] = 82;
                                 data[i * 4 + 3] = 100;
                               }
                             } else {
-                              data[i * 4] = 212;     // R (Gold)
-                              data[i * 4 + 1] = 175; // G
-                              data[i * 4 + 2] = 55;  // B
-                              data[i * 4 + 3] = 120; // Alpha (반투명 골드)
+                              data[i * 4] = 212;
+                              data[i * 4 + 1] = 175;
+                              data[i * 4 + 2] = 55;
+                              data[i * 4 + 3] = 120;
                             }
                           } else {
-                            data[i * 4 + 3] = 0; // 투명
+                            data[i * 4 + 3] = 0;
                           }
                         }
-                        
-                        // 모든 단계에서 피부(얼굴/몸)나 모발이 화면의 2% 이상 잡히면 타겟 인식으로 간주
-                        // FaceMesh는 측면 얼굴이나 깜빡임에 취약하므로 Segmenter의 픽셀 면적을 기준으로 판정합니다.
                         setIsTargetDetected(targetPixelCount > (mask.width * mask.height * 0.02));
-                        
-                        // ImageData를 캔버스에 그리기 위해 임시 캔버스 사용
                         const tempCanvas = document.createElement('canvas');
                         tempCanvas.width = mask.width;
                         tempCanvas.height = mask.height;
                         tempCanvas.getContext('2d').putImageData(maskImageData, 0, 0);
-                        
-                        // 이미 CSS로 transform: scaleX(-1)가 적용되어 있으므로 바로 그립니다.
                         ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
                         
-                        // 폴리곤 가이드 (금색 테두리) 다시 그리기
                         if (currentStepRef.current !== 'vertex' && latestFaceRef.current && latestFaceRef.current.length > 0) {
                           ctx.beginPath();
                           latestFaceRef.current.forEach((pt, index) => {
@@ -290,25 +272,27 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
                             else ctx.lineTo(pt.x, pt.y);
                           });
                           ctx.closePath();
+                          ctx.strokeStyle = '#D4AF37';
                           ctx.lineWidth = 2;
-                          ctx.strokeStyle = 'rgba(212, 175, 55, 0.8)';
-                          ctx.setLineDash([5, 5]);
                           ctx.stroke();
-                          ctx.setLineDash([]);
                         }
-                        
-                        // 텍스트 안내
-                        ctx.fillStyle = 'rgba(212, 175, 55, 1)';
-                        ctx.font = 'bold 16px sans-serif';
+                        ctx.fillStyle = '#ffffff';
+                        ctx.font = '16px Pretendard, sans-serif';
                         ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
                         ctx.shadowBlur = 4;
                         ctx.fillText(currentStepRef.current === 'vertex' ? '좌우 가르마 영역 실시간 분석 중...' : 'AI 실시간 모발 영역 인식 중...', 20, 30);
                         ctx.shadowBlur = 0;
                       }
                     });
-                  } catch (e) {
-                    console.log("Segmenter error:", e);
                   }
+                  
+                  if (currentStepRef.current !== 'vertex') {
+                     await faceMesh.send({image: videoRef.current});
+                  }
+                } catch (e) {
+                  console.error(e);
+                } finally {
+                  isProcessingRef.current = false;
                 }
               }
             },
