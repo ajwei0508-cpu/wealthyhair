@@ -186,7 +186,7 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
       }
     });
 
-    let cameraInstance = null;
+    let reqId = null;
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       setCameraError("이 브라우저에서는 카메라를 지원하지 않습니다. (HTTPS 환경이거나 권한을 확인해주세요)");
@@ -208,9 +208,9 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
         setHasCamera(true);
         videoRef.current.play().catch(e => console.log("Video play error:", e));
         
-        if (Camera) {
-          cameraInstance = new Camera(videoRef.current, {
-            onFrame: async () => {
+                const tick = async () => {
+          if (!active) return;
+
               if (videoRef.current && active && !previewImageRef.current) {
                 if (isProcessingRef.current) return;
                 isProcessingRef.current = true;
@@ -297,12 +297,10 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
                   isProcessingRef.current = false;
                 }
               }
-            },
-            width: 640,
-            height: 480
-          });
-          cameraInstance.start();
-        }
+            
+          if (active) reqId = requestAnimationFrame(tick);
+        };
+        reqId = requestAnimationFrame(tick);
       }
     })
     .catch((err) => {
@@ -314,8 +312,8 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
 
     return () => {
       active = false;
-      if (cameraInstance) {
-        cameraInstance.stop();
+      if (reqId) {
+        cancelAnimationFrame(reqId);
       }
       faceMesh.close();
       if (stream) {
