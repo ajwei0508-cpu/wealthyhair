@@ -24,7 +24,7 @@ function DashboardApp() {
               새로운 <span className="av-highlight">진단</span>을 시작하시겠어요?
             </h1>
             <p style={{ color: 'var(--text-muted)', margin: '2rem 0' }}>진단 홈으로 이동하여 정밀 분석을 다시 진행합니다.</p>
-            <button className="av-continue-btn" onClick={() => window.location.href = '/'}>
+            <button className="av-continue-btn" onClick={() => window.location.href = '/diagnosis.html'}>
               진단 앱 열기
             </button>
           </div>

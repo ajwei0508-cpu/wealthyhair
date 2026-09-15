@@ -16,5 +16,13 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/did-api/, '')
       }
     }
+  },
+  build: {
+    rollupOptions: {
+      input: {
+        main: './index.html',
+        diagnosis: './diagnosis.html'
+      }
+    }
   }
 })
