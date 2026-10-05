@@ -21,20 +21,25 @@ import ScanIntroView from './components/ScanIntroView';
 import PhotoGuideView from './components/PhotoGuideView';
 import analyzeHairLoss from './utils/diagnosis';
 import { performOfflineAnalysis } from './utils/offlineAnalysis';
+import { getSavedSurveyProfile, saveSurveyProfile, clearSurveyProfile } from './utils/surveyStorage';
 import './index.css';
 
 // CAPTURE_STEPS is now dynamic inside App component
 
 function App() {
-  const [currentView, setCurrentView] = useState('onboarding'); // 'onboarding', 'privacy', 'age', 'ethnicity', 'goal', 'family_history', 'duration', 'quote', 'routine', 'procedure', 'together', 'gender', 'expectation', 'notification', 'scan_intro', 'photo_guide', 'camera', 'review', 'loading', 'result', 'avatar'
-  const [age, setAge] = useState(null);
-  const [ethnicity, setEthnicity] = useState(null);
-  const [goals, setGoals] = useState([]);
-  const [familyHistory, setFamilyHistory] = useState(null);
-  const [duration, setDuration] = useState(null);
-  const [routine, setRoutine] = useState(null);
-  const [procedure, setProcedure] = useState(null);
-  const [gender, setGender] = useState(null);
+  const [currentView, setCurrentView] = useState('onboarding'); 
+  // 'onboarding', 'privacy', 'age', 'ethnicity', 'goal', 'family_history', 'duration', 'quote', 'routine', 'procedure', 'together', 'gender', 'expectation', 'notification', 'scan_intro', 'photo_guide', 'camera', 'review', 'loading', 'result', 'avatar'
+  
+  // 저장된 설문 프로필이 있으면 기본값으로 자동 로드
+  const [savedProfile, setSavedProfile] = useState(() => getSavedSurveyProfile());
+  const [age, setAge] = useState(savedProfile?.age || null);
+  const [ethnicity, setEthnicity] = useState(savedProfile?.ethnicity || null);
+  const [goals, setGoals] = useState(savedProfile?.goals || []);
+  const [familyHistory, setFamilyHistory] = useState(savedProfile?.familyHistory || null);
+  const [duration, setDuration] = useState(savedProfile?.duration || null);
+  const [routine, setRoutine] = useState(savedProfile?.routine || null);
+  const [procedure, setProcedure] = useState(savedProfile?.procedure || null);
+  const [gender, setGender] = useState(savedProfile?.gender || null);
   
   const getCaptureSteps = () => gender === 'female' ? ['front', 'vertex'] : ['front', 'left', 'right', 'vertex'];
   const currentCaptureSteps = getCaptureSteps();
@@ -54,6 +59,37 @@ function App() {
   
   const [currentCaptureIndex, setCurrentCaptureIndex] = useState(0);
   const [diagnosisData, setDiagnosisData] = useState(null);
+
+  const handleGenderSelect = (selectedGender) => {
+    setGender(selectedGender);
+    const updated = saveSurveyProfile({
+      age,
+      ethnicity,
+      goals,
+      familyHistory,
+      duration,
+      routine,
+      procedure,
+      gender: selectedGender,
+      isCompleted: true
+    });
+    setSavedProfile(updated);
+    setCurrentView('expectation');
+  };
+
+  const handleRetakeSurvey = () => {
+    clearSurveyProfile();
+    setSavedProfile(null);
+    setAge(null);
+    setEthnicity(null);
+    setGoals([]);
+    setFamilyHistory(null);
+    setDuration(null);
+    setRoutine(null);
+    setProcedure(null);
+    setGender(null);
+    setCurrentView('privacy');
+  };
 
   const handleCapture = async (imageSrc, points) => {
     const steps = getCaptureSteps();
@@ -106,23 +142,44 @@ function App() {
 
   const resetApp = () => {
     setCapturedImages({ front: null, left: null, right: null, vertex: null });
+    setCapturedAllPoints({ front: null, left: null, right: null, vertex: null });
     setCurrentCaptureIndex(0);
     setCurrentView('onboarding');
-    setAge(null);
-    setEthnicity(null);
-    setGoals([]);
-    setFamilyHistory(null);
-    setDuration(null);
-    setRoutine(null);
-    setProcedure(null);
-    setGender(null);
     setDiagnosisData(null);
+
+    // 설문 프로필은 로컬스토리지에서 안전하게 유지
+    const profile = getSavedSurveyProfile();
+    setSavedProfile(profile);
+    if (profile) {
+      setAge(profile.age || null);
+      setEthnicity(profile.ethnicity || null);
+      setGoals(profile.goals || []);
+      setFamilyHistory(profile.familyHistory || null);
+      setDuration(profile.duration || null);
+      setRoutine(profile.routine || null);
+      setProcedure(profile.procedure || null);
+      setGender(profile.gender || null);
+    }
   };
 
   return (
     <div className="app-container">
       {currentView === 'onboarding' && (
-        <OnboardingView onStart={() => setCurrentView('privacy')} />
+        <OnboardingView 
+          savedProfile={savedProfile}
+          onStart={() => {
+            // 이미 설문이 완료된 기록이 있다면 긴 설문을 건너뛰고 바로 스캔 단계로 이동
+            if (savedProfile && (savedProfile.gender || savedProfile.age)) {
+              setCurrentView('scan_intro');
+            } else {
+              setCurrentView('privacy');
+            }
+          }}
+          onFastStart={() => {
+            setCurrentView('scan_intro');
+          }}
+          onRetakeSurvey={handleRetakeSurvey}
+        />
       )}
       {currentView === 'privacy' && (
         <PrivacyView 
@@ -135,6 +192,7 @@ function App() {
           onBack={() => setCurrentView('privacy')}
           onContinue={(selectedAge) => {
             setAge(selectedAge);
+            saveSurveyProfile({ age: selectedAge });
             setCurrentView('ethnicity');
           }}
         />
@@ -144,6 +202,7 @@ function App() {
           onBack={() => setCurrentView('age')}
           onContinue={(selectedEthnicity) => {
             setEthnicity(selectedEthnicity);
+            saveSurveyProfile({ ethnicity: selectedEthnicity });
             setCurrentView('goal');
           }}
         />
@@ -153,6 +212,7 @@ function App() {
           onBack={() => setCurrentView('ethnicity')}
           onContinue={(selectedGoals) => {
             setGoals(selectedGoals);
+            saveSurveyProfile({ goals: selectedGoals });
             setCurrentView('family_history');
           }}
         />
@@ -162,6 +222,7 @@ function App() {
           onBack={() => setCurrentView('goal')}
           onContinue={(selectedHistory) => {
             setFamilyHistory(selectedHistory);
+            saveSurveyProfile({ familyHistory: selectedHistory });
             setCurrentView('duration');
           }}
         />
@@ -171,6 +232,7 @@ function App() {
           onBack={() => setCurrentView('family_history')}
           onContinue={(selectedDuration) => {
             setDuration(selectedDuration);
+            saveSurveyProfile({ duration: selectedDuration });
             setCurrentView('quote');
           }}
         />
@@ -187,6 +249,7 @@ function App() {
           onBack={() => setCurrentView('duration')}
           onContinue={(selectedRoutine) => {
             setRoutine(selectedRoutine);
+            saveSurveyProfile({ routine: selectedRoutine });
             setCurrentView('procedure');
           }}
         />
@@ -196,6 +259,7 @@ function App() {
           onBack={() => setCurrentView('routine')}
           onContinue={(selectedProcedure) => {
             setProcedure(selectedProcedure);
+            saveSurveyProfile({ procedure: selectedProcedure });
             setCurrentView('together');
           }}
         />
@@ -212,11 +276,11 @@ function App() {
           <h1 style={{ marginBottom: '60px', fontSize: '32px', fontFamily: 'var(--font-serif)', letterSpacing: '-0.02em' }}>당신의 성별을 선택해주세요</h1>
           <div style={{ display: 'flex', gap: '20px', width: '100%', maxWidth: '400px' }}>
             <button 
-              onClick={() => { setGender('male'); setCurrentView('expectation'); }}
+              onClick={() => handleGenderSelect('male')}
               className="btn-secondary"
             >남성</button>
             <button 
-              onClick={() => { setGender('female'); setCurrentView('expectation'); }}
+              onClick={() => handleGenderSelect('female')}
               className="btn-primary"
             >여성</button>
           </div>

@@ -1,4 +1,4 @@
-﻿/* OnboardingView.css */
+/* OnboardingView.css */
 
 .ob-wrapper {
   display: flex;
@@ -32,12 +32,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 40px;
-  margin-top: 20px;
+  margin-bottom: 28px;
+  margin-top: 10px;
 }
 
 .ob-logo {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .ob-logo-icon {
@@ -50,13 +50,13 @@
 }
 
 .ob-title {
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 700;
   letter-spacing: -0.02em;
   margin: 0;
 }
 
-/* Features */
+/* Features (신규 사용자) */
 .ob-features {
   display: flex;
   flex-direction: column;
@@ -84,6 +84,105 @@
   line-height: 1.4;
 }
 
+/* Existing Profile Card (기존 설문 기록이 있는 사용자) */
+.ob-profile-card {
+  width: 100%;
+  max-width: 400px;
+  background: linear-gradient(145deg, rgba(28, 28, 30, 0.95), rgba(18, 18, 20, 0.95));
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), 0 0 15px rgba(212, 175, 55, 0.08);
+  border-radius: 20px;
+  padding: 22px 20px;
+  margin-bottom: 24px;
+  animation: fadeInProfile 0.4s ease-out;
+}
+
+@keyframes fadeInProfile {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ob-profile-badge-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.ob-profile-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #D4AF37;
+  letter-spacing: -0.01em;
+}
+
+.ob-badge-icon {
+  color: #D4AF37;
+}
+
+.ob-profile-chip {
+  background: rgba(212, 175, 55, 0.15);
+  color: #f5d77f;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  padding: 3px 9px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.ob-profile-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.ob-profile-info-item {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.ob-profile-info-item.full-width {
+  grid-column: span 2;
+}
+
+.ob-profile-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 4px;
+}
+
+.ob-profile-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  word-break: break-all;
+}
+
+.ob-profile-desc {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.65);
+  line-height: 1.5;
+  margin: 0;
+  text-align: left;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 /* Reservation Badge */
 .ob-reservation-badge {
   display: inline-block;
@@ -107,6 +206,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: 100%;
 }
 
 .ob-continue-btn {
@@ -120,11 +220,53 @@
   font-size: 16px;
   font-weight: 700;
   cursor: pointer;
-  margin-bottom: 16px;
-  transition: opacity 0.2s;
+  margin-bottom: 12px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ob-continue-btn.highlight {
+  background: linear-gradient(135deg, #ECC440 0%, #D4AF37 50%, #B89228 100%);
+  color: #0b0b0c;
+  box-shadow: 0 4px 20px rgba(212, 175, 55, 0.35);
+}
+
+.ob-continue-btn:hover {
+  opacity: 0.95;
+  transform: translateY(-1px);
 }
 
 .ob-continue-btn:active {
+  opacity: 0.85;
+  transform: translateY(0);
+}
+
+.ob-retake-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.7);
+  border-radius: 30px;
+  padding: 13px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 400px;
+  transition: all 0.2s ease;
+}
+
+.ob-retake-btn:hover {
+  border-color: rgba(212, 175, 55, 0.6);
+  color: #D4AF37;
+  background-color: rgba(212, 175, 55, 0.05);
+}
+
+.ob-retake-btn:active {
   opacity: 0.8;
 }
 
@@ -136,4 +278,3 @@
   max-width: 300px;
   line-height: 1.4;
 }
-
