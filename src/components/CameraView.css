@@ -448,7 +448,31 @@
 .cv-top-guide { position: absolute; top: 0; left: 0; width: 100%; padding: 20px; text-align: center; z-index: 30; }
 .cv-progress-bar { width: 100%; height: 2px; background: rgba(255,255,255,0.1); margin-bottom: 12px; overflow: hidden; }
 .cv-progress-fill { height: 100%; background: var(--accent-gold); transition: width 0.3s ease; }
-.cv-step-title { font-family: var(--font-serif); font-size: 20px; font-weight: 600; color: var(--accent-gold); margin: 0 0 4px 0; }
+.cv-header-flex { display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 4px; }
+.cv-step-title { font-family: var(--font-serif); font-size: 20px; font-weight: 600; color: var(--accent-gold); margin: 0; }
+.cv-guide-help-btn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(212, 175, 55, 0.15);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  color: #D4AF37;
+  padding: 5px 10px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: all 0.2s;
+}
+.cv-guide-help-btn:hover {
+  background: rgba(212, 175, 55, 0.3);
+  color: #fff;
+}
 .cv-step-instruction { font-family: var(--font-sans); font-size: 14px; opacity: 0.8; color: var(--bg-main); margin: 0; }
 .cv-vertex-circle { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 200px; height: 200px; border: 1px dashed rgba(212, 175, 55, 0.5); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
 .cv-circle-label { color: var(--accent-gold); font-family: var(--font-sans); font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; background: rgba(0,0,0,0.8); padding: 4px 8px; z-index: 2; }

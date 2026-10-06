@@ -50,10 +50,121 @@
 }
 
 .ob-title {
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 700;
   letter-spacing: -0.02em;
   margin: 0;
+  text-align: center;
+}
+
+.ob-header-sub {
+  font-size: 13px;
+  color: #9ca3af;
+  margin: 6px 0 0 0;
+  text-align: center;
+}
+
+/* Guide Promo Card (영상 & 촬영 가이드 배너) */
+.ob-guide-promo-card {
+  width: 100%;
+  max-width: 400px;
+  background: linear-gradient(135deg, rgba(35, 30, 20, 0.9) 0%, rgba(20, 20, 24, 0.95) 100%);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  border-radius: 18px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 20px rgba(212, 175, 55, 0.12);
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.ob-guide-promo-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.15), transparent);
+  animation: obShimmer 3.5s infinite;
+}
+
+@keyframes obShimmer {
+  0% { left: -100%; }
+  40% { left: 100%; }
+  100% { left: 100%; }
+}
+
+.ob-guide-promo-card:hover {
+  transform: translateY(-2px);
+  border-color: #D4AF37;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7), 0 0 25px rgba(212, 175, 55, 0.25);
+}
+
+.ob-promo-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ob-promo-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #D4AF37 0%, #F5D77F 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4);
+  transition: transform 0.2s;
+}
+
+.ob-guide-promo-card:hover .ob-promo-play-btn {
+  transform: scale(1.08);
+}
+
+.ob-promo-text-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ob-promo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #D4AF37;
+  letter-spacing: 0.02em;
+}
+
+.ob-promo-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.ob-promo-desc {
+  font-size: 11px;
+  color: #9ca3af;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.ob-promo-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 6px;
 }
 
 /* Features (신규 사용자) */

@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { RefreshCw, Image as ImageIcon, ArrowRight, ArrowLeft, Smartphone, User, Check } from 'lucide-react';
+import { RefreshCw, Image as ImageIcon, ArrowRight, ArrowLeft, Smartphone, User, Check, HelpCircle } from 'lucide-react';
 import { FilesetResolver, ImageSegmenter } from '@mediapipe/tasks-vision';
+import PhotoGuideModal from './PhotoGuideModal';
 import './CameraView.css';
 
 const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalSteps = 4, gender = 'male' }) => {
@@ -18,6 +19,7 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
   const [countdown, setCountdown] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
   const [capturedPoints, setCapturedPoints] = useState(null); // { hairline: [], face: [], mask: '' }
+  const [showGuideModal, setShowGuideModal] = useState(false);
   
   const latestHairlineRef = useRef([]);
   const latestFaceRef = useRef([]);
@@ -494,7 +496,18 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
         <div className="cv-progress-bar">
           <div className="cv-progress-fill" style={{width: `${(stepIndex / totalSteps) * 100}%`}}></div>
         </div>
-        <h2 className="cv-step-title">[{stepIndex}/{totalSteps}] {getStepTitle()}</h2>
+        <div className="cv-header-flex">
+          <h2 className="cv-step-title">[{stepIndex}/{totalSteps}] {getStepTitle()}</h2>
+          <button 
+            className="cv-guide-help-btn"
+            onClick={() => setShowGuideModal(true)}
+            type="button"
+            title="촬영 방법 안내"
+          >
+            <HelpCircle size={15} />
+            <span>촬영 안내</span>
+          </button>
+        </div>
         <p className="cv-step-instruction">{getStepInstruction()}</p>
       </div>
 
@@ -657,6 +670,11 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
           </button>
         </div>
       </div>
+
+      <PhotoGuideModal 
+        isOpen={showGuideModal}
+        onClose={() => setShowGuideModal(false)}
+      />
     </div>
   );
 };

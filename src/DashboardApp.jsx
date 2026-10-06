@@ -19,13 +19,15 @@ function DashboardApp() {
       case 'simulator':   return <HairSimTab />;
       case 'diagnosis':
         return (
-          <div className="av-content fade-in" style={{ padding: '20px', textAlign: 'center' }}>
+          <div className="av-content fade-in" style={{ padding: '20px', textAlign: 'center', maxWidth: '480px', margin: '0 auto' }}>
             <h1 className="av-title">
-              새로운 <span className="av-highlight">진단</span>을 시작하시겠어요?
+              새로운 <span className="av-highlight">탈모진단</span>을 시작하시겠어요?
             </h1>
-            <p style={{ color: 'var(--text-muted)', margin: '2rem 0' }}>진단 홈으로 이동하여 정밀 분석을 다시 진행합니다.</p>
-            <button className="av-continue-btn" onClick={() => window.location.href = '/diagnosis.html'}>
-              진단 앱 열기
+            <p style={{ color: 'var(--text-muted)', margin: '1rem 0 2rem' }}>
+              모발부자 AI 탈모진단 홈으로 이동하여 정밀 모발 스캔과 노우드 척도 맞춤 진단을 진행합니다.
+            </p>
+            <button className="av-continue-btn" onClick={() => window.location.href = '/diagnosis.html'} style={{ width: '100%', marginBottom: '12px' }}>
+              탈모진단앱 열기
             </button>
           </div>
         );

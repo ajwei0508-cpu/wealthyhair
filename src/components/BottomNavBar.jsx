@@ -55,7 +55,7 @@ const ClinicIcon = ({ size = 22 }) => (
 
 const BottomNavBar = ({ activeTab, setActiveTab }) => {
   const tabs = [
-    { id: 'diagnosis',   label: '진단 홈',   icon: DiagnosisIcon },
+    { id: 'diagnosis',   label: '탈모진단',  icon: DiagnosisIcon },
     { id: 'medication',  label: '복약 관리',  icon: MedicationIcon },
     { id: 'simulator',   label: 'AI 예측',   icon: SimulatorIcon, isCenter: true },
     { id: 'journal',     label: '성장 일지',  icon: JournalIcon },

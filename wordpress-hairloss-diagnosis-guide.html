@@ -1,0 +1,627 @@
+<!-- ========================================================
+  [모발부자 AI] 탈모진단앱 - 촬영 방법 및 앱 사용 상세 가이드 (올인원 워드프레스 블록)
+  적용 방법: 워드프레스 편집기에서 '사용자 정의 HTML(Custom HTML)' 블록을 추가한 후
+  이 파일의 전체 내용(Ctrl+A -> Ctrl+C -> Ctrl+V)을 그대로 붙여넣으시면 됩니다.
+======================================================== -->
+<div id="wh-guide-root" class="wh-guide-scope">
+  <style>
+    .wh-guide-scope {
+      --wh-gold: #D4AF37;
+      --wh-gold-light: #F5D77F;
+      --wh-gold-glow: rgba(212, 175, 55, 0.25);
+      --wh-dark-bg: #0d0d10;
+      --wh-card-bg: #141418;
+      --wh-text-main: #ffffff;
+      --wh-text-muted: #9ca3af;
+      --wh-border: rgba(212, 175, 55, 0.3);
+      
+      font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Noto Sans KR", sans-serif;
+      background: var(--wh-dark-bg);
+      color: var(--wh-text-main);
+      border: 1px solid var(--wh-border);
+      border-radius: 24px;
+      padding: 32px 24px;
+      max-width: 760px;
+      margin: 20px auto;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.8), 0 0 30px var(--wh-gold-glow);
+      box-sizing: border-box;
+      line-height: 1.5;
+    }
+
+    .wh-guide-scope * {
+      box-sizing: border-box;
+    }
+
+    .wh-guide-header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .wh-guide-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(212, 175, 55, 0.12);
+      border: 1px solid rgba(212, 175, 55, 0.4);
+      color: var(--wh-gold);
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      margin-bottom: 12px;
+    }
+
+    .wh-guide-title {
+      font-size: 24px;
+      font-weight: 800;
+      color: #ffffff;
+      margin: 0 0 8px;
+      letter-spacing: -0.02em;
+    }
+
+    .wh-guide-title span {
+      color: var(--wh-gold);
+    }
+
+    .wh-guide-sub {
+      font-size: 14px;
+      color: var(--wh-text-muted);
+      margin: 0;
+    }
+
+    /* Mode Switcher */
+    .wh-mode-nav {
+      display: flex;
+      gap: 10px;
+      background: rgba(255,255,255,0.04);
+      padding: 6px;
+      border-radius: 14px;
+      margin-bottom: 20px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .wh-mode-btn {
+      flex: 1;
+      padding: 10px 16px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--wh-text-muted);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .wh-mode-btn.active {
+      background: rgba(212, 175, 55, 0.16);
+      border-color: var(--wh-gold);
+      color: var(--wh-gold);
+      box-shadow: 0 0 16px rgba(212, 175, 55, 0.2);
+    }
+
+    /* Step Selector Pills */
+    .wh-step-pills {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 10px;
+      margin-bottom: 20px;
+      scrollbar-width: none;
+    }
+    .wh-step-pills::-webkit-scrollbar { display: none; }
+
+    .wh-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: var(--wh-text-muted);
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .wh-pill.active {
+      background: var(--wh-gold);
+      color: #0b0b0d;
+      border-color: var(--wh-gold);
+      font-weight: 800;
+    }
+
+    .wh-pill-num {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+    }
+
+    /* Video Simulation Phone Stage */
+    .wh-video-stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .wh-phone-bezel {
+      width: 290px;
+      height: 380px;
+      background: #000;
+      border: 3px solid #2b2b32;
+      border-radius: 36px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.9), 0 0 25px rgba(212, 175, 55, 0.2);
+    }
+
+    .wh-notch {
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80px;
+      height: 18px;
+      background: #000;
+      border-radius: 12px;
+      z-index: 40;
+    }
+
+    .wh-screen-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .wh-laser-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, var(--wh-gold), transparent);
+      box-shadow: 0 0 14px var(--wh-gold);
+      animation: whLaser 2.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+      z-index: 20;
+    }
+
+    @keyframes whLaser {
+      0% { top: 0%; opacity: 0; }
+      15% { opacity: 1; }
+      85% { opacity: 1; }
+      100% { top: 100%; opacity: 0; }
+    }
+
+    .wh-ar-box {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 190px;
+      height: 170px;
+      border: 1.5px solid var(--wh-gold);
+      border-radius: 16px;
+      box-shadow: 0 0 20px rgba(212, 175, 55, 0.35);
+      z-index: 15;
+      pointer-events: none;
+    }
+
+    .wh-hud {
+      position: absolute;
+      bottom: 12px;
+      left: 10px;
+      right: 10px;
+      z-index: 30;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .wh-hud-pill {
+      background: rgba(34, 197, 94, 0.25);
+      border: 1px solid rgba(34, 197, 94, 0.6);
+      color: #4ade80;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      backdrop-filter: blur(8px);
+    }
+
+    .wh-countdown-badge {
+      background: rgba(0,0,0,0.85);
+      border: 1px solid var(--wh-gold);
+      color: #fff;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .wh-countdown-badge span {
+      color: var(--wh-gold);
+      font-size: 14px;
+    }
+
+    /* Player Controls */
+    .wh-player-bar {
+      width: 100%;
+      max-width: 440px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 10px 14px;
+      margin-top: 14px;
+    }
+
+    .wh-track {
+      width: 100%;
+      height: 4px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 2px;
+      margin-bottom: 8px;
+      overflow: hidden;
+    }
+
+    .wh-fill {
+      height: 100%;
+      background: var(--wh-gold);
+      width: 45%;
+      border-radius: 2px;
+      transition: width 0.2s linear;
+    }
+
+    .wh-controls-flex {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Step Detail Cards */
+    .wh-detail-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    @media (min-width: 600px) {
+      .wh-detail-grid {
+        grid-template-columns: 1fr 1.2fr;
+      }
+    }
+
+    .wh-img-card {
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--wh-border);
+      position: relative;
+      background: #000;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      min-height: 240px;
+    }
+
+    .wh-img-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .wh-info-card {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 16px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .wh-info-tag {
+      font-size: 11px;
+      color: var(--wh-gold);
+      font-weight: 800;
+      letter-spacing: 0.05em;
+    }
+
+    .wh-info-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: #fff;
+      margin: 0;
+    }
+
+    .wh-point-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: rgba(255,255,255,0.03);
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 13px;
+    }
+
+    .wh-point-num {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: rgba(212, 175, 55, 0.2);
+      color: var(--wh-gold);
+      font-size: 11px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .wh-box-do {
+      background: rgba(34, 197, 94, 0.08);
+      border: 1px solid rgba(34, 197, 94, 0.25);
+      color: #bbf7d0;
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 12px;
+    }
+
+    .wh-box-dont {
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+      color: #fecaca;
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 12px;
+    }
+
+    /* Bottom CTA Button */
+    .wh-cta-box {
+      text-align: center;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .wh-cta-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: linear-gradient(135deg, #D4AF37 0%, #b8860b 100%);
+      color: #0b0b0d;
+      font-size: 15px;
+      font-weight: 800;
+      padding: 14px 28px;
+      border-radius: 30px;
+      text-decoration: none;
+      box-shadow: 0 4px 18px rgba(212, 175, 55, 0.4);
+      transition: all 0.25s ease;
+      cursor: pointer;
+    }
+
+    .wh-cta-btn:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.08);
+      box-shadow: 0 8px 25px rgba(212, 175, 55, 0.6);
+    }
+  </style>
+
+  <div class="wh-guide-header">
+    <div class="wh-guide-badge">✨ 모발부자 AI 탈모진단앱 공식 가이드</div>
+    <h2 class="wh-guide-title">정확한 AI 탈모진단을 위한 <span>촬영 가이드</span></h2>
+    <p class="wh-guide-sub">한국인 맞춤 알고리즘으로 정확도 98% 분석을 위한 올바른 촬영 각도를 확인하세요.</p>
+  </div>
+
+  <!-- Mode Switcher -->
+  <div class="wh-mode-nav">
+    <button class="wh-mode-btn active" id="whBtnVideo" onclick="whSwitchMode('video')">
+      🎬 30초 모션 영상 튜토리얼
+    </button>
+    <button class="wh-mode-btn" id="whBtnSteps" onclick="whSwitchMode('steps')">
+      📸 4단계 부위별 상세 사진
+    </button>
+  </div>
+
+  <!-- Step Pills -->
+  <div class="wh-step-pills">
+    <button class="wh-pill active" onclick="whSelectStep(0)">
+      <span class="wh-pill-num">1</span> 정면 이마선
+    </button>
+    <button class="wh-pill" onclick="whSelectStep(1)">
+      <span class="wh-pill-num">2</span> 좌·우 M자 라인
+    </button>
+    <button class="wh-pill" onclick="whSelectStep(2)">
+      <span class="wh-pill-num">3</span> 정수리 가르마
+    </button>
+    <button class="wh-pill" onclick="whSelectStep(3)">
+      <span class="wh-pill-num">4</span> 조명 체크리스트
+    </button>
+  </div>
+
+  <!-- Container 1: Video Simulation Mode -->
+  <div id="whVideoContainer" class="wh-video-stage">
+    <div class="wh-phone-bezel">
+      <div class="wh-notch"></div>
+      <img id="whSimScreenImg" src="/guides/guide_front.jpg" alt="촬영 안내" class="wh-screen-img" />
+      <div class="wh-laser-bar"></div>
+      <div class="wh-ar-box"></div>
+      <div class="wh-hud">
+        <div class="wh-hud-pill">✓ 기기 각도 일치 (수직 90도)</div>
+        <div class="wh-countdown-badge">자동 촬영까지 <span>3</span>초</div>
+      </div>
+    </div>
+
+    <div class="wh-player-bar">
+      <div class="wh-track"><div id="whTrackFill" class="wh-fill"></div></div>
+      <div class="wh-controls-flex">
+        <span id="whSimStepTitle" style="font-size:13px; font-weight:700; color:#fff;">1. 정면 이마선 촬영</span>
+        <span style="font-size:11px; color:var(--wh-gold);">● 시뮬레이션 자동 재생 중</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Container 2: Step-by-Step Clinical Photo Cards -->
+  <div id="whStepsContainer" class="wh-detail-grid" style="display:none;">
+    <div class="wh-img-card">
+      <img id="whDetailImg" src="/guides/guide_front.jpg" alt="촬영 가이드 사진" />
+    </div>
+
+    <div class="wh-info-card">
+      <div>
+        <div id="whDetailTag" class="wh-info-tag">M자 & 헤어라인 분석</div>
+        <h3 id="whDetailTitle" class="wh-info-title">1. 정면 이마선 촬영</h3>
+      </div>
+
+      <div id="whDetailPoints">
+        <div class="wh-point-item">
+          <div class="wh-point-num">1</div>
+          <div>앞머리를 한 손으로 가볍게 들어 올려 이마 라인을 완전히 노출합니다.</div>
+        </div>
+        <div class="wh-point-item">
+          <div class="wh-point-num">2</div>
+          <div>스마트폰을 지면과 수직(90도)으로 눈높이 정면에 맞춥니다.</div>
+        </div>
+        <div class="wh-point-item">
+          <div class="wh-point-num">3</div>
+          <div>골드 가이드라인에 이마가 위치하면 3초 카운트다운 후 자동 촬영됩니다.</div>
+        </div>
+      </div>
+
+      <div id="whDetailDo" class="wh-box-do">
+        <strong>✓ 올바른 예시:</strong> 눈썹과 헤어라인 경계가 선명하게 보이도록 고정
+      </div>
+      <div id="whDetailDont" class="wh-box-dont">
+        <strong>✕ 피해야 할 예시:</strong> 앞머리가 이마를 가리거나 아래에서 위로 올려다보지 마세요.
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom CTA -->
+  <div class="wh-cta-box">
+    <a href="/diagnosis.html" class="wh-cta-btn">
+      탈모진단앱 바로 실행하기 →
+    </a>
+  </div>
+
+  <script>
+    (function() {
+      var steps = [
+        {
+          title: "1. 정면 이마선 촬영",
+          tag: "M자 & 헤어라인 분석",
+          img: "/guides/guide_front.jpg",
+          points: [
+            "앞머리를 한 손으로 가볍게 들어 올려 이마 라인을 완전히 노출합니다.",
+            "스마트폰을 지면과 수직(90도)으로 눈높이 정면에 맞춥니다.",
+            "골드 가이드라인에 이마가 위치하면 3초 카운트다운 후 자동 촬영됩니다."
+          ],
+          dos: "눈썹과 헤어라인 경계가 선명하게 보이도록 고정",
+          donts: "앞머리가 이마를 가리거나 아래에서 위로 올려다보지 마세요."
+        },
+        {
+          title: "2. 좌·우 M자 라인 촬영",
+          tag: "관자놀이 M자 파임 깊이 측정",
+          img: "/guides/guide_side.jpg",
+          points: [
+            "고개를 약 45도 옆으로 돌려 관자놀이 M자 파임 부위가 화면에 잘 보이게 합니다.",
+            "옆머리를 살짝 들어 올려 모발이 시작되는 경계선을 확실히 보여줍니다.",
+            "노우드 척도 기반 정밀 단계 분석이 진행됩니다."
+          ],
+          dos: "측면 헤어라인의 가장 깊게 파인 각도가 드러나도록 촬영",
+          donts: "귀나 손가락이 헤어라인 측정 부위를 가리지 않도록 주의하세요."
+        },
+        {
+          title: "3. 정수리 가르마 밀도 촬영",
+          tag: "두피 노출 면적 & 모낭 밀도",
+          img: "/guides/guide_vertex.jpg",
+          points: [
+            "고개를 앞으로 푹 숙여 정수리와 가마 부위가 위를 향하도록 합니다.",
+            "스마트폰을 바닥과 평행하게(수평) 머리 위 20~25cm 높이에 눕힙니다.",
+            "자이로 센서 동심원 타겟 안에 정수리 중앙 가마를 위치시키면 자동 감지됩니다."
+          ],
+          dos: "정수리 가르마를 중심으로 두피 피부가 골고루 드러나게 촬영",
+          donts: "카메라가 너무 가깝거나 심하게 기울어지지 않게 유지하세요."
+        },
+        {
+          title: "4. 조명 및 촬영 체크리스트",
+          tag: "AI 정확도 98% 필수 요건",
+          img: "/guides/guide_tips.jpg",
+          points: [
+            "밝은 자연광이나 그림자가 생기지 않는 균일한 실내 조명 아래서 촬영하세요.",
+            "카메라 렌즈를 깨끗한 천으로 닦아 유분과 지문을 제거해주세요.",
+            "플래시는 두피에 강한 반사광을 만들어 인식을 방해하므로 꺼두시는 것이 좋습니다."
+          ],
+          dos: "선명하고 부드러운 자연광 환경에서 촬영",
+          donts: "어두운 방, 역광, 플래시 직광, 손떨림으로 인한 블러"
+        }
+      ];
+
+      var currentStep = 0;
+      var currentMode = 'video';
+      var simTimer = null;
+      var progress = 0;
+
+      window.whSwitchMode = function(mode) {
+        currentMode = mode;
+        document.getElementById('whBtnVideo').classList.toggle('active', mode === 'video');
+        document.getElementById('whBtnSteps').classList.toggle('active', mode === 'steps');
+        document.getElementById('whVideoContainer').style.display = (mode === 'video') ? 'flex' : 'none';
+        document.getElementById('whStepsContainer').style.display = (mode === 'steps') ? 'grid' : 'none';
+      };
+
+      window.whSelectStep = function(idx) {
+        currentStep = idx;
+        var pills = document.querySelectorAll('.wh-pill');
+        pills.forEach(function(p, i) {
+          p.classList.toggle('active', i === idx);
+        });
+
+        var s = steps[idx];
+        document.getElementById('whSimScreenImg').src = s.img;
+        document.getElementById('whSimStepTitle').innerText = s.title;
+
+        document.getElementById('whDetailImg').src = s.img;
+        document.getElementById('whDetailTag').innerText = s.tag;
+        document.getElementById('whDetailTitle').innerText = s.title;
+        
+        var pointsHtml = '';
+        s.points.forEach(function(pt, i) {
+          pointsHtml += '<div class="wh-point-item"><div class="wh-point-num">' + (i + 1) + '</div><div>' + pt + '</div></div>';
+        });
+        document.getElementById('whDetailPoints').innerHTML = pointsHtml;
+        document.getElementById('whDetailDo').innerHTML = '<strong>✓ 올바른 예시:</strong> ' + s.dos;
+        document.getElementById('whDetailDont').innerHTML = '<strong>✕ 피해야 할 예시:</strong> ' + s.donts;
+      };
+
+      // Auto loop simulation
+      setInterval(function() {
+        if (currentMode === 'video') {
+          progress += 5;
+          if (progress > 100) {
+            progress = 0;
+            currentStep = (currentStep + 1) % steps.length;
+            whSelectStep(currentStep);
+          }
+          var fill = document.getElementById('whTrackFill');
+          if (fill) fill.style.width = progress + '%';
+        }
+      }, 250);
+    })();
+  </script>
+</div>
