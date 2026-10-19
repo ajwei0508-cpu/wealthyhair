@@ -1,193 +1,171 @@
-/**
- * 해외의 Hairloss AI 진단 방식(이미지에서 추출한 특징점 수치화)을 모방하여
- * 노우드(Norwood), 루드비히(Ludwig), BASP 분류법으로 진단하는 코드입니다.
- * 
- * @param {Object} features AI가 이미지에서 추출한 특징 데이터 (가상)
- * @param {string} features.gender - 'male' 또는 'female'
- * @param {number} features.templeRecessionCm - M자/양측두부 파임 깊이 (cm)
- * @param {number} features.frontalRecessionCm - 전두부(앞머리) 전체 후퇴 깊이 (cm)
- * @param {number} features.vertexThinningPercent - 정수리 탈모 진행도 (0~100%)
- * @param {number} features.partingWidthMm - 가르마 두께 (mm)
- * @returns {Object} 노우드, 루드비히, BASP 진단 결과
- */
+// src/utils/diagnosis.js
+// 국제 표준 Hamilton-Norwood 척도, Ludwig 척도, Sinclair 5단계 가르마 척도 및 대한모발학회 BASP(Basic and Specific) 통합 진단 엔진
+
 export function analyzeHairLoss(features) {
   const {
     gender = 'male',
     templeRecessionCm = 0,
     frontalRecessionCm = 0,
+    leftRecessionCm = 0,
+    rightRecessionCm = 0,
     vertexThinningPercent = 0,
-    partingWidthMm = 1,
+    partingWidthMm = 1.8,
+    follicularDensityPerCm2 = 140,
+    scalpErythemaPercent = 8.0,
+    familyHistory = null,
+    duration = null,
   } = features;
 
-  let norwood = "Stage I (정상)";
-  let ludwig = "Normal (정상)";
-  let baspBasic; // L, M, C, U
-  let baspSpecific = ""; // V, F
+  let norwood = 'Stage I (정상)';
+  let ludwig = 'Normal (정상)';
+  let sinclair = 'Stage 1 (정상 가르마)';
+  let baspBasic = 'L';
+  let baspSub = '';
+  let baspSpecific = '';
 
-  // 1. 노우드 분류법 (Norwood Scale) - 주로 남성형 탈모
+  // 1. 남성형 탈모: 해밀턴-노우드 분류법 (Hamilton-Norwood Scale)
   if (gender === 'male') {
-    if (templeRecessionCm < 2 && frontalRecessionCm < 2 && vertexThinningPercent < 10) {
-      norwood = "Stage I (진행 안됨)";
-    } else if (templeRecessionCm < 2 && frontalRecessionCm >= 2 && frontalRecessionCm < 4) {
-      norwood = "Stage IIA (초기 전두부 탈모)";
-    } else if (templeRecessionCm >= 2 && templeRecessionCm < 4 && vertexThinningPercent < 20) {
-      norwood = "Stage II (초기 M자)";
-    } else if (templeRecessionCm >= 4 && templeRecessionCm < 6) {
-      if (vertexThinningPercent >= 30) {
-        norwood = "Stage III Vertex (M자 + 정수리 탈모)";
+    if (templeRecessionCm < 1.8 && frontalRecessionCm < 1.8 && vertexThinningPercent < 15) {
+      norwood = 'Stage I (정상 · 진행 안됨)';
+    } else if (templeRecessionCm < 2.2 && frontalRecessionCm >= 1.8 && frontalRecessionCm < 3.5) {
+      norwood = 'Stage IIA (초기 전두부 후퇴형)';
+    } else if (templeRecessionCm >= 1.8 && templeRecessionCm < 3.5 && vertexThinningPercent < 22) {
+      norwood = 'Stage II (초기 M자형 탈모)';
+    } else if (templeRecessionCm >= 3.5 && templeRecessionCm < 5.2) {
+      if (vertexThinningPercent >= 25) {
+        norwood = 'Stage III Vertex (중기 M자 + 정수리 복합형)';
       } else {
-        norwood = "Stage III (중기 M자)";
+        norwood = 'Stage III (중기 M자형 탈모)';
       }
-    } else if (templeRecessionCm < 4 && frontalRecessionCm >= 4 && frontalRecessionCm < 6) {
-      norwood = "Stage IIIA (중기 전두부 탈모)";
-    } else if (templeRecessionCm >= 6 && frontalRecessionCm < 5) {
-      norwood = "Stage IV (깊은 M자 및 정수리 탈모 심화)";
-    } else if (frontalRecessionCm >= 6 && frontalRecessionCm < 7) {
-      norwood = "Stage IVA (깊은 전두부 탈모)";
-    } else if (templeRecessionCm >= 6 && frontalRecessionCm >= 5 && frontalRecessionCm < 7) {
-      norwood = "Stage V (전두부 및 정수리 연결 시작)";
-    } else if (frontalRecessionCm >= 7 && vertexThinningPercent >= 70) {
-      norwood = "Stage VI (광범위한 탈모)";
-    } else if (frontalRecessionCm >= 9 && vertexThinningPercent >= 90) {
-      norwood = "Stage VII (측면과 후면만 남음)";
-    } else if (templeRecessionCm >= 2 || frontalRecessionCm >= 2) {
-      norwood = "Stage II (초기 탈모 의심)";
+    } else if (templeRecessionCm < 3.5 && frontalRecessionCm >= 3.5 && frontalRecessionCm < 5.2) {
+      norwood = 'Stage IIIA (중기 전두부 후퇴형)';
+    } else if ((templeRecessionCm >= 5.2 && frontalRecessionCm < 5.0) || (templeRecessionCm >= 3.0 && vertexThinningPercent >= 45 && vertexThinningPercent < 65)) {
+      norwood = 'Stage IV (깊은 M자 및 정수리 탈모 심화)';
+    } else if (frontalRecessionCm >= 5.2 && frontalRecessionCm < 6.5 && vertexThinningPercent < 55) {
+      norwood = 'Stage IVA (심화된 전두부 후퇴형)';
+    } else if ((templeRecessionCm >= 5.2 && frontalRecessionCm >= 4.8 && vertexThinningPercent >= 55 && vertexThinningPercent < 75) || (vertexThinningPercent >= 60 && vertexThinningPercent < 75)) {
+      norwood = 'Stage V (전두부·정수리 가교 모발띠 축소 단계)';
+    } else if ((frontalRecessionCm >= 6.2 && vertexThinningPercent >= 72 && vertexThinningPercent < 86) || vertexThinningPercent >= 75) {
+      norwood = 'Stage VI (전두부·정수리 융합 광범위 탈모)';
+    } else if (frontalRecessionCm >= 7.8 || vertexThinningPercent >= 86) {
+      norwood = 'Stage VII (측두·후두부만 잔존한 고도 탈모)';
+    } else if (vertexThinningPercent >= 22) {
+      norwood = 'Stage III Vertex (정수리 중심 초기-중기 탈모)';
+    } else {
+      norwood = 'Stage II (초기 탈모 의심)';
     }
   }
 
-  // 2. 루드비히 분류법 (Ludwig Scale) - 주로 여성형 탈모 (가르마 기준)
+  // 2. 여성형 탈모: 루드비히(Ludwig) 척도 + 싱클레어(Sinclair) 5단계 가르마 척도
   if (gender === 'female') {
-    if (partingWidthMm < 3) {
-      ludwig = "Normal (정상)";
-    } else if (partingWidthMm >= 3 && partingWidthMm < 6) {
-      ludwig = "Grade I (초기 가르마 넓어짐)";
-    } else if (partingWidthMm >= 6 && partingWidthMm < 10) {
-      ludwig = "Grade II (중기 정수리 숱 감소)";
-    } else if (partingWidthMm >= 10) {
-      ludwig = "Grade III (광범위한 정수리 탈모)";
+    if (partingWidthMm < 2.8 && vertexThinningPercent < 16) {
+      ludwig = 'Normal (정상 밀도)';
+      sinclair = 'Sinclair Stage 1 (정상 중앙 가르마)';
+    } else if (partingWidthMm < 4.5 && vertexThinningPercent < 28) {
+      ludwig = 'Grade I-1 (경도 초기 가르마 확장)';
+      sinclair = 'Sinclair Stage 2 (초기 가르마 확장)';
+    } else if (partingWidthMm < 6.5 && vertexThinningPercent < 42) {
+      ludwig = 'Grade I-2 (초기-중기 가르마 연모화)';
+      sinclair = 'Sinclair Stage 3 (중등도 가르마 확장 · 크리스마스트리 패턴 초기)';
+    } else if (partingWidthMm < 10.0 && vertexThinningPercent < 68) {
+      ludwig = 'Grade II (중기 정수리 숱 감소 및 두피 비침)';
+      sinclair = 'Sinclair Stage 4 (진행된 상부 미만성 밀도 저하)';
+    } else {
+      ludwig = 'Grade III (고도 광범위 정수리 탈모)';
+      sinclair = 'Sinclair Stage 5 (고도 상부 두피 노출)';
     }
   }
 
-  // 3. BASP 분류법 (한국인/아시아인에 적합한 통합 분류법)
-  // Basic Type: 앞머리 선의 모양 (L, M, C, U)
-  if (frontalRecessionCm >= 5 && templeRecessionCm >= 5) {
-    baspBasic = "U"; // U자형 후퇴
-  } else if (frontalRecessionCm >= 3 && templeRecessionCm < 3) {
-    baspBasic = "C"; // C자형 (앞머리 전체 후퇴)
-  } else if (templeRecessionCm >= 2.5) {
-    baspBasic = "M"; // M자형 후퇴
+  // 3. 대한모발학회 표준 BASP 분류법 (Basic Type: L, M0~3, C0~3, U1~3 / Specific Type: V1~3, F1~3)
+  if (frontalRecessionCm >= 5.5 && templeRecessionCm >= 5.5) {
+    baspBasic = 'U';
+    baspSub = frontalRecessionCm >= 7.5 ? 'U3' : frontalRecessionCm >= 6.5 ? 'U2' : 'U1';
+  } else if (frontalRecessionCm >= 2.2 && frontalRecessionCm >= templeRecessionCm * 0.85) {
+    baspBasic = 'C';
+    baspSub = frontalRecessionCm >= 4.5 ? 'C3' : frontalRecessionCm >= 3.2 ? 'C2' : 'C1';
+  } else if (templeRecessionCm >= 1.8) {
+    baspBasic = 'M';
+    baspSub = templeRecessionCm >= 4.5 ? 'M3' : templeRecessionCm >= 3.0 ? 'M2' : 'M1';
   } else {
-    baspBasic = "L"; // 일자형 정상 유지
+    baspBasic = 'L';
+    baspSub = 'L (정상 일자형)';
   }
 
-  // Specific Type: 특정 부위 밀도 저하 (V: 정수리, F: 앞머리 밀도)
-  if (vertexThinningPercent >= 50) {
-    baspSpecific += "V3";
-  } else if (vertexThinningPercent >= 20) {
-    baspSpecific += "V2";
-  } else if (vertexThinningPercent >= 5) {
-    baspSpecific += "V1";
-  }
+  // Specific Type (V: 정수리 Vertex, F: 전두부 미만성 Frontal)
+  const specificList = [];
+  if (vertexThinningPercent >= 55) specificList.push('V3');
+  else if (vertexThinningPercent >= 28) specificList.push('V2');
+  else if (vertexThinningPercent >= 15) specificList.push('V1');
 
-  if (frontalRecessionCm < 3 && partingWidthMm >= 5) { // 전두부 밀도 저하
-    if (partingWidthMm >= 8) baspSpecific += "F3";
-    else if (partingWidthMm >= 6) baspSpecific += "F2";
-    else baspSpecific += "F1";
-  }
+  if (partingWidthMm >= 8.0) specificList.push('F3');
+  else if (partingWidthMm >= 5.0) specificList.push('F2');
+  else if (partingWidthMm >= 3.0) specificList.push('F1');
 
-  const baspResult = `${baspBasic}형${baspSpecific ? ` (특정 유형: ${baspSpecific})` : ''}`;
+  baspSpecific = specificList.join(' + ');
+  const baspResult = `${baspSub}형${baspSpecific ? ` (특정유형: ${baspSpecific})` : ''}`;
 
-  // 상세 설명 생성 로직 (단답형 / 항목별 요약)
-  let details = [];
-  details.push(`**[주요 측정 결과]**`);
-  details.push(`- **측두부 (M자) 파임**: 약 ${templeRecessionCm.toFixed(1)} cm`);
-  details.push(`- **전두부 (앞머리) 후퇴**: 약 ${frontalRecessionCm.toFixed(1)} cm`);
-  
-  if (vertexThinningPercent > 0) {
-    details.push(`- **정수리 숱 감소율**: 정상 대비 약 ${vertexThinningPercent.toFixed(1)} % 감소`);
-  } else {
-    details.push(`- **정수리 숱 감소율**: 정상 (매우 양호)`);
-  }
+  const hasHairLoss =
+    templeRecessionCm >= 1.8 ||
+    frontalRecessionCm >= 1.8 ||
+    vertexThinningPercent >= 16 ||
+    partingWidthMm >= 2.8;
 
-  details.push(`\n**[종합 분석 소견]**`);
-  
-  if (baspBasic === 'M') {
-    details.push(`- 앞머리 전체 후퇴보다 양쪽 관자놀이 파임이 뚜렷한 전형적인 패턴입니다.`);
-  } else if (baspBasic === 'C') {
-    details.push(`- M자 파임보다는 앞머리 라인 전체가 반원 형태로 넓어지는 패턴입니다.`);
-  } else if (baspBasic === 'U') {
-    details.push(`- 앞머리와 관자놀이가 모두 깊게 파여 이마가 U자 형태로 넓어진 상태입니다.`);
-  } else {
-    details.push(`- 헤어라인이 일자 형태로 잘 유지되어 매우 양호한 상태입니다.`);
-  }
+  // 상세 리포트 구성
+  const details = [];
+  details.push(`**[정밀 생체 계측 데이터]**`);
+  details.push(`- **측두부(M자) 후퇴 깊이**: 최대 ${templeRecessionCm.toFixed(1)} cm (좌측 ${leftRecessionCm.toFixed(1)}cm / 우측 ${rightRecessionCm.toFixed(1)}cm)`);
+  details.push(`- **전두부(앞머리 중앙) 후퇴**: 약 ${frontalRecessionCm.toFixed(1)} cm`);
+  details.push(`- **정수리 밀도 감소율**: 약 ${vertexThinningPercent.toFixed(1)} % (추정 모낭 밀도: 약 ${follicularDensityPerCm2} hairs/cm²)`);
+  details.push(`- **가르마 중심 폭**: 약 ${partingWidthMm.toFixed(1)} mm`);
+  details.push(`- **두피 홍반·열감 지수(CIE a*)**: ${scalpErythemaPercent.toFixed(1)} % (${scalpErythemaPercent >= 22 ? '두피 상열감·염증 주의' : '안정적'})`);
 
-  if (baspSpecific.includes('V')) {
-    details.push(`- 정수리 밀도 저하 소견이 동반되어 정수리 집중 관리가 필요합니다.`);
-  } else if (baspSpecific.includes('F')) {
-    details.push(`- 앞머리 부근의 전반적인 모발 밀도 저하가 관찰됩니다.`);
-  }
-
+  details.push(`\n**[의학적 종합 판정]**`);
   if (gender === 'male') {
-    details.push(`- **현재 단계**: 노우드(Norwood) 척도 **${norwood}** 단계 (예방 및 관리 권장)`);
+    details.push(`- **국제 해밀턴-노우드 분류**: **${norwood}**`);
+    details.push(`- **한국형 BASP 분류**: **${baspResult}**`);
   } else {
-    details.push(`- **현재 단계**: 루드비히(Ludwig) 척도 **${ludwig}** 단계 (가르마 폭 ${partingWidthMm.toFixed(1)}mm 기준)`);
+    details.push(`- **국제 루드비히 분류**: **${ludwig}**`);
+    details.push(`- **싱클레어 가르마 척도**: **${sinclair}**`);
+    details.push(`- **한국형 BASP 분류**: **${baspResult}**`);
   }
 
-  // --- [용어 설명 (사전적 의미)] ---
-  details.push(`\n\n**[의학적 분류 기준 설명]**`);
-  
-  if (baspBasic === 'L') {
-    details.push(`- **BASP L형 (Line)**: 앞머리 모발 선이 파임 없이 일자(ㅡ) 형태를 유지하고 있는 정상적인 상태입니다. M자 탈모가 진행되지 않은 가장 이상적인 헤어라인을 의미합니다.`);
-  } else if (baspBasic === 'M') {
-    details.push(`- **BASP M형 (M-shape)**: 이마 양쪽 끝 관자놀이 부위가 이마 중앙부보다 더 깊게 파고들어 M자 모양으로 후퇴하는 가장 흔한 남성형 탈모 패턴입니다.`);
-  } else if (baspBasic === 'C') {
-    details.push(`- **BASP C형 (C-shape)**: 이마 라인 전체가 반원(초승달) 형태로 넓어지며 후퇴하는 패턴입니다. M자 파임보다 이마 전체가 넓어지는 것이 특징입니다.`);
-  } else if (baspBasic === 'U') {
-    details.push(`- **BASP U형 (U-shape)**: 이마 라인이 정수리까지 매우 깊게 후퇴하여, 위에서 보았을 때 U자 형태를 띠는 심각한 탈모 진행 상태입니다.`);
+  if (Math.abs(leftRecessionCm - rightRecessionCm) >= 0.8) {
+    const worseSide = leftRecessionCm > rightRecessionCm ? '좌측' : '우측';
+    details.push(`- **좌·우 비대칭 소견**: ${worseSide} 관자놀이(M자) 후퇴가 반대편보다 약 ${Math.abs(leftRecessionCm - rightRecessionCm).toFixed(1)}cm 더 깊게 진행되어 집중 케어가 요구됩니다.`);
   }
 
-  if (gender === 'male') {
-    if (norwood.includes('Stage I ')) {
-      details.push(`- **Norwood Stage 1 (1단계)**: 남성 탈모의 국제 기준인 노우드 척도의 가장 첫 단계로, 탈모가 진행되지 않은 청소년 혹은 성인 초기의 정상적인 헤어라인을 의미합니다.`);
-    } else if (norwood.includes('Stage IIA')) {
-      details.push(`- **Norwood Stage 2A (2A단계)**: M자 파임보다는 앞머리 라인 전체가 약간 뒤로 밀려나는 초기 전두부 탈모 상태를 의미합니다.`);
-    } else if (norwood.includes('Stage II ')) {
-      details.push(`- **Norwood Stage 2 (2단계)**: 이마 양쪽 모서리가 삼각형 모양으로 약간 후퇴하기 시작하는 M자 탈모의 초기 상태입니다.`);
-    } else if (norwood.includes('Stage III Vertex')) {
-      details.push(`- **Norwood Stage 3 Vertex (3단계 정수리형)**: M자 파임과 함께 정수리(가마) 부위의 모발이 가늘어지고 원형으로 두피가 비쳐 보이는 상태입니다.`);
-    } else if (norwood.includes('Stage III ')) {
-      details.push(`- **Norwood Stage 3 (3단계)**: M자 파임이 뚜렷하게 깊어져, 본격적인 탈모 치료가 강하게 권장되는 중기 M자 탈모 상태입니다.`);
-    } else if (norwood.includes('Stage IV')) {
-      details.push(`- **Norwood Stage 4 (4단계)**: 깊은 M자 파임과 뚜렷한 정수리 탈모가 동시에 진행되지만, 두 부위 사이에 아직 모발 띠가 남아있는 상태입니다.`);
-    } else if (norwood.includes('Stage V')) {
-      details.push(`- **Norwood Stage 5 (5단계)**: 앞머리 탈모와 정수리 탈모 사이를 좁게 가로막고 있던 모발 띠가 거의 사라지기 직전인 상태입니다.`);
-    } else if (norwood.includes('Stage VI')) {
-      details.push(`- **Norwood Stage 6 (6단계)**: 앞머리부터 정수리까지의 모발이 모두 빠져 두 탈모 구역이 하나로 완전히 합쳐진 상태입니다.`);
-    } else if (norwood.includes('Stage VII')) {
-      details.push(`- **Norwood Stage 7 (7단계)**: 노우드 척도의 마지막 단계로, 옆머리와 뒷머리(말발굽 모양)만 남고 위쪽 모발이 모두 소실된 상태입니다.`);
+  if (scalpErythemaPercent >= 22) {
+    details.push(`- **두피 미세환경 소견**: 두피 적색도(홍반 지수)가 높게 계측되어 두피 열감(상열감) 또는 지루성 미세염증이 모낭 연모화를 가속하고 있을 가능성이 높습니다.`);
+  }
+
+  if (familyHistory && familyHistory !== '없음') {
+    details.push(`- **유전적 위험도 반영**: 가족력(${familyHistory}) 소인이 확인되어 5α-환원효소 및 안드로겐 수용체 민감도에 따른 조기 방어 치료가 특히 중요합니다.`);
+  }
+
+  details.push(`\n**[맞춤 임상 치료 가이드라인]**`);
+  if (!hasHairLoss) {
+    details.push(`- 현재 헤어라인과 정수리 모낭 밀도가 정상 범주(약 ${follicularDensityPerCm2} hairs/cm²)로 건강하게 유지되고 있습니다. 고혈당·트랜스지방 식이를 피하고 두피 청결 및 항산화 영양(비오틴·아연·검은콩) 관리를 지속하세요.`);
+  } else if (gender === 'male') {
+    if (baspBasic === 'M' || templeRecessionCm >= 2.5) {
+      details.push(`- **전측두부(M자) 방어 전략**: M자 부위는 모세혈관 분포가 적고 1·2형 5α-환원효소가 모두 작용하므로, 전문의 진료를 통해 경구 5α-환원효소 억제제(피나스테리드 1mg 또는 두타스테리드 0.5mg)와 외용 미녹시딜 5% 폼의 복합요법이 가장 높은 임상 근거(Level 1A)를 가집니다.`);
+    }
+    if (specificList.includes('V1') || specificList.includes('V2') || specificList.includes('V3')) {
+      details.push(`- **정수리 밀도 회복 전략**: 정수리 연모화 구역은 약물 반응성이 가장 뛰어난 부위입니다. 경구 약물 치료와 함께 미녹시딜 도포 시 3~6개월 내 유의미한 모발 굵기 회복을 기대할 수 있습니다.`);
     }
   } else {
-    if (ludwig.includes('Normal')) {
-      details.push(`- **Ludwig Normal (정상)**: 여성 탈모 기준인 루드비히 척도에서 가르마가 빽빽하고 정상적인 상태를 의미합니다.`);
-    } else if (ludwig.includes('Grade III')) {
-      details.push(`- **Ludwig Grade 3 (3단계)**: 정수리 부위 모발이 거의 소실되어 훤하게 드러나는 심각한 여성형 탈모 상태입니다.`);
-    } else if (ludwig.includes('Grade II')) {
-      details.push(`- **Ludwig Grade 2 (2단계)**: 가르마 선 주변의 모발 숱이 현저히 줄어들어 두피가 넓게 노출되는 중기 여성형 탈모입니다.`);
-    } else if (ludwig.includes('Grade I')) {
-      details.push(`- **Ludwig Grade 1 (1단계)**: 가르마 선을 중심으로 모발이 가늘어지며 두피가 살짝 비쳐 보이기 시작하는 초기 여성형 탈모입니다.`);
-    }
+    details.push(`- **여성형 가르마·정수리 회복 전략**: 여성형 탈모(FPHL)는 전두부 헤어라인은 유지되면서 가르마가 크리스마스트리 형태로 넓어지는 특징이 있습니다. 외용 미녹시딜(3~5% 폼) 1일 1~2회 도포를 1차 치료로 권장하며, 다낭성난소증후군이나 안드로겐 과잉 동반 시 전문의 상담하에 스피로노락톤·알파트라디올 및 저장철(페리틴 ≥70ng/mL)·비오틴·아연 보충이 권장됩니다.`);
   }
-
-  const detailedExplanation = details.join('\n');
 
   return {
     norwood,
     ludwig,
+    sinclair,
     basp: baspResult,
-    detailedExplanation,
-    summary: gender === 'male' 
-      ? `분석 결과, 노우드 ${norwood.split(' ')[1]} 단계 및 BASP ${baspBasic}형으로 진단됩니다.` 
-      : `분석 결과, 루드비히 ${ludwig.split(' ')[1]} 및 BASP ${baspBasic}형으로 진단됩니다.`
+    hasHairLoss,
+    detailedExplanation: details.join('\n'),
+    summary: gender === 'male'
+      ? `정밀 계측 결과, 해밀턴-노우드 ${norwood} 및 한국형 BASP ${baspResult}으로 분석되었습니다.`
+      : `정밀 계측 결과, 루드비히 ${ludwig} (${sinclair}) 및 BASP ${baspResult}으로 분석되었습니다.`
   };
 }
 

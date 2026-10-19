@@ -1,73 +1,75 @@
 import React from 'react';
 import './BottomNavBar.css';
 
-// Custom SVG Icons
-const DiagnosisIcon = ({ size = 22 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10"/>
-    <path d="M12 8v4l3 3"/>
+const DiagnosisIcon = ({ size = 21 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="9" />
+    <circle cx="12" cy="12" r="3" />
+    <line x1="12" y1="1" x2="12" y2="3" />
+    <line x1="12" y1="21" x2="12" y2="23" />
+    <line x1="1" y1="12" x2="3" y2="12" />
+    <line x1="21" y1="12" x2="23" y2="12" />
   </svg>
 );
 
-const MedicationIcon = ({ size = 22 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M10.5 20H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H20a2 2 0 0 1 2 2v3"/>
-    <circle cx="18" cy="18" r="3"/>
-    <path d="M10 2v4M14 2v4M8 10h8M8 14h2M10 18H6"/>
+const AreataIcon = ({ size = 21 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="10" cy="10" r="6" strokeDasharray="3 2" />
+    <circle cx="16.5" cy="15.5" r="3.5" />
+    <path d="M4 20c1.5-3 4.5-4.5 8-4.5" />
   </svg>
 );
 
-const GuideIcon = ({ size = 22 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-    <line x1="9" y1="7" x2="15" y2="7"/>
-    <line x1="9" y1="11" x2="15" y2="11"/>
+const SasangIcon = ({ size = 21 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 20a5 5 0 0 1 0-10 5 5 0 0 0 0-10" />
+    <circle cx="12" cy="7" r="1.2" fill="currentColor" />
+    <circle cx="12" cy="17" r="1.2" fill="currentColor" />
   </svg>
 );
 
-// Center simulator icon (special, larger)
-const SimulatorIcon = ({ size = 28 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
-    <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
-    <line x1="9" y1="9" x2="9.01" y2="9"/>
-    <line x1="15" y1="9" x2="15.01" y2="9"/>
-    <path d="M5 3L3 5M19 3l2 2"/>
-    <path d="M12 2v2M7 7l-2-2M17 7l2-2"/>
+const SimulatorIcon = ({ size = 26 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" />
+    <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+    <line x1="9" y1="9" x2="9.01" y2="9" />
+    <line x1="15" y1="9" x2="15.01" y2="9" />
   </svg>
 );
 
-const JournalIcon = ({ size = 22 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-    <circle cx="8.5" cy="8.5" r="1.5"/>
-    <polyline points="21 15 16 10 5 21"/>
+const MedicationIcon = ({ size = 21 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="4" width="18" height="18" rx="2" />
+    <line x1="16" y1="2" x2="16" y2="6" />
+    <line x1="8" y1="2" x2="8" y2="6" />
+    <line x1="3" y1="10" x2="21" y2="10" />
+    <path d="M9 16l2 2 4-4" />
   </svg>
 );
 
-const ClinicIcon = ({ size = 22 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-    <circle cx="12" cy="10" r="3"/>
+const GuideIcon = ({ size = 21 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    <line x1="12" y1="8" x2="12" y2="12" />
+    <line x1="12" y1="16" x2="12.01" y2="16" />
   </svg>
 );
 
 const BottomNavBar = ({ activeTab, setActiveTab }) => {
   const tabs = [
-    { id: 'diagnosis',   label: '탈모진단',  icon: DiagnosisIcon },
-    { id: 'medication',  label: '복약 관리',  icon: MedicationIcon },
-    { id: 'simulator',   label: 'AI 예측',   icon: SimulatorIcon, isCenter: true },
-    { id: 'journal',     label: '성장 일지',  icon: JournalIcon },
-    { id: 'clinic',      label: '병원 찾기',  icon: ClinicIcon },
-    { id: 'guide',       label: '탈모 백과',  icon: GuideIcon },
+    { id: 'diagnosis', label: '남·여진단', icon: DiagnosisIcon },
+    { id: 'areata', label: '원형탈모', icon: AreataIcon },
+    { id: 'simulator', label: '전후·예측', icon: SimulatorIcon, isCenter: true },
+    { id: 'sasang', label: '사상체질', icon: SasangIcon },
+    { id: 'guide', label: '금기·백과', icon: GuideIcon },
+    { id: 'medication', label: '복약·케어', icon: MedicationIcon },
   ];
 
   return (
     <div className="bottom-nav-bar">
       {tabs.map((tab) => {
         const Icon = tab.icon;
-        const isActive = activeTab === tab.id;
+        const isActive = activeTab === tab.id || (tab.id === 'medication' && (activeTab === 'journal' || activeTab === 'clinic'));
         return (
           <button
             key={tab.id}
@@ -77,11 +79,11 @@ const BottomNavBar = ({ activeTab, setActiveTab }) => {
           >
             {tab.isCenter ? (
               <div className="nav-center-bubble">
-                <Icon size={28} />
+                <Icon size={26} />
               </div>
             ) : (
               <div className="nav-icon">
-                <Icon size={22} />
+                <Icon size={21} />
               </div>
             )}
             <span className="nav-label">{tab.label}</span>

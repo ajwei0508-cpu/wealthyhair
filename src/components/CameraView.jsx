@@ -1,32 +1,47 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { RefreshCw, Image as ImageIcon, ArrowRight, ArrowLeft, Smartphone, User, Check, HelpCircle } from 'lucide-react';
+import { RefreshCw, Image as ImageIcon, Upload, Check, HelpCircle } from 'lucide-react';
 import { FilesetResolver, ImageSegmenter } from '@mediapipe/tasks-vision';
 import PhotoGuideModal from './PhotoGuideModal';
 import './CameraView.css';
+
+const CLINICAL_STEP_SAMPLES = {
+  male: {
+    front: '/dataset/samples/male_s3/Front.jpg',
+    left: '/dataset/samples/male_s3/Left.jpg',
+    right: '/dataset/samples/male_s3/Right.jpg',
+    vertex: '/dataset/samples/crown_clinical/eu_crown_1.jpg',
+  },
+  female: {
+    front: '/dataset/samples/female/case1_top.png',
+    vertex: '/dataset/samples/female/case2_top.png',
+  },
+};
 
 const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalSteps = 4, gender = 'male' }) => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const drawingCanvasRef = useRef(null);
+  const fileInputRef = useRef(null);
+
   const [hasCamera, setHasCamera] = useState(false);
   const [cameraError, setCameraError] = useState('');
   const [deviceAngles, setDeviceAngles] = useState({ beta: 90, gamma: 0 });
   const [stream, setStream] = useState(null);
-  
-  // 상태 관리
+
   const [isLevel, setIsLevel] = useState(false);
   const [isTargetDetected, setIsTargetDetected] = useState(false);
   const [countdown, setCountdown] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
-  const [capturedPoints, setCapturedPoints] = useState(null); // { hairline: [], face: [], mask: '' }
+  const [capturedPoints, setCapturedPoints] = useState(null);
   const [showGuideModal, setShowGuideModal] = useState(false);
-  
+
   const latestHairlineRef = useRef([]);
   const latestFaceRef = useRef([]);
+  const latestMaskArrayRef = useRef(null);
+  const latestMaskDimRef = useRef({ width: 0, height: 0 });
   const countdownTimerRef = useRef(null);
   const segmenterRef = useRef(null);
 
-  // 최신 상태를 Camera 콜백에서 읽기 위한 Refs
   const currentStepRef = useRef(currentStep);
   const previewImageRef = useRef(previewImage);
   const isProcessingRef = useRef(false);
@@ -36,7 +51,6 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
     previewImageRef.current = previewImage;
   }, [currentStep, previewImage]);
 
-  // 스텝이 바뀔 때마다 초기화
   useEffect(() => {
     setTimeout(() => {
       setPreviewImage(null);
@@ -46,182 +60,207 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
   }, [currentStep]);
 
   const getStepInstruction = () => {
+    if (gender === 'female') {
+      return currentStep === 'vertex'
+        ? '고개를 숙여 중앙 가르마와 정수리 전체가 선명하게 보이도록 맞춰주세요.'
+        : '정면을 보고 이마 헤어라인과 가르마 시작점을 수평선에 맞추세요.';
+    }
     switch (currentStep) {
-      case 'front': return "정면을 보고 이마 라인을 수평선에 맞추세요.";
-      case 'left': return "고개를 오른쪽으로 돌려 왼쪽 M자 부위를 보여주세요.";
-      case 'right': return "고개를 왼쪽으로 돌려 오른쪽 M자 부위를 보여주세요.";
-      case 'vertex': return "고개를 푹 숙여 정수리 중앙을 화면에 꽉 채워주세요.";
-      default: return "얼굴을 가이드라인에 맞춰주세요.";
+      case 'front':
+        return '정면을 보고 이마 라인을 수평선에 맞추세요.';
+      case 'left':
+        return '고개를 오른쪽으로 돌려 왼쪽 M자 부위를 보여주세요.';
+      case 'right':
+        return '고개를 왼쪽으로 돌려 오른쪽 M자 부위를 보여주세요.';
+      case 'vertex':
+        return '고개를 푹 숙여 정수리 중앙을 화면에 꽉 채워주세요.';
+      default:
+        return '얼굴을 가이드라인에 맞춰주세요.';
     }
   };
 
   const getStepTitle = () => {
-    switch (currentStep) {
-      case 'front': return "정면 이마선 촬영";
-      case 'left': return "좌측 M자 파임 촬영";
-      case 'right': return "우측 M자 파임 촬영";
-      case 'vertex': return "정수리 밀도 촬영";
-      default: return "촬영";
+    if (gender === 'female') {
+      return currentStep === 'vertex' ? '여성 가르마·정수리 밀도 스캔' : '여성 정면 헤어라인 스캔';
     }
+    switch (currentStep) {
+      case 'front':
+        return '정면 이마선 촬영';
+      case 'left':
+        return '좌측 M자 파임 촬영';
+      case 'right':
+        return '우측 M자 파임 촬영';
+      case 'vertex':
+        return '정수리 밀도 촬영';
+      default:
+        return '촬영';
+    }
+  };
+
+  // Find actual hair transition Y in segmenter categoryMask along column X
+  const findActualHairlineY = (canvasX, startY, faceHeightPx, canvasWidth, canvasHeight) => {
+    const maskArr = latestMaskArrayRef.current;
+    const { width: mW, height: mH } = latestMaskDimRef.current;
+    if (!maskArr || !mW || !mH) {
+      return Math.max(10, startY - faceHeightPx * 0.08);
+    }
+    // Note: canvasX is already mirrored on display, map back to unmirrored mask X
+    const rawX = Math.min(mW - 1, Math.max(0, Math.round(((canvasWidth - canvasX) / canvasWidth) * mW)));
+    const startMaskY = Math.min(mH - 1, Math.max(5, Math.round((startY / canvasHeight) * mH)));
+    const minMaskY = Math.max(2, Math.round(((startY - faceHeightPx * 0.45) / canvasHeight) * mH));
+
+    for (let y = startMaskY; y >= minMaskY; y--) {
+      if (maskArr[y * mW + rawX] === 1) {
+        return (y / mH) * canvasHeight;
+      }
+    }
+    return Math.max(10, startY - faceHeightPx * 0.1);
   };
 
   useEffect(() => {
     let active = true;
 
-    // Load MediaPipe ImageSegmenter
     const loadSegmenter = async () => {
       try {
         const vision = await FilesetResolver.forVisionTasks(
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+          'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm'
         );
         const segmenter = await ImageSegmenter.createFromOptions(vision, {
           baseOptions: {
-            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite",
-            delegate: "GPU"
+            modelAssetPath:
+              'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite',
+            delegate: 'GPU',
           },
-          runningMode: "VIDEO",
+          runningMode: 'VIDEO',
           outputCategoryMask: true,
-          outputConfidenceMasks: false
+          outputConfidenceMasks: false,
         });
         if (active) {
           segmenterRef.current = segmenter;
-          console.log("ImageSegmenter loaded");
         }
       } catch (err) {
-        console.error("Error loading segmenter:", err);
+        console.error('Error loading segmenter:', err);
       }
     };
     loadSegmenter();
-    
-    // 전역(window)에서 MediaPipe 객체를 가져옵니다.
-    const { FaceMesh, Camera } = window;
 
-    if (!FaceMesh) {
-      console.error("MediaPipe FaceMesh not loaded from CDN.");
-      setCameraError("AI 모델(FaceMesh)을 불러오지 못했습니다. 네트워크 상태를 확인해주세요.");
-      return;
-    }
+    const { FaceMesh } = window;
+    let faceMesh = null;
 
-    // 정수리 모드일 때 FaceMesh 캔버스는 초기화하지만, 카메라는 계속 켜져야 하므로 return 하지 않음.
-    if (currentStepRef.current === 'vertex') {
-      if (drawingCanvasRef.current) {
-        const ctx = drawingCanvasRef.current.getContext('2d');
-        ctx.clearRect(0, 0, drawingCanvasRef.current.width, drawingCanvasRef.current.height);
-      }
-    }
+    if (FaceMesh) {
+      faceMesh = new FaceMesh({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
+      });
 
-    const faceMesh = new FaceMesh({
-      locateFile: (file) => {
-        return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
-      }
-    });
-    
-    faceMesh.setOptions({
-      maxNumFaces: 1,
-      refineLandmarks: true,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5
-    });
+      faceMesh.setOptions({
+        maxNumFaces: 1,
+        refineLandmarks: true,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5,
+      });
 
-    faceMesh.onResults((results) => {
-      if (!drawingCanvasRef.current || !videoRef.current || previewImageRef.current) return;
-      const width = drawingCanvasRef.current.width;
-      const height = drawingCanvasRef.current.height;
-      
-      if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-        for (const landmarks of results.multiFaceLandmarks) {
-          if (currentStepRef.current !== 'vertex') {
-            const pTop = landmarks[10];
-            const pNose = landmarks[8];
-            const pChin = landmarks[152];
-            const fH = Math.abs(pChin.y - pTop.y);
-            const faceHeightPx = fH * height;
-            const extX = faceHeightPx * 0.8;
-            
-            const mirrorX = (ptX) => width - (ptX * width);
-            let ptsFace = [];
-            let ptsHair = [];
-            
-            if (currentStepRef.current === 'left' || currentStepRef.current === 'right') {
-              const topY = (pTop.y - fH * 0.08) * height;
-              const topX = mirrorX(pTop.x);
-              const noseY = pNose.y * height;
-              const noseX = mirrorX(pNose.x);
-              
-              const dir = (currentStepRef.current === 'left') ? 1 : -1;
-              
-              ptsHair = [
-                { x: topX, y: topY },
-                { x: topX + dir * extX * 0.25, y: topY + faceHeightPx * 0.05 },
-                { x: topX + dir * extX * 0.5, y: topY + faceHeightPx * 0.15 },
-                { x: topX + dir * extX * 0.75, y: topY + faceHeightPx * 0.3 },
-                { x: topX + dir * extX, y: topY + faceHeightPx * 0.5 }
-              ];
-              
-              ptsFace = [
-                ...ptsHair,
-                { x: topX + dir * extX, y: noseY },
-                { x: noseX, y: noseY },
-                { x: topX, y: topY }
-              ];
-            } else {
-              const faceOutline = [103, 67, 10, 297, 332, 263, 8, 33];
-              const hairlineIndices = [103, 67, 10, 297, 332];
-              
-              for (let i = 0; i < faceOutline.length; i++) {
-                const pt = landmarks[faceOutline[i]];
-                let x = mirrorX(pt.x);
-                let y = pt.y * height;
-                if (hairlineIndices.includes(faceOutline[i])) {
-                  y = (pt.y - fH * 0.08) * height;
-                  ptsHair.push({x, y});
+      faceMesh.onResults((results) => {
+        if (!drawingCanvasRef.current || !videoRef.current || previewImageRef.current) return;
+        const width = drawingCanvasRef.current.width;
+        const height = drawingCanvasRef.current.height;
+
+        if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+          for (const landmarks of results.multiFaceLandmarks) {
+            if (currentStepRef.current !== 'vertex') {
+              const pTop = landmarks[10];
+              const pNose = landmarks[8];
+              const pChin = landmarks[152];
+              const fH = Math.abs(pChin.y - pTop.y);
+              const faceHeightPx = fH * height;
+              const extX = faceHeightPx * 0.8;
+
+              const mirrorX = (ptX) => width - ptX * width;
+              let ptsFace = [];
+              let ptsHair = [];
+
+              if (currentStepRef.current === 'left' || currentStepRef.current === 'right') {
+                const topX = mirrorX(pTop.x);
+                const baseTopY = pTop.y * height;
+                const topY = findActualHairlineY(topX, baseTopY, faceHeightPx, width, height);
+                const noseY = pNose.y * height;
+                const noseX = mirrorX(pNose.x);
+                const dir = currentStepRef.current === 'left' ? 1 : -1;
+
+                const xs = [
+                  topX,
+                  topX + dir * extX * 0.25,
+                  topX + dir * extX * 0.5,
+                  topX + dir * extX * 0.75,
+                  topX + dir * extX,
+                ];
+                ptsHair = xs.map((xPos, i) => ({
+                  x: xPos,
+                  y: findActualHairlineY(xPos, baseTopY + faceHeightPx * (i * 0.08), faceHeightPx, width, height),
+                }));
+
+                ptsFace = [
+                  ...ptsHair,
+                  { x: topX + dir * extX, y: noseY },
+                  { x: noseX, y: noseY },
+                  { x: topX, y: topY },
+                ];
+              } else {
+                const faceOutline = [103, 67, 10, 297, 332, 263, 8, 33];
+                const hairlineIndices = [103, 67, 10, 297, 332];
+
+                for (let i = 0; i < faceOutline.length; i++) {
+                  const pt = landmarks[faceOutline[i]];
+                  const x = mirrorX(pt.x);
+                  let y = pt.y * height;
+                  if (hairlineIndices.includes(faceOutline[i])) {
+                    y = findActualHairlineY(x, y, faceHeightPx, width, height);
+                    ptsHair.push({ x, y });
+                  }
+                  ptsFace.push({ x, y });
                 }
-                ptsFace.push({x, y});
               }
-            }
 
-            latestFaceRef.current = ptsFace;
-            latestHairlineRef.current = ptsHair;
-            // 프론트엔드 실시간 화면에서는 네모/다각형 가이드를 그리지 않고 Segmenter Mask만 그립니다.
+              latestFaceRef.current = ptsFace;
+              latestHairlineRef.current = ptsHair;
+            }
           }
         }
-      }
-    });
+      });
+    }
 
     let reqId = null;
 
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setCameraError("이 브라우저에서는 카메라를 지원하지 않습니다. (HTTPS 환경이거나 권한을 확인해주세요)");
-      return;
-    }
-
-    navigator.mediaDevices.getUserMedia({ 
-      video: { 
-        facingMode: 'user',
-        width: { ideal: 640 },
-        height: { ideal: 480 }
-      } 
-    })
-    .then((mediaStream) => {
-      if (!active) return;
-      setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        setHasCamera(true);
-        videoRef.current.play().catch(e => console.log("Video play error:", e));
-        
-                const tick = async () => {
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices
+        .getUserMedia({
+          video: {
+            facingMode: 'user',
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+          },
+        })
+        .then((mediaStream) => {
           if (!active) return;
+          setStream(mediaStream);
+          if (videoRef.current) {
+            videoRef.current.srcObject = mediaStream;
+            setHasCamera(true);
+            videoRef.current.play().catch((e) => console.log('Video play error:', e));
 
-              if (videoRef.current && active && !previewImageRef.current) {
-                if (isProcessingRef.current) return;
+            const tick = async () => {
+              if (!active) return;
+              if (videoRef.current && active && !previewImageRef.current && !isProcessingRef.current) {
                 isProcessingRef.current = true;
                 try {
                   if (segmenterRef.current && drawingCanvasRef.current) {
                     segmenterRef.current.segmentForVideo(videoRef.current, performance.now(), (result) => {
                       const canvas = drawingCanvasRef.current;
-                      if(!canvas) return;
-                      if (videoRef.current && videoRef.current.videoWidth > 0 && (canvas.width !== videoRef.current.videoWidth || canvas.height !== videoRef.current.videoHeight)) {
+                      if (!canvas) return;
+                      if (
+                        videoRef.current &&
+                        videoRef.current.videoWidth > 0 &&
+                        (canvas.width !== videoRef.current.videoWidth || canvas.height !== videoRef.current.videoHeight)
+                      ) {
                         canvas.width = videoRef.current.videoWidth;
                         canvas.height = videoRef.current.videoHeight;
                       }
@@ -232,6 +271,9 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
                         const maskImageData = new ImageData(mask.width, mask.height);
                         const data = maskImageData.data;
                         const maskData = mask.getAsUint8Array();
+                        latestMaskArrayRef.current = new Uint8Array(maskData);
+                        latestMaskDimRef.current = { width: mask.width, height: mask.height };
+
                         const halfWidth = mask.width / 2;
                         let targetPixelCount = 0;
                         for (let i = 0; i < maskData.length; i++) {
@@ -262,14 +304,18 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
                             data[i * 4 + 3] = 0;
                           }
                         }
-                        setIsTargetDetected(targetPixelCount > (mask.width * mask.height * 0.02));
+                        setIsTargetDetected(targetPixelCount > mask.width * mask.height * 0.02);
                         const tempCanvas = document.createElement('canvas');
                         tempCanvas.width = mask.width;
                         tempCanvas.height = mask.height;
                         tempCanvas.getContext('2d').putImageData(maskImageData, 0, 0);
                         ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
-                        
-                        if (currentStepRef.current !== 'vertex' && latestFaceRef.current && latestFaceRef.current.length > 0) {
+
+                        if (
+                          currentStepRef.current !== 'vertex' &&
+                          latestFaceRef.current &&
+                          latestFaceRef.current.length > 0
+                        ) {
                           ctx.beginPath();
                           latestFaceRef.current.forEach((pt, index) => {
                             if (index === 0) ctx.moveTo(pt.x, pt.y);
@@ -280,18 +326,12 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
                           ctx.lineWidth = 2;
                           ctx.stroke();
                         }
-                        ctx.fillStyle = '#ffffff';
-                        ctx.font = '16px Pretendard, sans-serif';
-                        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-                        ctx.shadowBlur = 4;
-                        ctx.fillText(currentStepRef.current === 'vertex' ? '좌우 가르마 영역 실시간 분석 중...' : 'AI 실시간 모발 영역 인식 중...', 20, 30);
-                        ctx.shadowBlur = 0;
                       }
                     });
                   }
-                  
-                  if (currentStepRef.current !== 'vertex') {
-                     await faceMesh.send({image: videoRef.current});
+
+                  if (currentStepRef.current !== 'vertex' && faceMesh) {
+                    await faceMesh.send({ image: videoRef.current });
                   }
                 } catch (e) {
                   console.error(e);
@@ -299,27 +339,27 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
                   isProcessingRef.current = false;
                 }
               }
-            
-          if (active) reqId = requestAnimationFrame(tick);
-        };
-        reqId = requestAnimationFrame(tick);
-      }
-    })
-    .catch((err) => {
-      console.error("Camera error:", err);
-      if (active) {
-        setCameraError(err.message || "카메라를 찾을 수 없습니다.");
-      }
-    });
+              if (active) reqId = requestAnimationFrame(tick);
+            };
+            reqId = requestAnimationFrame(tick);
+          }
+        })
+        .catch((err) => {
+          console.error('Camera error:', err);
+          if (active) {
+            setCameraError(err.message || '카메라를 찾을 수 없습니다. 아래 버튼으로 사진을 업로드하거나 임상 샘플을 선택하세요.');
+          }
+        });
+    } else {
+      setCameraError('카메라 장치가 없어도 사진 업로드 또는 임상 표준 샘플로 즉시 정밀 진단이 가능합니다.');
+    }
 
     return () => {
       active = false;
-      if (reqId) {
-        cancelAnimationFrame(reqId);
-      }
-      faceMesh.close();
+      if (reqId) cancelAnimationFrame(reqId);
+      if (faceMesh) faceMesh.close();
       if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+        stream.getTracks().forEach((track) => track.stop());
       }
     };
   }, []);
@@ -343,12 +383,8 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
 
     if (window.DeviceOrientationEvent) {
       window.addEventListener('deviceorientation', handleOrientation);
-      // iOS 기기 등에서 자이로스코프 권한이 없어서 이벤트가 발생하지 않을 경우,
-      // 1초 뒤 강제로 자세를 통과(isLevel=true)시켜서 모발 인식만으로 자동 촬영되게 합니다.
       setTimeout(() => {
-        if (!hasReceivedEvent) {
-          setIsLevel(true);
-        }
+        if (!hasReceivedEvent) setIsLevel(true);
       }, 1000);
     } else {
       setTimeout(() => setIsLevel(true), 0);
@@ -367,18 +403,14 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
       const canvas = canvasRef.current;
       canvas.width = video.videoWidth || 640;
       canvas.height = video.videoHeight || 480;
-      
+
       const ctx = canvas.getContext('2d');
-      // 비디오 먼저 그리기 (거울모드)
       ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      
-      // FaceMesh 오버레이는 이제 원본 이미지에 강제 합성하지 않고,
-      // 투명 SVG 레이어로 띄워서 사용자가 수정할 수 있게 합니다.
 
-      const imageSrc = canvas.toDataURL('image/jpeg', 0.9);
-      
+      const imageSrc = canvas.toDataURL('image/jpeg', 0.92);
+
       if (segmenterRef.current) {
         segmenterRef.current.segmentForVideo(canvas, performance.now(), (result) => {
           let maskDataUrl = null;
@@ -391,13 +423,13 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
             const maskCtx = maskCanvas.getContext('2d');
             const imageData = maskCtx.createImageData(canvas.width, canvas.height);
             const data = imageData.data;
-            
+
             for (let i = 0; i < maskArray.length; i++) {
-              if (maskArray[i] === 1) { 
-                data[i * 4] = 212;       
-                data[i * 4 + 1] = 175; 
-                data[i * 4 + 2] = 55; 
-                data[i * 4 + 3] = 120; // Alpha
+              if (maskArray[i] === 1) {
+                data[i * 4] = 212;
+                data[i * 4 + 1] = 175;
+                data[i * 4 + 2] = 55;
+                data[i * 4 + 3] = 120;
               } else {
                 data[i * 4 + 3] = 0;
               }
@@ -406,21 +438,18 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
             maskDataUrl = maskCanvas.toDataURL('image/png');
           }
 
-          // 캡처 시점의 최신 폴리곤 좌표와 마스크를 상태로 저장
           setCapturedPoints({
             face: latestFaceRef.current ? [...latestFaceRef.current] : [],
             hairline: latestHairlineRef.current ? [...latestHairlineRef.current] : [],
-            mask: maskDataUrl
+            mask: maskDataUrl,
           });
-
-          // 승인 대기창으로 전환
           setPreviewImage(imageSrc);
         });
       } else {
         setCapturedPoints({
           face: latestFaceRef.current ? [...latestFaceRef.current] : [],
           hairline: latestHairlineRef.current ? [...latestHairlineRef.current] : [],
-          mask: null
+          mask: null,
         });
         setPreviewImage(imageSrc);
       }
@@ -437,68 +466,75 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
     setCountdown(null);
   };
 
-  const cancelTimerRef = useRef(null);
+  // Load either uploaded file or clinical dataset image into canvas & generate hair mask
+  const loadExternalImageAsCapture = (srcUrl) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = 640;
+      c.height = 480;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      const dataUrl = c.toDataURL('image/jpeg', 0.92);
 
-  useEffect(() => {
-    if (previewImage) {
-      setTimeout(() => setCountdown(null), 0);
-      if (countdownTimerRef.current) clearTimeout(countdownTimerRef.current);
-      if (cancelTimerRef.current) clearTimeout(cancelTimerRef.current);
-      return;
-    }
+      // Generate CIE L*a*b* hair mask & hairline points automatically
+      const imgData = ctx.getImageData(0, 0, c.width, c.height);
+      const d = imgData.data;
+      const maskCanvas = document.createElement('canvas');
+      maskCanvas.width = c.width;
+      maskCanvas.height = c.height;
+      const mCtx = maskCanvas.getContext('2d');
+      const mImg = mCtx.createImageData(c.width, c.height);
+      const md = mImg.data;
 
-    if (isLevel && isTargetDetected) {
-      if (cancelTimerRef.current) {
-        clearTimeout(cancelTimerRef.current);
-        cancelTimerRef.current = null;
+      for (let i = 0; i < d.length; i += 4) {
+        const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+        if (lum < 95 && lum > 8) {
+          md[i] = 212;
+          md[i + 1] = 175;
+          md[i + 2] = 55;
+          md[i + 3] = 115;
+        }
       }
-      if (countdown === null) {
-        setTimeout(() => setCountdown(3), 0);
-      }
-    } else {
-      if (countdown !== null && !cancelTimerRef.current) {
-        // 취소가 너무 예민하게 되는 것을 막기 위해 1.5초의 여유(Tolerance)를 줍니다.
-        // 1.5초 안에 다시 각도를 맞추면 카운트다운이 취소되지 않고 이어서 진행됩니다.
-        cancelTimerRef.current = setTimeout(() => {
-          setCountdown(null);
-          if (countdownTimerRef.current) clearTimeout(countdownTimerRef.current);
-          cancelTimerRef.current = null;
-        }, 1500);
-      }
-    }
-  }, [isLevel, isTargetDetected, previewImage]);
+      mCtx.putImageData(mImg, 0, 0);
 
-  useEffect(() => {
-    if (countdown !== null && countdown > 0) {
-      countdownTimerRef.current = setTimeout(() => {
-        setCountdown(countdown - 1);
-      }, 1000);
-    } else if (countdown === 0) {
-      captureFrame();
-      setTimeout(() => setCountdown(null), 0);
-    }
-
-    return () => {
-      if (countdownTimerRef.current) {
-        clearTimeout(countdownTimerRef.current);
-      }
+      setCapturedPoints({
+        face: [],
+        hairline: [],
+        mask: maskCanvas.toDataURL('image/png'),
+      });
+      setPreviewImage(dataUrl);
     };
-  }, [countdown, captureFrame]);
+    img.src = srcUrl;
+  };
 
-  const mockCapture = () => {
-    const mockImage = `https://via.placeholder.com/600x800/222222/cccccc?text=Mock+${currentStep}`;
-    setPreviewImage(mockImage);
+  const handleClinicalSampleCapture = () => {
+    const gKey = gender === 'female' ? 'female' : 'male';
+    const samplePath =
+      CLINICAL_STEP_SAMPLES[gKey]?.[currentStep] || CLINICAL_STEP_SAMPLES.male.front;
+    loadExternalImageAsCapture(samplePath);
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => loadExternalImageAsCapture(ev.target.result);
+    reader.readAsDataURL(file);
   };
 
   return (
     <div className="cv-container">
       <div className="cv-top-guide">
         <div className="cv-progress-bar">
-          <div className="cv-progress-fill" style={{width: `${(stepIndex / totalSteps) * 100}%`}}></div>
+          <div className="cv-progress-fill" style={{ width: `${(stepIndex / totalSteps) * 100}%` }}></div>
         </div>
         <div className="cv-header-flex">
-          <h2 className="cv-step-title">[{stepIndex}/{totalSteps}] {getStepTitle()}</h2>
-          <button 
+          <h2 className="cv-step-title">
+            [{stepIndex}/{totalSteps}] {getStepTitle()}
+          </h2>
+          <button
             className="cv-guide-help-btn"
             onClick={() => setShowGuideModal(true)}
             type="button"
@@ -514,23 +550,27 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
       {previewImage && (
         <div className="cv-preview-wrapper">
           <img src={previewImage} alt="Preview" className="cv-preview-image" />
-          
-          {/* 딥러닝 모발 마스크 오버레이 */}
+
           {capturedPoints && capturedPoints.mask && (
-            <img 
-              src={capturedPoints.mask} 
-              alt="Hair Mask" 
-              className="cv-manual-svg-overlay" 
+            <img
+              src={capturedPoints.mask}
+              alt="Hair Mask"
+              className="cv-manual-svg-overlay"
               style={{
-                position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-                objectFit: 'cover', pointerEvents: 'none',
-                filter: 'drop-shadow(0 0 4px rgba(212, 175, 55, 0.8))'
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                pointerEvents: 'none',
+                filter: 'drop-shadow(0 0 4px rgba(212, 175, 55, 0.8))',
               }}
             />
           )}
 
           <div className="cv-preview-actions">
-            <div className="cv-preview-actions-right" style={{marginLeft: 'auto'}}>
+            <div className="cv-preview-actions-right" style={{ marginLeft: 'auto' }}>
               <button className="cv-icon-btn cv-btn-refresh" onClick={retakeCapture}>
                 <RefreshCw size={28} />
               </button>
@@ -544,21 +584,23 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
 
       <div style={{ display: previewImage ? 'none' : 'block', width: '100%', height: '100%' }}>
         <div className="cv-video-wrapper">
-          <video 
-            ref={videoRef} 
-            autoPlay 
-            playsInline 
-            muted 
-            className="cv-video" 
-            style={{ display: hasCamera ? 'block' : 'none', opacity: 1 }} 
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className="cv-video"
+            style={{ display: hasCamera ? 'block' : 'none', opacity: 1 }}
           />
-          
+
           {!hasCamera && (
             <div className="cv-placeholder">
               {cameraError ? (
-                <div className="cv-error-box">
+                <div className="cv-error-box" style={{ padding: '20px' }}>
                   <p className="cv-error-text">{cameraError}</p>
-                  <p className="cv-error-subtext">PC에 웹캠이 없거나 권한이 없습니다.</p>
+                  <p className="cv-error-subtext" style={{ marginTop: '8px' }}>
+                    하단의 <strong>[사진 업로드]</strong> 또는 <strong>[임상 표준 사진 테스트]</strong> 버튼을 눌러 즉시 정밀 진단을 진행할 수 있습니다.
+                  </p>
                 </div>
               ) : (
                 <span className="material-symbols-outlined cv-icon-spin">refresh</span>
@@ -566,7 +608,7 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
             </div>
           )}
 
-          <canvas 
+          <canvas
             ref={drawingCanvasRef}
             className="cv-drawing-canvas"
             width="640"
@@ -580,101 +622,64 @@ const CameraView = ({ onCapture, currentStep = 'front', stepIndex = 1, totalStep
               pointerEvents: 'none',
               zIndex: 10,
               transform: 'scaleX(-1)',
-              objectFit: 'cover'
+              objectFit: 'cover',
             }}
           />
 
           {hasCamera && (
-            <div className={`cv-guideline-overlay strict-guide ${isLevel ? 'level-ok' : ''}`} style={{zIndex: 20}}>
-              {currentStep !== 'vertex' && (
-                <div className="cv-svg-container" style={{ position: 'absolute', top: '45%', left: '50%', transform: 'translate(-50%, -50%)', pointerEvents: 'none' }}>
-                  <div className="cv-corner top-left"></div>
-                  <div className="cv-corner top-right"></div>
-                  <div className="cv-corner bottom-left"></div>
-                  <div className="cv-corner bottom-right"></div>
-                  <div className="cv-ghost">
-                    <svg width="100%" height="100%" viewBox="0 0 320 426" preserveAspectRatio="xMidYMid meet">
-                      <rect x="40" y="20" width="240" height="100" rx="15" fill="rgba(212, 175, 55, 0.15)" stroke="var(--accent-gold)" strokeWidth="2" strokeDasharray="6,4" />
-                      <text x="160" y="75" fill="var(--accent-gold)" fontSize="18" fontWeight="bold" textAnchor="middle" style={{textShadow: '0 2px 4px rgba(0,0,0,0.8)'}}>모발 측정 범위</text>
-                      <ellipse cx="160" cy="260" rx="110" ry="140" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeDasharray="8,6" />
-                      <text x="160" y="260" fill="rgba(255,255,255,0.4)" fontSize="16" textAnchor="middle">얼굴</text>
-                    </svg>
-                  </div>
-                </div>
-              )}
-
+            <div className={`cv-guideline-overlay strict-guide ${isLevel ? 'level-ok' : ''}`} style={{ zIndex: 20 }}>
               {currentStep === 'front' && <div className="cv-vertical-line" style={{ zIndex: 21 }}></div>}
-              
-              {currentStep === 'vertex' && (
-                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 20 }}>
-                  <div style={{ marginBottom: '20px', background: 'rgba(0,0,0,0.6)', padding: '8px 16px', borderRadius: '20px', border: '1px solid var(--accent-gold)' }}>
-                    <span style={{ color: 'var(--accent-gold)', fontSize: '18px', fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>모발 측정 범위</span>
-                  </div>
-                  <div className="cv-vertex-circle" style={{ position: 'relative', top: 'auto', left: 'auto', transform: 'none' }}>
-                    <span className="cv-circle-label">정수리 중앙</span>
-                  </div>
-                </div>
-              )}
               <div className="cv-status-badge">
                 {!isLevel ? (
-                  <span className="cv-warning-text">{currentStep === 'vertex' ? "기기를 바닥과 평행하게(수평으로) 눕혀주세요" : "기기를 지면과 수직(90도)으로 세우세요"}</span>
+                  <span className="cv-warning-text">
+                    {currentStep === 'vertex'
+                      ? '기기를 바닥과 평행하게(수평으로) 눕혀주세요'
+                      : '기기를 지면과 수직(90도)으로 세우세요'}
+                  </span>
                 ) : !isTargetDetected ? (
-                  <span className="cv-warning-text">{currentStep === 'vertex' ? "정수리 피부나 모발이 화면에 잘 보이게 해주세요" : "얼굴이 명확히 인식되지 않았습니다"}</span>
+                  <span className="cv-warning-text">모발과 두피 영역이 잘 보이도록 맞춰주세요</span>
                 ) : (
-                  countdown !== null && countdown > 0 ? (
-                    <span className="cv-countdown-text">{countdown}초 후 자동 촬영됩니다</span>
-                  ) : (
-                    <span className="cv-success-text">자세가 좋습니다. 유지해주세요.</span>
-                  )
+                  <span className="cv-success-text">자세가 좋습니다. 촬영 버튼을 눌러주세요.</span>
                 )}
               </div>
-
-              <div className="cv-gyro-container">
-                <div className="cv-gyro-target" style={{ borderColor: isLevel ? 'var(--accent-gold)' : 'rgba(212,175,55,0.3)' }}></div>
-                <div 
-                  className="cv-gyro-indicator" 
-                  style={{
-                    transform: `translate(calc(-50% + ${Math.max(-20, Math.min(20, deviceAngles.gamma))}px), calc(-50% + ${Math.max(-20, Math.min(20, (currentStep === 'vertex' ? deviceAngles.beta : deviceAngles.beta - 90)))}px))`,
-                    backgroundColor: isLevel ? 'var(--accent-gold)' : 'transparent',
-                    borderColor: isLevel ? 'var(--accent-gold)' : 'var(--text-main)'
-                  }}
-                ></div>
-              </div>
-              
-              {countdown !== null && countdown > 0 && (
-                <div className="cv-big-countdown">{countdown}</div>
-              )}
             </div>
           )}
-          
+
           <div className="cv-overlay-dim"></div>
         </div>
 
         <canvas ref={canvasRef} style={{ display: 'none' }}></canvas>
 
         {/* Bottom Controls */}
-        <div className="cv-bottom-bar">
-          <button className="cv-mock-btn" onClick={mockCapture}>
-            <ImageIcon size={16} /> 가상 사진으로 테스트
+        <div className="cv-bottom-bar" style={{ gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={handleFileUpload}
+          />
+          <button className="cv-mock-btn" type="button" onClick={() => fileInputRef.current?.click()}>
+            <Upload size={15} /> 사진 직접 업로드
           </button>
 
-          {/* 수동 캡처 버튼 (가이드 시에도 누를 수 있도록 허용) */}
-          <button 
-            className="cv-capture-btn" 
-            aria-label="사진 촬영" 
-            onClick={captureFrame} 
-            disabled={!hasCamera} 
-            style={{ opacity: hasCamera ? 1 : 0.5 }}
+          <button
+            className="cv-capture-btn"
+            aria-label="사진 촬영"
+            onClick={captureFrame}
+            disabled={!hasCamera}
+            style={{ opacity: hasCamera ? 1 : 0.4 }}
           >
             <div className="cv-capture-inner"></div>
+          </button>
+
+          <button className="cv-mock-btn" type="button" onClick={handleClinicalSampleCapture}>
+            <ImageIcon size={15} /> 임상 표준 샘플 테스트
           </button>
         </div>
       </div>
 
-      <PhotoGuideModal 
-        isOpen={showGuideModal}
-        onClose={() => setShowGuideModal(false)}
-      />
+      <PhotoGuideModal isOpen={showGuideModal} onClose={() => setShowGuideModal(false)} />
     </div>
   );
 };

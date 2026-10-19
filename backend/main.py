@@ -340,6 +340,7 @@ async def simulate_hair_endpoint(req: SimulateRequest):
             thinning_area = cv2.dilate(thinning_area, kernel, iterations=2)
         
         # 부드러운 블렌딩을 위해 가우시안 블러 적용
+        thinning_mask_smooth = cv2.GaussianBlur(thinning_area, (21, 21), 0)
         
         # Gemini 2.5 Flash Image 에 전송할 흑백 마스크 (인코딩)
         _, mask_buf = cv2.imencode('.png', thinning_mask_smooth)
