@@ -31,7 +31,10 @@ import { getSavedSurveyProfile, saveSurveyProfile, clearSurveyProfile } from './
 import './index.css';
 
 function App() {
-  const [currentView, setCurrentView] = useState('onboarding');
+  const [currentView, setCurrentView] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('direct') === '1' ? 'camera' : 'onboarding';
+  });
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
 

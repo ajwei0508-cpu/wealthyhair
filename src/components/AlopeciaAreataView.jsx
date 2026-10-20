@@ -1,9 +1,9 @@
 // src/components/AlopeciaAreataView.jsx
-// 국제 표준 SALT (Severity of Alopecia Tool) 척도 + 3단계 정밀 직경 보정(Auto-FOV · 동전 기준원 · 디지털 캘리퍼스) 원형탈모 진단앱 (샘플 제거 · 직접 진단 전용)
+// 원형탈모(SALT) 정밀 진단 — 초기 화면은 단일 진단 시작 메뉴 하나만 표시하고, 사진 등록 즉시 정밀 직경 계측·진단 모드로 돌입
 
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  Scan, Upload, ArrowLeft, ShieldAlert, Ruler, RotateCcw
+  ArrowLeft, ShieldAlert, Ruler, RotateCcw
 } from 'lucide-react';
 import {
   SALT_QUADRANTS,
@@ -14,8 +14,7 @@ import {
 import { PrivacyMembershipNoticeCard } from './AuthGate';
 
 const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }) => {
-  const [scanMode, setScanMode] = useState('single'); // 'single' | 'salt4'
-  const [activeQuadrant, setActiveQuadrant] = useState('top');
+  const [activeQuadrant] = useState('top');
   const [quadrantImages, setQuadrantImages] = useState({
     top: null,
     back: null,
@@ -29,12 +28,12 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
     right: null
   });
 
-  // 정밀 직경 스케일 보정 상태
+  // 정밀 직경 스케일 보정 상태 (사진 업로드 후 진단 화면에서만 노출)
   const [calibrationMode, setCalibrationMode] = useState('auto_fov');
   const [coinSpanRatio, setCoinSpanRatio] = useState(0.185);
   const [coinCenter, setCoinCenter] = useState({ x: 0.24, y: 0.26 });
 
-  // 인터랙티브 디지털 버니어 캘리퍼스 (사진 위 직접 드래그 측정)
+  // 인터랙티브 디지털 버니어 캘리퍼스
   const [caliperActive, setCaliperActive] = useState(true);
   const [caliperPoints, setCaliperPoints] = useState({
     ax: 0.41,
@@ -43,9 +42,9 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
     by: 0.50,
     isManual: false
   });
-  const [draggingHandle, setDraggingHandle] = useState(null); // 'A' | 'B' | 'COIN' | null
+  const [draggingHandle, setDraggingHandle] = useState(null);
 
-  const [checklist, setChecklist] = useState({
+  const [checklist] = useState({
     nailPitting: false,
     atopyOrThyroid: false,
     eyebrowLoss: false,
@@ -183,7 +182,10 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
     if (!user && onRequireAuth) {
       onRequireAuth({
         mode: 'signup',
-        featureName: '원형탈모(SALT) 정밀 진단앱'
+        featureName: '원형탈모(SALT) 정밀 진단앱',
+        onSuccess: () => {
+          setTimeout(() => fileInputRef.current?.click(), 120);
+        }
       });
       return;
     }
@@ -218,56 +220,10 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
     reader.readAsDataURL(file);
   };
 
-  const executeDiagnosis = async () => {
-    const hasAnyImage = Object.values(quadrantImages).some(Boolean);
-    if (!hasAnyImage) {
-      alert('진단할 원형탈모 의심 부위 사진을 먼저 등록해 주세요.');
-      return;
-    }
-
-    setIsAnalyzing(true);
-    try {
-      const nextResults = { top: null, back: null, left: null, right: null };
-      for (const q of SALT_QUADRANTS) {
-        if (quadrantImages[q.id]) {
-          nextResults[q.id] = await analyzeAlopeciaAreataImage(quadrantImages[q.id], q.id, {
-            calibrationMode,
-            coinSpanRatio
-          });
-        }
-      }
-      setQuadrantResults(nextResults);
-      const activeRes = nextResults[activeQuadrant];
-      if (activeRes?.defaultCaliper) {
-        setCaliperPoints({ ...activeRes.defaultCaliper, isManual: false });
-      }
-      const report = calculateFinalAlopeciaAreataReport(nextResults, checklist);
-      setFinalReport(report);
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
-  const handleRunDiagnosis = () => {
-    if (!user && onRequireAuth) {
-      onRequireAuth({
-        mode: 'signup',
-        featureName: '원형탈모(SALT) 정밀 진단앱',
-        onSuccess: () => executeDiagnosis()
-      });
-      return;
-    }
-    executeDiagnosis();
-  };
-
   const handleReset = () => {
     setQuadrantImages({ top: null, back: null, left: null, right: null });
     setQuadrantResults({ top: null, back: null, left: null, right: null });
     setFinalReport(null);
-  };
-
-  const toggleCheck = (key) => {
-    setChecklist(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   const isCoinMode = calibrationMode === 'coin_100' || calibrationMode === 'coin_500';
@@ -275,7 +231,6 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
 
   return (
     <div className="fade-in" style={{ paddingBottom: '90px', color: '#fff', background: '#000' }}>
-      {/* 깔끔한 배너 */}
       <div className="tab-banner" style={{ position: 'relative' }}>
         <img
           src="/assets/banners/banner_simulator.jpg"
@@ -303,203 +258,158 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
                 width: 'fit-content'
               }}
             >
-              <ArrowLeft size={13} /> 탈모 진단 메뉴로
+              <ArrowLeft size={13} /> 이전으로
             </button>
           )}
           <h1 className="tab-banner-title">원형탈모(SALT) 정밀 진단</h1>
-          <p className="tab-banner-sub">국제 SALT 척도(S0~S5) · 3단계 오차 보정 정밀 직경 계측</p>
+          <p className="tab-banner-sub">국제 SALT 척도(S0~S5) · 정밀 직경 계측</p>
         </div>
       </div>
 
-      <div style={{ padding: '14px' }}>
+      <div style={{ padding: '16px 14px' }}>
         <PrivacyMembershipNoticeCard
           user={user}
           featureType="areata"
           onOpenAuth={onRequireAuth}
         />
 
-        {/* 간결한 SALT 점수 판독 기준 안내 */}
-        <div style={{
-          background: 'rgba(212, 175, 55, 0.08)',
-          border: '1px solid rgba(212, 175, 55, 0.28)',
-          borderRadius: '10px',
-          padding: '9px 11px',
-          fontSize: '0.7rem',
-          color: '#ddd',
-          marginBottom: '12px',
-          lineHeight: 1.45
-        }}>
-          💡 <strong style={{ color: '#D4AF37' }}>점수 기준 안내 (↓ 낮을수록 좋음)</strong>: 원형탈모 <strong>SALT 점수(0~100점)와 등급(S0~S5)은 숫자가 낮을수록 좋습니다.</strong> (<strong>0점 S0 = 정상</strong>, S1 = 25% 미만 경증, 숫자가 높을수록 탈모반 면적이 넓음)
-        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={(e) => handleFileUpload(e, activeQuadrant)}
+        />
 
-        {/* 스캔 모드 선택 */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
-          <button
-            type="button"
-            onClick={() => setScanMode('single')}
+        {/* 사진 등록 전: 깔끔하게 원형탈모 진단 모드로 바로 돌입하는 메뉴 하나만 노출 */}
+        {!currentImg ? (
+          <div
             style={{
-              padding: '9px',
-              borderRadius: '8px',
-              border: scanMode === 'single' ? '1.5px solid #D4AF37' : '1px solid #2b2b2b',
-              background: scanMode === 'single' ? 'rgba(212, 175, 55, 0.16)' : '#121212',
-              color: scanMode === 'single' ? '#D4AF37' : '#999',
-              fontWeight: 700,
-              fontSize: '0.76rem',
-              cursor: 'pointer'
+              background: 'linear-gradient(145deg, rgba(24, 24, 30, 0.98), rgba(14, 14, 18, 0.98))',
+              border: '1.5px solid #D4AF37',
+              borderRadius: '14px',
+              padding: '22px 18px',
+              textAlign: 'center',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.45)',
             }}
           >
-            🎯 단일 부위 스캔
-          </button>
-          <button
-            type="button"
-            onClick={() => setScanMode('salt4')}
-            style={{
-              padding: '9px',
-              borderRadius: '8px',
-              border: scanMode === 'salt4' ? '1.5px solid #D4AF37' : '1px solid #2b2b2b',
-              background: scanMode === 'salt4' ? 'rgba(212, 175, 55, 0.16)' : '#121212',
-              color: scanMode === 'salt4' ? '#D4AF37' : '#999',
-              fontWeight: 700,
-              fontSize: '0.76rem',
-              cursor: 'pointer'
-            }}
-          >
-            🌐 4구역 SALT 스캔
-          </button>
-        </div>
+            <h2 style={{ fontSize: '1.08rem', fontWeight: 800, color: '#f5f0e8', margin: '0 0 8px' }}>
+              🎯 원형탈모(SALT) 정밀 진단
+            </h2>
+            <p style={{ fontSize: '0.78rem', color: '#bbb', margin: '0 0 18px', lineHeight: 1.5 }}>
+              원형탈모 의심 부위 사진을 등록하면 즉시 탈모반 직경(cm) 계측 및 SALT 등급 진단을 시작합니다.
+            </p>
 
-        {scanMode === 'salt4' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '12px' }}>
-            {SALT_QUADRANTS.map(q => {
-              const isSelected = activeQuadrant === q.id;
-              const hasPhoto = Boolean(quadrantImages[q.id]);
-              return (
-                <button
-                  key={q.id}
-                  type="button"
-                  onClick={() => setActiveQuadrant(q.id)}
-                  style={{
-                    padding: '8px 10px',
-                    borderRadius: '8px',
-                    border: isSelected ? '1px solid #D4AF37' : '1px solid #2a2a2a',
-                    background: isSelected ? '#1c180f' : '#121212',
-                    color: '#fff',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}
-                >
-                  <span style={{ fontSize: '0.73rem', fontWeight: 700, color: isSelected ? '#D4AF37' : '#ccc' }}>
-                    {q.label.split('(')[0]}
-                  </span>
-                  <span style={{ fontSize: '0.64rem', color: hasPhoto ? '#00E676' : '#888' }}>
-                    {hasPhoto ? '✓ 등록됨' : `${q.weightPct}%`}
-                  </span>
-                </button>
-              );
-            })}
+            <button
+              type="button"
+              onClick={handleTriggerUpload}
+              disabled={isAnalyzing}
+              style={{
+                width: '100%',
+                padding: '15px',
+                borderRadius: '10px',
+                border: 'none',
+                background: 'linear-gradient(135deg, #D4AF37 0%, #B68D2C 100%)',
+                color: '#000',
+                fontSize: '0.92rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+              }}
+            >
+              {isAnalyzing
+                ? '원형탈모 정밀 분석 중...'
+                : user
+                ? '원형탈모 진단 바로 시작하기 →'
+                : '🔒 회원가입 후 원형탈모 진단 시작하기 →'}
+            </button>
           </div>
-        )}
-
-        {/* 📏 원형탈모 직경 오차 해결: 3단계 정밀 스케일 보정 & 디지털 캘리퍼스 컨트롤 */}
-        <div style={{
-          background: '#121217',
-          border: '1px solid rgba(212, 175, 55, 0.35)',
-          borderRadius: '12px',
-          padding: '11px 12px',
-          marginBottom: '12px'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '7px' }}>
-            <span style={{ fontSize: '0.76rem', fontWeight: 800, color: '#D4AF37', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <Ruler size={14} /> 정밀 직경 오차 보정 (촬영 거리 · 동전 기준 · 캘리퍼스)
-            </span>
-            <span style={{ fontSize: '0.65rem', color: '#81C784', fontWeight: 700 }}>
-              1mm(0.1cm) 단위 계측
-            </span>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px', marginBottom: '8px' }}>
-            {SCALE_CALIBRATION_PRESETS.map(preset => {
-              const active = calibrationMode === preset.id;
-              return (
-                <button
-                  key={preset.id}
-                  type="button"
-                  onClick={() => handleSelectCalibrationMode(preset.id)}
-                  style={{
-                    padding: '6px 5px',
-                    borderRadius: '7px',
-                    border: active ? '1.5px solid #D4AF37' : '1px solid #2b2b2b',
-                    background: active ? 'rgba(212, 175, 55, 0.2)' : '#18181f',
-                    color: active ? '#D4AF37' : '#bbb',
-                    fontSize: '0.68rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    textAlign: 'center'
-                  }}
-                >
-                  <div>{preset.label}</div>
-                  <div style={{ fontSize: '0.59rem', color: active ? '#f5f0e8' : '#777', fontWeight: 500 }}>
-                    {preset.sub}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          {isCoinMode && (
+        ) : (
+          /* 사진 등록 후: 정밀 직경 보정 + 캘리퍼스 뷰포트 + SALT 진단 리포트 */
+          <div className="fade-in">
+            {/* 정밀 직경 오차 보정 컨트롤 */}
             <div style={{
-              background: 'rgba(0, 230, 118, 0.08)',
-              border: '1px solid rgba(0, 230, 118, 0.3)',
-              borderRadius: '8px',
-              padding: '8px 10px',
-              marginBottom: '6px'
+              background: '#121217',
+              border: '1px solid rgba(212, 175, 55, 0.35)',
+              borderRadius: '12px',
+              padding: '11px 12px',
+              marginBottom: '12px'
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.69rem', color: '#81C784', fontWeight: 700, marginBottom: '4px' }}>
-                <span>🪙 기준 동전({coinRefDiameterCm}cm) 가이드 원 크기 맞춤</span>
-                <span>화면 폭의 {Math.round(coinSpanRatio * 100)}% = {coinRefDiameterCm}cm</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '7px' }}>
+                <span style={{ fontSize: '0.76rem', fontWeight: 800, color: '#D4AF37', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <Ruler size={14} /> 직경 오차 정밀 보정 (촬영 거리 · 동전 기준 · 캘리퍼스)
+                </span>
+                <span style={{ fontSize: '0.65rem', color: '#81C784', fontWeight: 700 }}>
+                  1mm(0.1cm) 단위 계측
+                </span>
               </div>
-              <input
-                type="range"
-                min="0.10"
-                max="0.36"
-                step="0.005"
-                value={coinSpanRatio}
-                onChange={(e) => handleCoinRatioChange(parseFloat(e.target.value))}
-                style={{ width: '100%', accentColor: '#00E676', cursor: 'pointer' }}
-              />
-              <div style={{ fontSize: '0.63rem', color: '#bbb', marginTop: '2px' }}>
-                사진 속 동전 크기에 초록색 기준원을 맞추면 촬영 거리 오차가 0%로 보정됩니다.
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px', marginBottom: '8px' }}>
+                {SCALE_CALIBRATION_PRESETS.map(preset => {
+                  const active = calibrationMode === preset.id;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => handleSelectCalibrationMode(preset.id)}
+                      style={{
+                        padding: '6px 5px',
+                        borderRadius: '7px',
+                        border: active ? '1.5px solid #D4AF37' : '1px solid #2b2b2b',
+                        background: active ? 'rgba(212, 175, 55, 0.2)' : '#18181f',
+                        color: active ? '#D4AF37' : '#bbb',
+                        fontSize: '0.68rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        textAlign: 'center'
+                      }}
+                    >
+                      <div>{preset.label}</div>
+                      <div style={{ fontSize: '0.59rem', color: active ? '#f5f0e8' : '#777', fontWeight: 500 }}>
+                        {preset.sub}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {isCoinMode && (
+                <div style={{
+                  background: 'rgba(0, 230, 118, 0.08)',
+                  border: '1px solid rgba(0, 230, 118, 0.3)',
+                  borderRadius: '8px',
+                  padding: '8px 10px',
+                  marginBottom: '6px'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.69rem', color: '#81C784', fontWeight: 700, marginBottom: '4px' }}>
+                    <span>🪙 기준 동전({coinRefDiameterCm}cm) 가이드 원 크기 맞춤</span>
+                    <span>화면 폭의 {Math.round(coinSpanRatio * 100)}% = {coinRefDiameterCm}cm</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.10"
+                    max="0.36"
+                    step="0.005"
+                    value={coinSpanRatio}
+                    onChange={(e) => handleCoinRatioChange(parseFloat(e.target.value))}
+                    style={{ width: '100%', accentColor: '#00E676', cursor: 'pointer' }}
+                  />
+                </div>
+              )}
+
+              <div style={{ fontSize: '0.66rem', color: '#999', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>적용 시야폭(FOV): <strong style={{ color: '#D4AF37' }}>가로 {effectiveFovCm}cm</strong></span>
+                <span>💡 사진 위 <strong style={{ color: '#00E676' }}>[A]·[B] 점</strong> 드래그로 미세 보정</span>
               </div>
             </div>
-          )}
 
-          <div style={{ fontSize: '0.66rem', color: '#999', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>현재 적용 시야폭(FOV): <strong style={{ color: '#D4AF37' }}>가로 {effectiveFovCm}cm</strong></span>
-            <span>💡 사진 위 <strong style={{ color: '#00E676' }}>[A]·[B] 캘리퍼스 점</strong> 드래그 미세 조정</span>
-          </div>
-        </div>
-
-        {/* 이미지 업로드 & 인터랙티브 디지털 캘리퍼스 뷰포트 */}
-        <div style={{
-          background: '#111',
-          border: '1.5px dashed rgba(212, 175, 55, 0.45)',
-          borderRadius: '12px',
-          overflow: 'hidden',
-          marginBottom: '12px'
-        }}>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            style={{ display: 'none' }}
-            onChange={(e) => handleFileUpload(e, activeQuadrant)}
-          />
-
-          {currentImg ? (
-            <div>
+            {/* 인터랙티브 캘리퍼스 뷰포트 */}
+            <div style={{
+              background: '#111',
+              border: '1.5px solid rgba(212, 175, 55, 0.45)',
+              borderRadius: '12px',
+              overflow: 'hidden',
+              marginBottom: '12px'
+            }}>
               <div
                 ref={viewportRef}
                 style={{
@@ -606,7 +516,6 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
                     <div
                       onMouseDown={() => setDraggingHandle('A')}
                       onTouchStart={() => setDraggingHandle('A')}
-                      title="드래그하여 탈모반 왼쪽 끝점에 맞추세요"
                       style={{
                         position: 'absolute',
                         left: `calc(${caliperPoints.ax * 100}% - 13px)`,
@@ -632,7 +541,6 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
                     <div
                       onMouseDown={() => setDraggingHandle('B')}
                       onTouchStart={() => setDraggingHandle('B')}
-                      title="드래그하여 탈모반 오른쪽 끝점에 맞추세요"
                       style={{
                         position: 'absolute',
                         left: `calc(${caliperPoints.bx * 100}% - 13px)`,
@@ -674,7 +582,6 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
                       cursor: 'move',
                       zIndex: 11
                     }}
-                    title="동전 위치로 이동"
                   />
                 )}
               </div>
@@ -693,7 +600,7 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
                   <span style={{ fontSize: '0.72rem', color: '#D4AF37', fontWeight: 700 }}>
                     {currentResult && currentResult.patchCount > 0
                       ? `실측 직경 Ø ${liveCaliper.diameterCm}cm · 면적 ${liveCaliper.areaCm2}cm²`
-                      : SALT_QUADRANTS.find(q => q.id === activeQuadrant)?.label.split('(')[0]}
+                      : '원형탈모 스캔 완료'}
                   </span>
                   {caliperPoints.isManual && (
                     <button
@@ -752,227 +659,120 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
                 </div>
               </div>
             </div>
-          ) : (
-            <div onClick={handleTriggerUpload} style={{ padding: '28px 16px', textAlign: 'center', cursor: 'pointer' }}>
-              <Upload size={28} color="#D4AF37" style={{ margin: '0 auto 8px' }} />
-              <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#fff', marginBottom: '3px' }}>
-                원형탈모 의심 부위 사진 등록
-              </div>
-              <div style={{ fontSize: '0.72rem', color: '#888' }}>
-                탈모반 경계가 보이도록 촬영하거나, 동전(100원·500원)과 함께 촬영하면 오차 없이 정밀 측정됩니다
-              </div>
-            </div>
-          )}
-        </div>
 
-        {/* 간결한 체크리스트 */}
-        <div style={{
-          background: '#121216',
-          border: '1px solid #262626',
-          borderRadius: '10px',
-          padding: '12px',
-          marginBottom: '14px'
-        }}>
-          <div style={{ fontSize: '0.76rem', fontWeight: 700, color: '#D4AF37', marginBottom: '8px' }}>
-            🔍 동반 증상 체크 (해당 항목 탭)
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-            {[
-              { key: 'rapidPullTest', label: '주변 모발 쉽게 뽑힘(활성기)' },
-              { key: 'nailPitting', label: '손발톱 미세 패임' },
-              { key: 'atopyOrThyroid', label: '아토피·갑상선 질환력' },
-              { key: 'ophiasisBand', label: '귀옆·뒷머리 띠 형태' },
-              { key: 'eyebrowLoss', label: '눈썹·체모 동반 탈락' }
-            ].map(item => {
-              const checked = checklist[item.key];
-              return (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => toggleCheck(item.key)}
-                  style={{
-                    padding: '6px 10px',
-                    borderRadius: '999px',
-                    border: checked ? '1px solid #D4AF37' : '1px solid #333',
-                    background: checked ? 'rgba(212, 175, 55, 0.18)' : '#18181c',
-                    color: checked ? '#D4AF37' : '#aaa',
-                    fontSize: '0.72rem',
-                    fontWeight: checked ? 700 : 500,
-                    cursor: 'pointer'
-                  }}
-                >
-                  {checked ? '✓ ' : '+ '}{item.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleRunDiagnosis}
-          disabled={isAnalyzing}
-          style={{
-            width: '100%',
-            padding: '14px',
-            background: 'linear-gradient(135deg, #D4AF37 0%, #B68D2C 100%)',
-            color: '#000',
-            border: 'none',
-            borderRadius: '10px',
-            fontWeight: 800,
-            fontSize: '0.88rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            marginBottom: '16px'
-          }}
-        >
-          <Scan size={17} />
-          {isAnalyzing
-            ? '원형탈모 정밀 직경·SALT 분석 중...'
-            : user
-            ? '원형탈모 SALT 점수 & 정밀 직경 산출하기'
-            : '🔒 회원가입 후 원형탈모 진단 결과 확인하기'}
-        </button>
-
-        {/* 진단 결과 리포트 */}
-        {finalReport && (
-          <div className="fade-in" style={{
-            background: '#111',
-            border: '1.5px solid #D4AF37',
-            borderRadius: '12px',
-            padding: '16px'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <span style={{
-                fontSize: '0.7rem',
-                padding: '3px 9px',
+            {/* 진단 결과 리포트 */}
+            {finalReport && (
+              <div style={{
+                background: '#111',
+                border: '1.5px solid #D4AF37',
                 borderRadius: '12px',
-                background: 'rgba(212, 175, 55, 0.18)',
-                color: '#D4AF37',
-                fontWeight: 700
+                padding: '16px'
               }}>
-                AI 원형탈모 SALT & 2D PCA 정밀 계측 리포트
-              </span>
-            </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+                  <div style={{ background: '#181818', padding: '10px', borderRadius: '8px', border: '1px solid #2b2b2b' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.67rem', color: '#888' }}>국제 SALT 등급</span>
+                      <span style={{ fontSize: '0.6rem', color: '#64B5F6', fontWeight: 700 }}>↓ 낮을수록 좋음</span>
+                    </div>
+                    <div style={{ fontSize: '0.96rem', fontWeight: 800, color: finalReport.severityColor, marginTop: '3px' }}>
+                      {finalReport.saltGrade.split(' ')[0]} ({finalReport.saltScore}점 / 100)
+                    </div>
+                    <div style={{ fontSize: '0.66rem', color: '#aaa', marginTop: '2px' }}>{finalReport.severityLabel} (0점 S0 정상)</div>
+                  </div>
 
-            <div style={{
-              background: 'rgba(100, 181, 246, 0.1)',
-              border: '1px solid rgba(100, 181, 246, 0.3)',
-              borderRadius: '8px',
-              padding: '7px 10px',
-              fontSize: '0.7rem',
-              color: '#ddd',
-              marginBottom: '10px'
-            }}>
-              💡 <strong style={{ color: '#64B5F6' }}>SALT 점수 판독 기준 (↓ 낮을수록 좋음)</strong>: <strong>0점(S0)이 탈모반이 없는 정상</strong>이며, 점수가 높을수록 전체 두피 대비 탈모 면적(%)이 넓음을 뜻합니다.
-            </div>
+                  <div style={{ background: '#181818', padding: '10px', borderRadius: '8px', border: '1px solid #2b2b2b' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.67rem', color: '#888' }}>정밀 병변 직경·면적</span>
+                      <span style={{ fontSize: '0.6rem', color: '#00E676', fontWeight: 700 }}>
+                        {caliperPoints.isManual ? '캘리퍼스 보정됨' : 'PCA 장·단축 계측'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.96rem', fontWeight: 800, color: '#fff', marginTop: '3px' }}>
+                      Ø {finalReport.maxDiameterCm} cm ({finalReport.totalAreaCm2} cm²)
+                    </div>
+                    <div style={{ fontSize: '0.66rem', color: '#D4AF37', marginTop: '2px' }}>
+                      검출 병변 {finalReport.totalPatchCount}개
+                    </div>
+                  </div>
+                </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
-              <div style={{ background: '#181818', padding: '10px', borderRadius: '8px', border: '1px solid #2b2b2b' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.67rem', color: '#888' }}>국제 SALT 등급</span>
-                  <span style={{ fontSize: '0.6rem', color: '#64B5F6', fontWeight: 700 }}>↓ 낮을수록 좋음</span>
-                </div>
-                <div style={{ fontSize: '0.96rem', fontWeight: 800, color: finalReport.severityColor, marginTop: '3px' }}>
-                  {finalReport.saltGrade.split(' ')[0]} ({finalReport.saltScore}점 / 100)
-                </div>
-                <div style={{ fontSize: '0.66rem', color: '#aaa', marginTop: '2px' }}>{finalReport.severityLabel}</div>
-              </div>
+                {currentResult?.patches?.length > 0 && (
+                  <div style={{
+                    background: '#16161c',
+                    border: '1px solid rgba(0, 230, 118, 0.28)',
+                    borderRadius: '8px',
+                    padding: '10px',
+                    marginBottom: '12px'
+                  }}>
+                    <div style={{ fontSize: '0.73rem', fontWeight: 800, color: '#00E676', marginBottom: '6px' }}>
+                      📐 검출 탈모반 장축×단축 정밀 치수
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                      {currentResult.patches.map((p, idx) => {
+                        const dispDiam = idx === 0 && caliperPoints.isManual ? liveCaliper.diameterCm : p.diameterCm;
+                        const dispMajor = idx === 0 && caliperPoints.isManual ? liveCaliper.majorDiameterCm : p.majorDiameterCm;
+                        const dispMinor = idx === 0 && caliperPoints.isManual ? liveCaliper.minorDiameterCm : p.minorDiameterCm;
+                        const dispArea = idx === 0 && caliperPoints.isManual ? liveCaliper.areaCm2 : p.estimatedCm2;
+                        return (
+                          <div
+                            key={p.id}
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              background: 'rgba(255,255,255,0.03)',
+                              padding: '6px 9px',
+                              borderRadius: '6px',
+                              fontSize: '0.71rem'
+                            }}
+                          >
+                            <span style={{ fontWeight: 700, color: '#f5f0e8' }}>
+                              #{p.id} 탈모반 (Ø {dispDiam}cm)
+                            </span>
+                            <span style={{ color: '#bbb' }}>
+                              장축 <strong style={{ color: '#D4AF37' }}>{dispMajor}cm</strong> × 단축 <strong style={{ color: '#D4AF37' }}>{dispMinor}cm</strong> · <strong style={{ color: '#81C784' }}>{dispArea}cm²</strong>
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
-              <div style={{ background: '#181818', padding: '10px', borderRadius: '8px', border: '1px solid #2b2b2b' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.67rem', color: '#888' }}>정밀 병변 직경·면적</span>
-                  <span style={{ fontSize: '0.6rem', color: '#00E676', fontWeight: 700 }}>
-                    {caliperPoints.isManual ? '캘리퍼스 보정됨' : 'PCA 장·단축 계측'}
-                  </span>
-                </div>
-                <div style={{ fontSize: '0.96rem', fontWeight: 800, color: '#fff', marginTop: '3px' }}>
-                  Ø {finalReport.maxDiameterCm} cm ({finalReport.totalAreaCm2} cm²)
-                </div>
-                <div style={{ fontSize: '0.66rem', color: '#D4AF37', marginTop: '2px' }}>
-                  검출 병변 {finalReport.totalPatchCount}개 · 100원 동전(2.4cm)의 약 {Math.round((finalReport.maxDiameterCm / 2.4) * 100)}%
-                </div>
-              </div>
-            </div>
+                {finalReport.riskFactors.length > 0 && (
+                  <div style={{
+                    background: 'rgba(255, 82, 82, 0.1)',
+                    border: '1px solid rgba(255, 82, 82, 0.35)',
+                    borderRadius: '8px',
+                    padding: '10px',
+                    marginBottom: '12px'
+                  }}>
+                    <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#ff8a80', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <ShieldAlert size={14} /> 확인된 주의 인자
+                    </div>
+                    <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '0.72rem', color: '#ffcdd2', lineHeight: 1.5 }}>
+                      {finalReport.riskFactors.map((rf, i) => <li key={i}>{rf}</li>)}
+                    </ul>
+                  </div>
+                )}
 
-            {currentResult?.patches?.length > 0 && (
-              <div style={{
-                background: '#16161c',
-                border: '1px solid rgba(0, 230, 118, 0.28)',
-                borderRadius: '8px',
-                padding: '10px',
-                marginBottom: '12px'
-              }}>
-                <div style={{ fontSize: '0.73rem', fontWeight: 800, color: '#00E676', marginBottom: '6px' }}>
-                  📐 검출 탈모반 부위별 장축×단축 정밀 치수 (오차 보정 완료)
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                  {currentResult.patches.map((p, idx) => {
-                    const dispDiam = idx === 0 && caliperPoints.isManual ? liveCaliper.diameterCm : p.diameterCm;
-                    const dispMajor = idx === 0 && caliperPoints.isManual ? liveCaliper.majorDiameterCm : p.majorDiameterCm;
-                    const dispMinor = idx === 0 && caliperPoints.isManual ? liveCaliper.minorDiameterCm : p.minorDiameterCm;
-                    const dispArea = idx === 0 && caliperPoints.isManual ? liveCaliper.areaCm2 : p.estimatedCm2;
-                    return (
+                <div style={{ background: '#161616', border: '1px solid #2b2b2b', borderRadius: '8px', padding: '12px' }}>
+                  <div style={{ fontSize: '0.76rem', fontWeight: 700, color: '#D4AF37', marginBottom: '6px' }}>
+                    🏥 권장 치료 프로토콜
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.74rem', color: '#ddd', lineHeight: 1.55 }}>
+                    {finalReport.treatmentRecommendations.map((rec, i) => (
                       <div
-                        key={p.id}
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          background: 'rgba(255,255,255,0.03)',
-                          padding: '6px 9px',
-                          borderRadius: '6px',
-                          fontSize: '0.71rem'
+                        key={i}
+                        dangerouslySetInnerHTML={{
+                          __html: `• ${rec.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#D4AF37">$1</strong>')}`
                         }}
-                      >
-                        <span style={{ fontWeight: 700, color: '#f5f0e8' }}>
-                          #{p.id} 탈모반 (평균 Ø {dispDiam}cm)
-                        </span>
-                        <span style={{ color: '#bbb' }}>
-                          장축 <strong style={{ color: '#D4AF37' }}>{dispMajor}cm</strong> × 단축 <strong style={{ color: '#D4AF37' }}>{dispMinor}cm</strong> · 면적 <strong style={{ color: '#81C784' }}>{dispArea}cm²</strong>
-                        </span>
-                      </div>
-                    );
-                  })}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
-
-            {finalReport.riskFactors.length > 0 && (
-              <div style={{
-                background: 'rgba(255, 82, 82, 0.1)',
-                border: '1px solid rgba(255, 82, 82, 0.35)',
-                borderRadius: '8px',
-                padding: '10px',
-                marginBottom: '12px'
-              }}>
-                <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#ff8a80', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <ShieldAlert size={14} /> 확인된 주의 인자
-                </div>
-                <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '0.72rem', color: '#ffcdd2', lineHeight: 1.5 }}>
-                  {finalReport.riskFactors.map((rf, i) => <li key={i}>{rf}</li>)}
-                </ul>
-              </div>
-            )}
-
-            <div style={{ background: '#161616', border: '1px solid #2b2b2b', borderRadius: '8px', padding: '12px' }}>
-              <div style={{ fontSize: '0.76rem', fontWeight: 700, color: '#D4AF37', marginBottom: '6px' }}>
-                🏥 권장 치료 프로토콜
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.74rem', color: '#ddd', lineHeight: 1.55 }}>
-                {finalReport.treatmentRecommendations.map((rec, i) => (
-                  <div
-                    key={i}
-                    dangerouslySetInnerHTML={{
-                      __html: `• ${rec.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#D4AF37">$1</strong>')}`
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
           </div>
         )}
       </div>

@@ -474,25 +474,6 @@ const HairSimTab = ({ user = null, onRequireAuth = null }) => {
 
           {customMetrics && <QuantitativeMetricsPanel metrics={customMetrics} />}
         </div>
-
-        {/* AI 탈모진단앱 바로 이동 버튼 */}
-        <button
-          type="button"
-          onClick={() => (window.location.href = '/diagnosis.html')}
-          style={{
-            width: '100%',
-            padding: '12px',
-            borderRadius: '10px',
-            border: '1px solid rgba(212, 175, 55, 0.4)',
-            background: 'rgba(212, 175, 55, 0.1)',
-            color: '#D4AF37',
-            fontWeight: 800,
-            fontSize: '0.8rem',
-            cursor: 'pointer',
-          }}
-        >
-          🔍 AI 탈모진단앱으로 바로 이동하기 →
-        </button>
       </div>
     </div>
   );
