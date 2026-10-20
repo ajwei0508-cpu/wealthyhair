@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  CLINICAL_VERIFICATION_CASES,
   compareBeforeAfterImages,
   simulateHairGrowthClientSide,
 } from '../utils/beforeAfterAnalyzer';
@@ -169,7 +168,7 @@ const QuantitativeMetricsPanel = ({ metrics }) => {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
         <div style={{ background: 'rgba(255,255,255,0.03)', padding: '9px', borderRadius: '8px' }}>
-          <div style={{ fontSize: '0.68rem', color: '#999' }}>모발 피복률 변화</div>
+          <div style={{ fontSize: '0.68rem', color: '#999' }}>모발 피복률 변화 (↑높을수록 좋음)</div>
           <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#fff', marginTop: '2px' }}>
             {metrics.beforeCoverage}% → <span style={{ color: '#4CAF50' }}>{metrics.afterCoverage}%</span>
           </div>
@@ -179,7 +178,7 @@ const QuantitativeMetricsPanel = ({ metrics }) => {
         </div>
 
         <div style={{ background: 'rgba(255,255,255,0.03)', padding: '9px', borderRadius: '8px' }}>
-          <div style={{ fontSize: '0.68rem', color: '#999' }}>단위면적 모낭 밀도</div>
+          <div style={{ fontSize: '0.68rem', color: '#999' }}>단위면적 모낭 밀도 (↑높을수록 좋음)</div>
           <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#fff', marginTop: '2px' }}>
             {metrics.beforeFollicularDensity} → <span style={{ color: '#D4AF37' }}>{metrics.afterFollicularDensity}</span>
             <span style={{ fontSize: '0.65rem', color: '#aaa' }}> 모/cm²</span>
@@ -193,15 +192,15 @@ const QuantitativeMetricsPanel = ({ metrics }) => {
   );
 };
 
-// ── 메인 HairSimTab ──────────────────────────────────────────────
+// ── 메인 HairSimTab (샘플 내용 삭제 · 내 사진 시뮬레이션 & 진단앱 바로 이동 전용) ──
 const HairSimTab = ({ user = null, onRequireAuth = null }) => {
-  const [selectedCase, setSelectedCase] = useState(CLINICAL_VERIFICATION_CASES[0]);
+  const [myPhoto, setMyPhoto] = useState(null);
   const [selectedDrug, setSelectedDrug] = useState('dutasteride');
   const [selectedMonth, setSelectedMonth] = useState(6);
   const [simResult, setSimResult] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
 
-  // 내 사진 업로드 상태 (회원 전용)
+  // 실제 복약 전/후 2장 비교 상태
   const [customBefore, setCustomBefore] = useState(null);
   const [customAfter, setCustomAfter] = useState(null);
   const [customMetrics, setCustomMetrics] = useState(null);
@@ -228,8 +227,10 @@ const HairSimTab = ({ user = null, onRequireAuth = null }) => {
   }, []);
 
   useEffect(() => {
-    runSimulation(selectedCase.beforeImage, selectedDrug, selectedMonth);
-  }, [selectedCase, selectedDrug, selectedMonth, runSimulation]);
+    if (myPhoto) {
+      runSimulation(myPhoto, selectedDrug, selectedMonth);
+    }
+  }, [myPhoto, selectedDrug, selectedMonth, runSimulation]);
 
   const requireAuthOrRun = (featureLabel, callback) => {
     if (!user) {
@@ -250,20 +251,7 @@ const HairSimTab = ({ user = null, onRequireAuth = null }) => {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const dataUrl = ev.target.result;
-      setSelectedCase({
-        id: 'custom_user',
-        title: '내 모발 사진 맞춤 복약 경과 예측',
-        stage: '개인 맞춤 시뮬레이션',
-        beforeImage: dataUrl,
-        sampleMetrics: {
-          beforeDensity: 95,
-          after3MDensity: 114,
-          after6MDensity: 131,
-          after12MDensity: 145,
-          hairlineGainMm: '맞춤 모낭 밀도 회복 예측'
-        }
-      });
+      setMyPhoto(ev.target.result);
     };
     reader.readAsDataURL(file);
   };
@@ -293,87 +281,40 @@ const HairSimTab = ({ user = null, onRequireAuth = null }) => {
 
   const currentDrugInfo = DRUG_DATA[selectedDrug] || DRUG_DATA.dutasteride;
   const currentMonthInfo = currentDrugInfo.months[selectedMonth] || currentDrugInfo.months[6];
-  const sampleM = selectedCase.sampleMetrics || CLINICAL_VERIFICATION_CASES[0].sampleMetrics;
 
   return (
     <div className="sim-container fade-in" style={{ paddingBottom: '90px' }}>
-      {/* 깔끔한 배너 */}
       <div className="tab-banner">
-        <img src="/assets/banners/banner_simulator.jpg" alt="복약 전후 변화 샘플" className="tab-banner-img" />
+        <img src="/assets/banners/banner_simulator.jpg" alt="복약 전후 예상 경과" className="tab-banner-img" />
         <div className="tab-banner-overlay">
           <h1 className="tab-banner-title">복약 전·후 예상 경과 확인</h1>
-          <p className="tab-banner-sub">복약 전·후 변화 샘플 미리보기 및 1·3·6·12개월 발모 시뮬레이션</p>
+          <p className="tab-banner-sub">내 사진 기반 1·3·6·12개월 발모 경과 예측 및 전·후 밀도 비교</p>
         </div>
       </div>
 
       <div style={{ padding: '14px' }}>
-        {/* 간결한 개인정보 보호 및 회원가입 유도 배너 */}
         <PrivacyMembershipNoticeCard
           user={user}
           featureType="simulator"
           onOpenAuth={onRequireAuth}
         />
 
-        {/* ====================================================================
-            1. 복약 전·후 변화 샘플 (혐오감 없는 무난한 스튜디오 예시 + 슬라이더)
-        ==================================================================== */}
+        {/* 내 사진으로 직접 복약 경과 예측 & 전·후 비교 */}
         <div
           style={{
-            background: 'linear-gradient(145deg, rgba(22, 22, 26, 0.98), rgba(14, 14, 18, 0.98))',
-            border: '1px solid rgba(212, 175, 55, 0.38)',
+            background: '#121216',
+            border: '1px solid rgba(212, 175, 55, 0.35)',
             borderRadius: '14px',
             padding: '14px',
-            marginBottom: '16px',
+            marginBottom: '12px',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-            <div>
-              <span style={{ fontSize: '0.68rem', color: '#D4AF37', fontWeight: 700 }}>
-                BEFORE & AFTER SAMPLE
-              </span>
-              <h3 style={{ fontSize: '0.92rem', color: '#f5f0e8', fontWeight: 800, margin: '2px 0 0' }}>
-                ✨ 복약 전·후 변화 샘플 (유형별 경과 예시)
-              </h3>
-            </div>
-            <span
-              style={{
-                fontSize: '0.66rem',
-                padding: '3px 8px',
-                borderRadius: '999px',
-                background: 'rgba(76, 175, 80, 0.16)',
-                color: '#81C784',
-                fontWeight: 700,
-              }}
-            >
-              {currentMonthInfo.recovery}
-            </span>
+          <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#f5f0e8', marginBottom: '4px' }}>
+            📸 내 사진으로 복약 1·3·6·12개월 경과 예측하기
           </div>
-
-          {/* 3가지 무난한 탈모 예시 선택 탭 */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '10px' }}>
-            {CLINICAL_VERIFICATION_CASES.slice(0, 3).map((item) => {
-              const active = selectedCase.id === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setSelectedCase(item)}
-                  style={{
-                    padding: '8px 6px',
-                    borderRadius: '8px',
-                    border: active ? '1.5px solid #D4AF37' : '1px solid rgba(255,255,255,0.08)',
-                    background: active ? 'rgba(212, 175, 55, 0.18)' : 'rgba(255,255,255,0.03)',
-                    color: active ? '#D4AF37' : '#aaa',
-                    fontSize: '0.72rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {item.category} 샘플
-                </button>
-              );
-            })}
-          </div>
+          <p style={{ fontSize: '0.73rem', color: '#aaa', margin: '0 0 10px', lineHeight: 1.45 }}>
+            내 현재 모발 사진을 등록하면 복약 성분·개월 수에 따른 예상 발모 경과를 시뮬레이션합니다.
+          </p>
 
           {/* 약물 선택 & 개월 수 선택 */}
           <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '8px' }}>
@@ -427,75 +368,6 @@ const HairSimTab = ({ user = null, onRequireAuth = null }) => {
             ))}
           </div>
 
-          {/* 인터랙티브 전/후 비교 슬라이더 */}
-          <BeforeAfterSlider
-            beforeSrc={selectedCase.beforeImage}
-            afterSrc={simResult?.predicted_image}
-            isLoading={isRunning}
-            monthColor={currentMonthInfo.color}
-            rightLabel={`${selectedMonth}개월 복약 후 (${currentDrugInfo.shortName})`}
-          />
-
-          {/* 한눈에 보는 복약 전 -> 3·6·12개월 밀도 회복 타임라인 샘플 */}
-          <div
-            style={{
-              background: 'rgba(0,0,0,0.4)',
-              border: '1px solid rgba(255,255,255,0.07)',
-              borderRadius: '10px',
-              padding: '10px 12px',
-              marginTop: '10px',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: '#D4AF37', fontWeight: 700, marginBottom: '8px' }}>
-              <span>📈 기간별 모낭 밀도 회복 추이 샘플</span>
-              <span style={{ color: '#81C784' }}>{sampleM.hairlineGainMm}</span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', textAlign: 'center' }}>
-              {[
-                { label: '복약 전', val: `${sampleM.beforeDensity}모`, pct: 55, color: '#888' },
-                { label: '3개월 후', val: `${sampleM.after3MDensity}모`, pct: 70, color: '#4CAF50' },
-                { label: '6개월 후', val: `${sampleM.after6MDensity}모`, pct: 85, color: '#81C784' },
-                { label: '12개월 후', val: `${sampleM.after12MDensity}모`, pct: 98, color: '#D4AF37' },
-              ].map((stepItem, idx) => (
-                <div key={idx} style={{ background: 'rgba(255,255,255,0.03)', padding: '7px 4px', borderRadius: '8px' }}>
-                  <div style={{ fontSize: '0.64rem', color: '#999' }}>{stepItem.label}</div>
-                  <div style={{ fontSize: '0.82rem', fontWeight: 800, color: stepItem.color, margin: '3px 0' }}>
-                    {stepItem.val}/cm²
-                  </div>
-                  <div style={{ height: '4px', background: '#222', borderRadius: '2px', overflow: 'hidden', margin: '0 6px' }}>
-                    <div style={{ width: `${stepItem.pct}%`, height: '100%', background: stepItem.color }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <p style={{ fontSize: '0.73rem', color: '#ccc', margin: '8px 0 0', lineHeight: 1.45 }}>
-              {currentMonthInfo.description}
-            </p>
-          </div>
-
-          {simResult?.metrics && <QuantitativeMetricsPanel metrics={simResult.metrics} />}
-        </div>
-
-        {/* ====================================================================
-            2. 내 사진으로 직접 복약 경과 예측 & 전·후 비교 (개인정보 보호 회원 전용)
-        ==================================================================== */}
-        <div
-          style={{
-            background: '#121216',
-            border: '1px solid rgba(212, 175, 55, 0.3)',
-            borderRadius: '14px',
-            padding: '14px',
-          }}
-        >
-          <div style={{ fontSize: '0.86rem', fontWeight: 800, color: '#f5f0e8', marginBottom: '4px' }}>
-            📸 내 사진으로 복약 전·후 경과 확인하기
-          </div>
-          <p style={{ fontSize: '0.73rem', color: '#aaa', margin: '0 0 12px', lineHeight: 1.45 }}>
-            내 현재 사진을 등록해 1·3·6·12개월 후 발모 경과를 예측하거나, 실제 복약 전·후 사진 2장을 비교합니다.
-          </p>
-
           <input
             ref={mySimInputRef}
             type="file"
@@ -503,6 +375,19 @@ const HairSimTab = ({ user = null, onRequireAuth = null }) => {
             style={{ display: 'none' }}
             onChange={handleMyPhotoSimulate}
           />
+
+          {myPhoto && (
+            <div style={{ marginBottom: '12px' }}>
+              <BeforeAfterSlider
+                beforeSrc={myPhoto}
+                afterSrc={simResult?.predicted_image}
+                isLoading={isRunning}
+                monthColor={currentMonthInfo.color}
+                rightLabel={`${selectedMonth}개월 복약 후 (${currentDrugInfo.shortName})`}
+              />
+              {simResult?.metrics && <QuantitativeMetricsPanel metrics={simResult.metrics} />}
+            </div>
+          )}
 
           <button
             type="button"
@@ -517,15 +402,20 @@ const HairSimTab = ({ user = null, onRequireAuth = null }) => {
               fontWeight: 800,
               fontSize: '0.86rem',
               cursor: 'pointer',
-              marginBottom: '12px',
+              marginBottom: '14px',
             }}
           >
             {user
-              ? '📷 내 모발 사진 등록하고 1·3·6·12개월 경과 예측하기'
+              ? myPhoto
+                ? '📷 다른 모발 사진으로 다시 예측하기'
+                : '📷 내 모발 사진 등록하고 1·3·6·12개월 경과 예측하기'
               : '🔒 회원가입 후 내 사진으로 복약 경과 예측하기'}
           </button>
 
           {/* 실제 복용 전/후 2장 비교 슬롯 */}
+          <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#D4AF37', marginBottom: '6px' }}>
+            📊 실제 복약 전(Before) · 복약 후(After) 사진 2장 정량 비교
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
             <div
               onClick={() => requireAuthOrRun('복약 전·후 사진 비교', () => beforeInputRef.current?.click())}
@@ -584,6 +474,25 @@ const HairSimTab = ({ user = null, onRequireAuth = null }) => {
 
           {customMetrics && <QuantitativeMetricsPanel metrics={customMetrics} />}
         </div>
+
+        {/* AI 탈모진단앱 바로 이동 버튼 */}
+        <button
+          type="button"
+          onClick={() => (window.location.href = '/diagnosis.html')}
+          style={{
+            width: '100%',
+            padding: '12px',
+            borderRadius: '10px',
+            border: '1px solid rgba(212, 175, 55, 0.4)',
+            background: 'rgba(212, 175, 55, 0.1)',
+            color: '#D4AF37',
+            fontWeight: 800,
+            fontSize: '0.8rem',
+            cursor: 'pointer',
+          }}
+        >
+          🔍 AI 탈모진단앱으로 바로 이동하기 →
+        </button>
       </div>
     </div>
   );

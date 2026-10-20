@@ -1,16 +1,15 @@
 // src/components/AlopeciaAreataView.jsx
-// 국제 표준 SALT (Severity of Alopecia Tool) 척도 + 3단계 정밀 직경 보정(Auto-FOV · 동전 기준원 · 디지털 캘리퍼스) 원형탈모 진단앱
+// 국제 표준 SALT (Severity of Alopecia Tool) 척도 + 3단계 정밀 직경 보정(Auto-FOV · 동전 기준원 · 디지털 캘리퍼스) 원형탈모 진단앱 (샘플 제거 · 직접 진단 전용)
 
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  Scan, Upload, Sparkles, ArrowLeft, ShieldAlert, Ruler, RotateCcw
+  Scan, Upload, ArrowLeft, ShieldAlert, Ruler, RotateCcw
 } from 'lucide-react';
 import {
   SALT_QUADRANTS,
   SCALE_CALIBRATION_PRESETS,
   analyzeAlopeciaAreataImage,
-  calculateFinalAlopeciaAreataReport,
-  generateVerifiedAlopeciaSample
+  calculateFinalAlopeciaAreataReport
 } from '../utils/alopeciaAreataAnalysis';
 import { PrivacyMembershipNoticeCard } from './AuthGate';
 
@@ -32,8 +31,8 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
 
   // 정밀 직경 스케일 보정 상태
   const [calibrationMode, setCalibrationMode] = useState('auto_fov');
-  const [coinSpanRatio, setCoinSpanRatio] = useState(0.185); // 화면 가로 대비 동전 직경 비율 (기본 18.5%)
-  const [ coinCenter, setCoinCenter ] = useState({ x: 0.24, y: 0.26 });
+  const [coinSpanRatio, setCoinSpanRatio] = useState(0.185);
+  const [coinCenter, setCoinCenter] = useState({ x: 0.24, y: 0.26 });
 
   // 인터랙티브 디지털 버니어 캘리퍼스 (사진 위 직접 드래그 측정)
   const [caliperActive, setCaliperActive] = useState(true);
@@ -63,14 +62,11 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
   const currentImg = currentResult?.annotatedImage || quadrantImages[activeQuadrant];
   const effectiveFovCm = currentResult?.effectiveFovWidthCm || 13.0;
 
-  // 현재 캘리퍼스 두 점(A, B) 사이의 실시간 직경(cm) 및 면적(cm²) 계산
   const computeLiveCaliperMetrics = (pts = caliperPoints, fovCm = effectiveFovCm) => {
-    // 4:3 비율 보정 후 유클리드 거리 계산
     const dxCm = (pts.bx - pts.ax) * fovCm;
     const dyCm = (pts.by - pts.ay) * (fovCm * 0.75);
     const distCm = Math.sqrt(dxCm * dxCm + dyCm * dyCm);
     const diameterCm = Number(Math.max(0.2, distCm).toFixed(2));
-    // 현재 검출된 병변의 단축/장축 비율(aspect ratio)을 유지하여 타원 면적 산출
     const primaryPatch = currentResult?.patches?.[0];
     const aspect =
       primaryPatch && primaryPatch.majorDiameterCm > 0
@@ -88,7 +84,6 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
 
   const liveCaliper = computeLiveCaliperMetrics();
 
-  // 촬영 거리/동전 스케일 프리셋 변경 시 즉시 재계산
   const ReanalyzeWithScale = async (nextMode = calibrationMode, nextCoinRatio = coinSpanRatio) => {
     const hasAnyImage = Object.values(quadrantImages).some(Boolean);
     if (!hasAnyImage) return;
@@ -126,7 +121,6 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
     await ReanalyzeWithScale(calibrationMode, newRatio);
   };
 
-  // 캘리퍼스 드래그 핸들러 (마우스 + 모바일 터치 완벽 지원)
   const updateHandleFromEvent = (clientX, clientY) => {
     if (!draggingHandle || !viewportRef.current) return;
     const rect = viewportRef.current.getBoundingClientRect();
@@ -150,7 +144,6 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
           diameterCm: metrics.diameterCm,
           areaCm2: metrics.areaCm2
         });
-        manualReport.presetLabel = finalReport.presetLabel;
         setFinalReport(manualReport);
       }
       return updated;
@@ -183,7 +176,6 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
       isManual: false
     });
     const report = calculateFinalAlopeciaAreataReport(quadrantResults, checklist);
-    if (finalReport?.presetLabel) report.presetLabel = finalReport.presetLabel;
     setFinalReport(report);
   };
 
@@ -226,54 +218,10 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
     reader.readAsDataURL(file);
   };
 
-  const executeClinicalPreset = async (presetType, label) => {
-    setIsAnalyzing(true);
-    try {
-      let sampleUrl = null;
-      if (presetType === 'normal_s0') {
-        sampleUrl = '/guides/guide_vertex.jpg';
-      } else {
-        sampleUrl = await generateVerifiedAlopeciaSample(presetType);
-      }
-
-      if (sampleUrl) {
-        const nextImages = { top: sampleUrl, back: null, left: null, right: null };
-        setQuadrantImages(nextImages);
-        setActiveQuadrant('top');
-        const topAnalysis = await analyzeAlopeciaAreataImage(sampleUrl, 'top', {
-          calibrationMode,
-          coinSpanRatio
-        });
-        const nextResults = { top: topAnalysis, back: null, left: null, right: null };
-        setQuadrantResults(nextResults);
-        if (topAnalysis.defaultCaliper) {
-          setCaliperPoints({ ...topAnalysis.defaultCaliper, isManual: false });
-        }
-        const report = calculateFinalAlopeciaAreataReport(nextResults, checklist);
-        report.presetLabel = label;
-        setFinalReport(report);
-      }
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
-  const handleLoadClinicalPreset = (presetType, label) => {
-    if (!user && onRequireAuth) {
-      onRequireAuth({
-        mode: 'signup',
-        featureName: '원형탈모(SALT) 정밀 진단앱',
-        onSuccess: () => executeClinicalPreset(presetType, label)
-      });
-      return;
-    }
-    executeClinicalPreset(presetType, label);
-  };
-
   const executeDiagnosis = async () => {
     const hasAnyImage = Object.values(quadrantImages).some(Boolean);
     if (!hasAnyImage) {
-      alert('진단할 사진을 등록하거나 상단의 샘플을 선택해 주세요.');
+      alert('진단할 원형탈모 의심 부위 사진을 먼저 등록해 주세요.');
       return;
     }
 
@@ -355,7 +303,7 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
                 width: 'fit-content'
               }}
             >
-              <ArrowLeft size={13} /> 일반 탈모 진단으로
+              <ArrowLeft size={13} /> 탈모 진단 메뉴로
             </button>
           )}
           <h1 className="tab-banner-title">원형탈모(SALT) 정밀 진단</h1>
@@ -370,75 +318,18 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
           onOpenAuth={onRequireAuth}
         />
 
-        {/* 원형탈모 진단 결과물 샘플 요약 카드 + SALT 점수 높낮이 안내 */}
+        {/* 간결한 SALT 점수 판독 기준 안내 */}
         <div style={{
-          background: 'linear-gradient(145deg, rgba(22, 22, 26, 0.98), rgba(14, 14, 18, 0.98))',
-          border: '1px solid rgba(212, 175, 55, 0.35)',
-          borderRadius: '12px',
-          padding: '12px 14px',
-          marginBottom: '14px'
+          background: 'rgba(212, 175, 55, 0.08)',
+          border: '1px solid rgba(212, 175, 55, 0.28)',
+          borderRadius: '10px',
+          padding: '9px 11px',
+          fontSize: '0.7rem',
+          color: '#ddd',
+          marginBottom: '12px',
+          lineHeight: 1.45
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#D4AF37', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <Sparkles size={14} /> 원형탈모 진단 결과 샘플 미리보기
-            </span>
-            <span style={{ fontSize: '0.65rem', padding: '2px 7px', borderRadius: '999px', background: 'rgba(100, 181, 246, 0.16)', color: '#64B5F6', fontWeight: 800 }}>
-              ↓ SALT 점수는 낮을수록 좋음 (0점 정상)
-            </span>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '8px' }}>
-            {[
-              { label: 'SALT 점수 (↓낮을수록 좋음)', val: 'S1 (3.4점 · 경증)', color: '#D4AF37' },
-              { label: '정밀 직경 (장축×단축)', val: 'Ø 2.4cm (2.4×2.4)', color: '#81C784' },
-              { label: '권장 치료', val: '국소 주사 + 외용제', color: '#64B5F6' }
-            ].map((m, i) => (
-              <div key={i} style={{ background: 'rgba(255,255,255,0.03)', padding: '7px 8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <div style={{ fontSize: '0.62rem', color: '#888' }}>{m.label}</div>
-                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: m.color, marginTop: '2px' }}>{m.val}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* 간결한 SALT 점수 판독 안내 */}
-          <div style={{
-            background: 'rgba(212, 175, 55, 0.08)',
-            border: '1px solid rgba(212, 175, 55, 0.25)',
-            borderRadius: '8px',
-            padding: '6px 9px',
-            fontSize: '0.68rem',
-            color: '#ddd',
-            marginBottom: '9px',
-            lineHeight: 1.45
-          }}>
-            💡 <strong style={{ color: '#D4AF37' }}>점수 기준 안내</strong>: 원형탈모 <strong>SALT 점수(0~100점)와 등급(S0~S5)은 숫자가 낮을수록 좋습니다.</strong> (<strong>0점 S0 = 정상</strong>, S1 = 25% 미만 경증, 숫자가 높을수록 탈모반 면적이 넓음)
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-            {[
-              { key: 'single_s1', label: '단발성 S1 (Ø2.4cm)' },
-              { key: 'multiple_s2', label: '다발성 S2 샘플' },
-              { key: 'normal_s0', label: '정상 대조군 S0' }
-            ].map(item => (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => handleLoadClinicalPreset(item.key, item.label)}
-                style={{
-                  padding: '7px 6px',
-                  background: '#1c1c22',
-                  border: '1px solid rgba(212, 175, 55, 0.3)',
-                  borderRadius: '6px',
-                  color: '#eee',
-                  fontSize: '0.7rem',
-                  fontWeight: 700,
-                  cursor: 'pointer'
-                }}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
+          💡 <strong style={{ color: '#D4AF37' }}>점수 기준 안내 (↓ 낮을수록 좋음)</strong>: 원형탈모 <strong>SALT 점수(0~100점)와 등급(S0~S5)은 숫자가 낮을수록 좋습니다.</strong> (<strong>0점 S0 = 정상</strong>, S1 = 25% 미만 경증, 숫자가 높을수록 탈모반 면적이 넓음)
         </div>
 
         {/* 스캔 모드 선택 */}
@@ -512,9 +403,7 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
           </div>
         )}
 
-        {/* ====================================================================
-            📏 원형탈모 직경 오차 해결: 3단계 정밀 스케일 보정 & 디지털 캘리퍼스 뷰포트
-        ==================================================================== */}
+        {/* 📏 원형탈모 직경 오차 해결: 3단계 정밀 스케일 보정 & 디지털 캘리퍼스 컨트롤 */}
         <div style={{
           background: '#121217',
           border: '1px solid rgba(212, 175, 55, 0.35)',
@@ -527,11 +416,10 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
               <Ruler size={14} /> 정밀 직경 오차 보정 (촬영 거리 · 동전 기준 · 캘리퍼스)
             </span>
             <span style={{ fontSize: '0.65rem', color: '#81C784', fontWeight: 700 }}>
-              1mm(0.1cm) 단위 정밀 계측
+              1mm(0.1cm) 단위 계측
             </span>
           </div>
 
-          {/* 6종 스케일 프리셋 탭 */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px', marginBottom: '8px' }}>
             {SCALE_CALIBRATION_PRESETS.map(preset => {
               const active = calibrationMode === preset.id;
@@ -561,7 +449,6 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
             })}
           </div>
 
-          {/* 동전 기준 모드 선택 시 동전 크기 맞춤 슬라이더 표시 */}
           {isCoinMode && (
             <div style={{
               background: 'rgba(0, 230, 118, 0.08)',
@@ -580,18 +467,18 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
                 max="0.36"
                 step="0.005"
                 value={coinSpanRatio}
-                onChange={(e) => handleCoinRatioChange( parseFloat(e.target.value) )}
+                onChange={(e) => handleCoinRatioChange(parseFloat(e.target.value))}
                 style={{ width: '100%', accentColor: '#00E676', cursor: 'pointer' }}
               />
               <div style={{ fontSize: '0.63rem', color: '#bbb', marginTop: '2px' }}>
-                사진 속 동전(또는 손가락 한 마디 약 2.4cm) 크기에 초록색 기준원을 맞추면 촬영 거리 오차가 0%로 보정됩니다.
+                사진 속 동전 크기에 초록색 기준원을 맞추면 촬영 거리 오차가 0%로 보정됩니다.
               </div>
             </div>
           )}
 
           <div style={{ fontSize: '0.66rem', color: '#999', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>현재 적용 시야폭(FOV): <strong style={{ color: '#D4AF37' }}>가로 {effectiveFovCm}cm</strong></span>
-            <span>💡 사진 위 <strong style={{ color: '#00E676' }}>[A]·[B] 캘리퍼스 점</strong>을 드래그해 미세 조정 가능</span>
+            <span>💡 사진 위 <strong style={{ color: '#00E676' }}>[A]·[B] 캘리퍼스 점</strong> 드래그 미세 조정</span>
           </div>
         </div>
 
@@ -613,7 +500,6 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
 
           {currentImg ? (
             <div>
-              {/* 인터랙티브 계측 뷰포트 */}
               <div
                 ref={viewportRef}
                 style={{
@@ -633,7 +519,6 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
                   style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block', pointerEvents: 'none' }}
                 />
 
-                {/* SVG 디지털 캘리퍼스 & 동전 기준원 오버레이 */}
                 {caliperActive && (
                   <svg
                     viewBox="0 0 400 300"
@@ -645,7 +530,6 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
                       pointerEvents: 'none'
                     }}
                   >
-                    {/* 동전 기준 모드일 때 기준 동전 원 표시 */}
                     {isCoinMode && (
                       <g>
                         <circle
@@ -670,10 +554,8 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
                       </g>
                     )}
 
-                    {/* 디지털 캘리퍼스 측정선 (A <-> B) */}
                     {currentResult && currentResult.patchCount > 0 && (
                       <g>
-                        {/* 측정 보조 타원 */}
                         <ellipse
                           cx={((caliperPoints.ax + caliperPoints.bx) / 2) * 400}
                           cy={((caliperPoints.ay + caliperPoints.by) / 2) * 300}
@@ -685,7 +567,6 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
                           strokeDasharray="3 3"
                         />
 
-                        {/* 중심 측정선 */}
                         <line
                           x1={caliperPoints.ax * 400}
                           y1={caliperPoints.ay * 300}
@@ -695,7 +576,6 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
                           strokeWidth="2.5"
                         />
 
-                        {/* 중앙 실시간 직경 배지 */}
                         <rect
                           x={((caliperPoints.ax + caliperPoints.bx) / 2) * 400 - 54}
                           y={((caliperPoints.ay + caliperPoints.by) / 2) * 300 - 28}
@@ -721,7 +601,6 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
                   </svg>
                 )}
 
-                {/* 드래그 가능한 캘리퍼스 핸들 [A] / [B] */}
                 {caliperActive && currentResult && currentResult.patchCount > 0 && (
                   <>
                     <div
@@ -779,7 +658,6 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
                   </>
                 )}
 
-                {/* 동전 기준원 위치 이동 핸들 */}
                 {caliperActive && isCoinMode && (
                   <div
                     onMouseDown={() => setDraggingHandle('COIN')}
@@ -801,7 +679,6 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
                 )}
               </div>
 
-              {/* 뷰포트 하단 컨트롤 바 */}
               <div style={{
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -814,9 +691,9 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '0.72rem', color: '#D4AF37', fontWeight: 700 }}>
-                    { currentResult && currentResult.patchCount > 0
+                    {currentResult && currentResult.patchCount > 0
                       ? `실측 직경 Ø ${liveCaliper.diameterCm}cm · 면적 ${liveCaliper.areaCm2}cm²`
-                      : SALT_QUADRANTS.find(q => q.id === activeQuadrant)?.label.split('(')[0] }
+                      : SALT_QUADRANTS.find(q => q.id === activeQuadrant)?.label.split('(')[0]}
                   </span>
                   {caliperPoints.isManual && (
                     <button
@@ -888,7 +765,7 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
           )}
         </div>
 
-        {/* 간결한 체크리스트 (알약 버튼 형태) */}
+        {/* 간결한 체크리스트 */}
         <div style={{
           background: '#121216',
           border: '1px solid #262626',
@@ -979,12 +856,8 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
               }}>
                 AI 원형탈모 SALT & 2D PCA 정밀 계측 리포트
               </span>
-              {finalReport.presetLabel && (
-                <span style={{ fontSize: '0.7rem', color: '#999' }}>{finalReport.presetLabel}</span>
-              )}
             </div>
 
-            {/* 점수 높낮이 해석 요약 바 */}
             <div style={{
               background: 'rgba(100, 181, 246, 0.1)',
               border: '1px solid rgba(100, 181, 246, 0.3)',
@@ -1025,7 +898,6 @@ const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }
               </div>
             </div>
 
-            {/* 검출된 개별 탈모반 장축×단축 상세 테이블 */}
             {currentResult?.patches?.length > 0 && (
               <div style={{
                 background: '#16161c',

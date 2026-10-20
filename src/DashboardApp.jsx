@@ -14,9 +14,6 @@ import AuthGate, {
   PrivacyMembershipNoticeCard,
 } from './components/AuthGate';
 import KakaoReportModal from './components/KakaoReportModal';
-import ResultView from './components/ResultView';
-import { performOfflineAnalysis } from './utils/offlineAnalysis';
-import analyzeHairLoss from './utils/diagnosis';
 
 const TAB_NAMES = {
   diagnosis: 'AI 탈모 진단',
@@ -29,179 +26,34 @@ const TAB_NAMES = {
   clinic: '병원 찾기',
 };
 
-// 혐오감 없는 깔끔한 스튜디오형 탈모 예시 & 진단 결과물 샘플 데이터
-const DIAGNOSIS_RESULT_SAMPLES = [
-  {
-    id: 'sample_male_m',
-    tabLabel: '남성 M자형 샘플',
-    gender: 'male',
-    photo: '/guides/guide_side.jpg',
-    vertexPhoto: '/guides/guide_vertex.jpg',
-    badge: '모발 건강 74점(↑) · Norwood II(↓)',
-    title: '남성 초기 M자 헤어라인 후퇴 진단 샘플',
-    summary: '양측 관자놀이(전측두부) 모발이 가늘어지며 M자 경계가 약 1.3cm 후퇴한 초기 단계입니다.',
-    metrics: [
-      { label: '종합 건강 점수 (↑높을수록 좋음)', value: '74점 / 100점 (초기 주의)', color: '#81C784' },
-      { label: '진단 척도 등급 (↓낮을수록 좋음)', value: 'Norwood 2단계 · BASP M1', color: '#D4AF37' },
-      { label: '추정 모낭 밀도 (↑높을수록 좋음)', value: '116 모/cm² (정상 130+)', color: '#64B5F6' },
-      { label: 'M자 연모화율 (↓낮을수록 좋음)', value: '23.5% (모발 굵기 감소)', color: '#FFB74D' },
-    ],
-    overlayType: 'hairline',
-  },
-  {
-    id: 'sample_vertex',
-    tabLabel: '정수리·가르마 샘플',
-    gender: 'male',
-    photo: '/guides/guide_vertex.jpg',
-    vertexPhoto: '/guides/guide_vertex.jpg',
-    badge: '모발 건강 71점(↑) · BASP V1(↓)',
-    title: '정수리·가마 주변 밀도 저하 진단 샘플',
-    summary: '가마 중심부 모발의 굵기가 가늘어져 조명에 따라 두피 비침이 시작되는 골든타임 단계입니다.',
-    metrics: [
-      { label: '종합 건강 점수 (↑높을수록 좋음)', value: '71점 / 100점 (골든타임)', color: '#81C784' },
-      { label: '진단 척도 등급 (↓낮을수록 좋음)', value: 'BASP V1 (1단계 경증)', color: '#D4AF37' },
-      { label: '추정 모낭 밀도 (↑높을수록 좋음)', value: '112 모/cm² (정상 130+)', color: '#64B5F6' },
-      { label: '두피 노출 비율 (↓낮을수록 좋음)', value: '18.4% (가마 주변 확산)', color: '#FFB74D' },
-    ],
-    overlayType: 'vertex',
-  },
-  {
-    id: 'sample_female',
-    tabLabel: '여성 가르마형 샘플',
-    gender: 'female',
-    photo: '/guides/guide_front.jpg',
-    vertexPhoto: '/guides/guide_vertex.jpg',
-    badge: '모발 건강 78점(↑) · Ludwig I(↓)',
-    title: '여성 헤어라인·가르마 볼륨 감소 진단 샘플',
-    summary: '전면 헤어라인 형태는 유지되나 중심 가르마 간격이 넓어지고 잔머리 탄력이 저하된 단계입니다.',
-    metrics: [
-      { label: '종합 건강 점수 (↑높을수록 좋음)', value: '78점 / 100점 (초기 경미)', color: '#81C784' },
-      { label: '진단 척도 등급 (↓낮을수록 좋음)', value: 'Ludwig 1단계 · Sinclair 2', color: '#D4AF37' },
-      { label: '추정 모낭 밀도 (↑높을수록 좋음)', value: '121 모/cm² (정상 130+)', color: '#64B5F6' },
-      { label: '중심 가르마 폭 (↓좁을수록 좋음)', value: '2.6 mm (정상 2.0mm 이하)', color: '#FFB74D' },
-    ],
-    overlayType: 'female',
-  },
-];
-
-function DiagnosisHubTab({ user, onRequireAuth, onOpenAreata }) {
-  const [activeSampleIdx, setActiveSampleIdx] = useState(0);
-  const [selectedGender, setSelectedGender] = useState('male');
-  const [frontPhoto, setFrontPhoto] = useState('/guides/guide_side.jpg');
-  const [vertexPhoto, setVertexPhoto] = useState('/guides/guide_vertex.jpg');
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanResult, setScanResult] = useState(null);
-
-  const currentSample = DIAGNOSIS_RESULT_SAMPLES[activeSampleIdx];
-
-  const handleFileChange = (e, slot) => {
-    if (!user) {
-      e.preventDefault();
-      if (onRequireAuth) {
-        onRequireAuth({
-          mode: 'signup',
-          featureName: 'AI 탈모진단앱 (내 사진 분석)',
-        });
-      }
-      return;
-    }
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      if (slot === 'front') setFrontPhoto(ev.target.result);
-      else setVertexPhoto(ev.target.result);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const executePrecisionDiagnosis = async (activeUser = user) => {
-    setIsScanning(true);
-    try {
-      const effectiveGender = activeUser?.gender || selectedGender;
-      const images = {
-        front: frontPhoto,
-        left: effectiveGender === 'male' ? frontPhoto : null,
-        right: effectiveGender === 'male' ? frontPhoto : null,
-        vertex: vertexPhoto,
-      };
-      const emptyPoints = { front: null, left: null, right: null, vertex: null };
-      const responseData = await performOfflineAnalysis(emptyPoints, images);
-      if (responseData.success) {
-        const features = {
-          ...responseData.data.features,
-          gender: selectedGender,
-          age: activeUser?.age ? `${Math.floor(activeUser.age / 10) * 10}대` : '30대',
-          familyHistory: '있음',
-        };
-        const result = analyzeHairLoss(features);
-        result.features = features;
-        result.boxes = responseData.data.boxes || {};
-        result.masks = {};
-        setScanResult({ diagnosisData: result, images });
-      }
-    } catch (err) {
-      console.error('Precision diagnosis error:', err);
-    } finally {
-      setIsScanning(false);
-    }
-  };
-
-  const handleRunPrecisionDiagnosis = () => {
-    if (!user) {
-      if (onRequireAuth) {
-        onRequireAuth({
-          mode: 'signup',
-          featureName: 'AI 탈모진단앱',
-          onSuccess: (loggedInUser) => {
-            executePrecisionDiagnosis(loggedInUser);
-          },
-        });
-      }
-      return;
-    }
-    executePrecisionDiagnosis(user);
-  };
-
-  const handleOpenCameraApp = () => {
-    if (!user) {
-      if (onRequireAuth) {
-        onRequireAuth({
-          mode: 'signup',
-          featureName: '실시간 카메라 AI 탈모진단앱',
-          onSuccess: () => {
-            window.location.href = '/diagnosis.html';
-          },
-        });
-      }
+function DiagnosisHubTab({ user, onRequireAuth, onOpenAreata, onOpenSimulator }) {
+  const handleGoToDiagnosisApp = () => {
+    if (!user && onRequireAuth) {
+      onRequireAuth({
+        mode: 'signup',
+        featureName: 'AI 탈모진단앱',
+        onSuccess: () => {
+          window.location.href = '/diagnosis.html';
+        },
+      });
       return;
     }
     window.location.href = '/diagnosis.html';
   };
 
-  if (scanResult) {
-    return (
-      <ResultView
-        diagnosisData={scanResult.diagnosisData}
-        images={scanResult.images}
-        onReset={() => setScanResult(null)}
-      />
-    );
-  }
-
   return (
     <div className="av-content fade-in" style={{ padding: '0 0 90px' }}>
-      {/* 깔끔한 하이엔드 배너 (혐오감 없는 골드 실루엣 아트워크) */}
+      {/* 깔끔한 하이엔드 배너 */}
       <div className="tab-banner">
         <img src="/assets/banners/banner_simulator.jpg" alt="AI 탈모 정밀 진단" className="tab-banner-img" />
         <div className="tab-banner-overlay">
           <h1 className="tab-banner-title">AI 탈모 정밀 진단</h1>
-          <p className="tab-banner-sub">남성(M자·정수리) · 여성(가르마) · 원형탈모 맞춤 분석</p>
+          <p className="tab-banner-sub">남성(M자·정수리) · 여성(가르마) · 원형탈모 진단앱 바로가기</p>
         </div>
       </div>
 
-      <div style={{ padding: '14px' }}>
-        {/* 간결한 개인정보 보호 및 회원가입 유도 배너 */}
+      <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {/* 개인정보 보호 및 회원가입 유도 배너 */}
         <PrivacyMembershipNoticeCard
           user={user}
           featureType="diagnosis"
@@ -209,356 +61,168 @@ function DiagnosisHubTab({ user, onRequireAuth, onOpenAreata }) {
         />
 
         {/* ====================================================================
-            1. 진단하면 어떤 결과물이 보이는지 샘플 + 점수 높낮이 해석 가이드
+            1. 남성·여성 AI 탈모진단앱 바로 이동 메뉴 (메인 런처)
         ==================================================================== */}
         <div
           style={{
-            background: 'linear-gradient(145deg, rgba(22, 22, 26, 0.98), rgba(14, 14, 18, 0.98))',
-            border: '1px solid rgba(212, 175, 55, 0.38)',
+            background: 'linear-gradient(145deg, rgba(24, 24, 30, 0.98), rgba(14, 14, 18, 0.98))',
+            border: '1.5px solid #D4AF37',
             borderRadius: '14px',
-            padding: '14px',
-            marginBottom: '16px',
+            padding: '18px 16px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.45)',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-            <div>
-              <span style={{ fontSize: '0.68rem', color: '#D4AF37', fontWeight: 700 }}>
-                SAMPLE REPORT PREVIEW
-              </span>
-              <h3 style={{ fontSize: '0.92rem', color: '#f5f0e8', fontWeight: 800, margin: '2px 0 0' }}>
-                📋 진단하면 어떤 결과물이 보이나요? (결과 샘플)
-              </h3>
-            </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
             <span
               style={{
-                fontSize: '0.66rem',
-                padding: '3px 8px',
-                borderRadius: '999px',
-                background: 'rgba(212, 175, 55, 0.15)',
+                fontSize: '0.68rem',
+                fontWeight: 800,
                 color: '#D4AF37',
-                fontWeight: 700,
+                background: 'rgba(212, 175, 55, 0.16)',
+                padding: '3px 9px',
+                borderRadius: '999px',
               }}
             >
-              예시 화면
+              AI HAIR LOSS DIAGNOSIS APP
+            </span>
+            <span style={{ fontSize: '0.68rem', color: '#81C784', fontWeight: 700 }}>
+              Norwood · Ludwig · BASP
             </span>
           </div>
 
-          {/* 샘플 유형 탭 전환 */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '12px' }}>
-            {DIAGNOSIS_RESULT_SAMPLES.map((s, idx) => {
-              const active = idx === activeSampleIdx;
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => {
-                    setActiveSampleIdx(idx);
-                    setSelectedGender(s.gender);
-                    setFrontPhoto(s.photo);
-                    setVertexPhoto(s.vertexPhoto);
-                  }}
-                  style={{
-                    padding: '8px 6px',
-                    borderRadius: '8px',
-                    border: active ? '1.5px solid #D4AF37' : '1px solid rgba(255,255,255,0.08)',
-                    background: active ? 'rgba(212, 175, 55, 0.18)' : 'rgba(255,255,255,0.03)',
-                    color: active ? '#D4AF37' : '#aaa',
-                    fontSize: '0.73rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {s.tabLabel}
-                </button>
-              );
-            })}
-          </div>
+          <h2 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#f5f0e8', margin: '4px 0 6px' }}>
+            📸 남성·여성 AI 탈모진단앱 바로가기
+          </h2>
+          <p style={{ fontSize: '0.76rem', color: '#bbb', margin: '0 0 14px', lineHeight: 1.5 }}>
+            전용 AI 스캔 카메라 및 사진 분석을 통해 헤어라인(M자), 정수리 모낭 밀도, 가르마 폭을 정밀 계측합니다.
+          </p>
 
-          {/* 무난한 스튜디오 예시 이미지 + AI 그래픽 가이드 오버레이 */}
-          <div
+          <button
+            type="button"
+            onClick={handleGoToDiagnosisApp}
             style={{
-              display: 'grid',
-              gridTemplateColumns: '125px 1fr',
-              gap: '12px',
+              width: '100%',
+              padding: '14px',
+              borderRadius: '10px',
+              border: 'none',
+              background: 'linear-gradient(135deg, #D4AF37 0%, #B68D2C 100%)',
+              color: '#000',
+              fontSize: '0.9rem',
+              fontWeight: 800,
+              cursor: 'pointer',
+              display: 'flex',
               alignItems: 'center',
-              background: 'rgba(0,0,0,0.4)',
-              borderRadius: '12px',
-              padding: '10px',
-              border: '1px solid rgba(255,255,255,0.06)',
-              marginBottom: '10px',
+              justifyContent: 'center',
+              gap: '8px',
             }}
           >
-            <div style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', height: '125px' }}>
-              <img
-                src={currentSample.photo}
-                alt={currentSample.title}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-              />
-              {/* 깔끔한 AI 스캔 타겟 그래픽 오버레이 */}
-              <svg
-                viewBox="0 0 120 120"
-                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
-              >
-                <rect
-                  x="14"
-                  y="14"
-                  width="92"
-                  height="68"
-                  rx="10"
-                  fill="rgba(212, 175, 55, 0.10)"
-                  stroke="#D4AF37"
-                  strokeWidth="1.5"
-                  strokeDasharray="4 3"
-                />
-                <path
-                  d="M22 48 Q60 32 98 48"
-                  fill="none"
-                  stroke="#00E676"
-                  strokeWidth="2"
-                />
-                <circle cx="38" cy="42" r="4" fill="#D4AF37" />
-                <circle cx="82" cy="42" r="4" fill="#D4AF37" />
-              </svg>
-              <div
-                style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  background: 'rgba(0,0,0,0.75)',
-                  color: '#D4AF37',
-                  fontSize: '0.62rem',
-                  fontWeight: 700,
-                  textAlign: 'center',
-                  padding: '3px 0',
-                }}
-              >
-                AI 헤어라인·밀도 계측 예시
-              </div>
-            </div>
+            {user ? '🔍 AI 탈모진단앱 바로 이동하기 →' : '🔒 회원가입 후 AI 탈모진단앱 바로 시작하기 →'}
+          </button>
+        </div>
 
+        {/* ====================================================================
+            2. 원형탈모(SALT) 진단앱 & 복약 전·후 경과 바로 이동 메뉴
+        ==================================================================== */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+          <div
+            onClick={onOpenAreata}
+            style={{
+              background: '#14141a',
+              border: '1px solid rgba(100, 181, 246, 0.4)',
+              borderRadius: '12px',
+              padding: '14px 12px',
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
             <div>
-              <div
-                style={{
-                  display: 'inline-block',
-                  fontSize: '0.66rem',
-                  fontWeight: 800,
-                  color: '#00E676',
-                  background: 'rgba(0, 230, 118, 0.12)',
-                  border: '1px solid rgba(0, 230, 118, 0.35)',
-                  padding: '2px 8px',
-                  borderRadius: '999px',
-                  marginBottom: '5px',
-                }}
-              >
-                {currentSample.badge}
+              <div style={{ fontSize: '0.66rem', color: '#64B5F6', fontWeight: 800, marginBottom: '4px' }}>
+                SALT S0~S5 · 1mm 캘리퍼스
               </div>
-              <div style={{ fontSize: '0.84rem', fontWeight: 800, color: '#fff', marginBottom: '4px', lineHeight: 1.35 }}>
-                {currentSample.title}
+              <div style={{ fontSize: '0.86rem', fontWeight: 800, color: '#fff', marginBottom: '4px' }}>
+                🎯 원형탈모 진단앱
               </div>
-              <p style={{ fontSize: '0.73rem', color: '#bbb', margin: 0, lineHeight: 1.45 }}>
-                {currentSample.summary}
+              <p style={{ fontSize: '0.7rem', color: '#aaa', margin: '0 0 10px', lineHeight: 1.4 }}>
+                탈모반 직경(cm)·면적 정밀 계측 및 SALT 등급 산출
               </p>
             </div>
+            <div
+              style={{
+                padding: '8px',
+                borderRadius: '8px',
+                background: 'rgba(100, 181, 246, 0.15)',
+                color: '#64B5F6',
+                fontSize: '0.73rem',
+                fontWeight: 800,
+                textAlign: 'center',
+              }}
+            >
+              원형탈모 진단 이동 →
+            </div>
           </div>
 
-          {/* 진단 결과표 4대 핵심 수치 미리보기 */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '7px', marginBottom: '10px' }}>
-            {currentSample.metrics.map((m, i) => (
-              <div
-                key={i}
-                style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.06)',
-                  borderRadius: '8px',
-                  padding: '8px 10px',
-                }}
-              >
-                <div style={{ fontSize: '0.65rem', color: '#999' }}>{m.label}</div>
-                <div style={{ fontSize: '0.75rem', fontWeight: 800, color: m.color, marginTop: '2px' }}>
-                  {m.value}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* 💡 점수 판독 기준 한 줄 요약 (높으면 좋은지 vs 낮으면 좋은지) */}
           <div
+            onClick={onOpenSimulator}
             style={{
-              background: 'rgba(212, 175, 55, 0.08)',
-              border: '1px solid rgba(212, 175, 55, 0.28)',
-              borderRadius: '9px',
-              padding: '8px 10px',
-              fontSize: '0.7rem',
-              lineHeight: 1.5,
-              color: '#ddd',
+              background: '#14141a',
+              border: '1px solid rgba(129, 199, 132, 0.4)',
+              borderRadius: '12px',
+              padding: '14px 12px',
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
             }}
           >
-            <div style={{ fontWeight: 800, color: '#D4AF37', marginBottom: '2px' }}>
-              💡 산출 점수·등급 기준 안내 (높을수록 좋은가요, 낮을수록 좋은가요?)
-            </div>
             <div>
-              • <strong style={{ color: '#81C784' }}>높을수록 좋음 ↑</strong> : <strong>종합 모발 건강 점수</strong>(80~100점 정상) · <strong>모낭 밀도</strong>(130모/cm² 이상)<br />
-              • <strong style={{ color: '#64B5F6' }}>낮을수록 좋음 ↓</strong> : <strong>탈모 진행 단계</strong>(Norwood 1~7 / Ludwig 1~3 / BASP 1~3단계: 1단계가 정상) · <strong>원형탈모 SALT 점수</strong>(0점 S0 정상 ~ 100점 중증)
+              <div style={{ fontSize: '0.66rem', color: '#81C784', fontWeight: 800, marginBottom: '4px' }}>
+                1 · 3 · 6 · 12개월 예측
+              </div>
+              <div style={{ fontSize: '0.86rem', fontWeight: 800, color: '#fff', marginBottom: '4px' }}>
+                ✨ 복약 전·후 경과
+              </div>
+              <p style={{ fontSize: '0.7rem', color: '#aaa', margin: '0 0 10px', lineHeight: 1.4 }}>
+                내 사진 기반 복약 경과 예측 및 전·후 밀도 비교
+              </p>
+            </div>
+            <div
+              style={{
+                padding: '8px',
+                borderRadius: '8px',
+                background: 'rgba(129, 199, 132, 0.15)',
+                color: '#81C784',
+                fontSize: '0.73rem',
+                fontWeight: 800,
+                textAlign: 'center',
+              }}
+            >
+              복약 경과 확인 이동 →
             </div>
           </div>
         </div>
 
         {/* ====================================================================
-            2. 내 사진 등록 및 실제 AI 진단 실행 (간결한 인터페이스)
+            3. 산출 점수·등급 기준 간략 안내 (높을수록 좋음 ↑ vs 낮을수록 좋음 ↓)
         ==================================================================== */}
         <div
           style={{
-            background: '#121216',
-            border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: '14px',
-            padding: '14px',
+            background: 'rgba(212, 175, 55, 0.07)',
+            border: '1px solid rgba(212, 175, 55, 0.28)',
+            borderRadius: '12px',
+            padding: '11px 13px',
+            fontSize: '0.72rem',
+            lineHeight: 1.5,
+            color: '#ddd',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-            <span style={{ fontSize: '0.84rem', fontWeight: 800, color: '#f5f0e8' }}>
-              🔍 내 탈모 정밀 진단 시작하기
-            </span>
-            <div style={{ display: 'flex', gap: '6px' }}>
-              {[
-                { key: 'male', label: '👨 남성' },
-                { key: 'female', label: '👩 여성' },
-              ].map((g) => (
-                <button
-                  key={g.key}
-                  type="button"
-                  onClick={() => {
-                    setSelectedGender(g.key);
-                    if (g.key === 'male') {
-                      setFrontPhoto('/guides/guide_side.jpg');
-                      setVertexPhoto('/guides/guide_vertex.jpg');
-                    } else {
-                      setFrontPhoto('/guides/guide_front.jpg');
-                      setVertexPhoto('/guides/guide_vertex.jpg');
-                    }
-                  }}
-                  style={{
-                    padding: '5px 12px',
-                    borderRadius: '999px',
-                    border: selectedGender === g.key ? '1px solid #D4AF37' : '1px solid #333',
-                    background: selectedGender === g.key ? '#D4AF37' : 'transparent',
-                    color: selectedGender === g.key ? '#000' : '#aaa',
-                    fontSize: '0.73rem',
-                    fontWeight: 800,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {g.label}
-                </button>
-              ))}
-            </div>
+          <div style={{ fontWeight: 800, color: '#D4AF37', marginBottom: '4px' }}>
+            💡 진단 점수·등급 판독 기준 안내
           </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
-            <label
-              onClick={(e) => {
-                if (!user) {
-                  e.preventDefault();
-                  onRequireAuth &&
-                    onRequireAuth({
-                      mode: 'signup',
-                      featureName: 'AI 탈모진단앱 (내 사진 등록)',
-                    });
-                }
-              }}
-              style={{
-                border: '1px dashed rgba(212, 175, 55, 0.45)',
-                borderRadius: '10px',
-                padding: '8px',
-                textAlign: 'center',
-                cursor: 'pointer',
-                background: 'rgba(255,255,255,0.02)',
-              }}
-            >
-              <input
-                type="file"
-                accept="image/*"
-                style={{ display: 'none' }}
-                onChange={(e) => handleFileChange(e, 'front')}
-              />
-              <img
-                src={frontPhoto}
-                alt="헤어라인 가이드"
-                style={{ width: '100%', height: '105px', objectFit: 'cover', borderRadius: '6px', marginBottom: '6px' }}
-              />
-              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#D4AF37' }}>
-                📷 헤어라인 사진 등록
-              </div>
-            </label>
-
-            <label
-              onClick={(e) => {
-                if (!user) {
-                  e.preventDefault();
-                  onRequireAuth &&
-                    onRequireAuth({
-                      mode: 'signup',
-                      featureName: 'AI 탈모진단앱 (정수리 사진 등록)',
-                    });
-                }
-              }}
-              style={{
-                border: '1px dashed rgba(212, 175, 55, 0.45)',
-                borderRadius: '10px',
-                padding: '8px',
-                textAlign: 'center',
-                cursor: 'pointer',
-                background: 'rgba(255,255,255,0.02)',
-              }}
-            >
-              <input
-                type="file"
-                accept="image/*"
-                style={{ display: 'none' }}
-                onChange={(e) => handleFileChange(e, 'vertex')}
-              />
-              <img
-                src={vertexPhoto}
-                alt="정수리 가이드"
-                style={{ width: '100%', height: '105px', objectFit: 'cover', borderRadius: '6px', marginBottom: '6px' }}
-              />
-              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#D4AF37' }}>
-                📷 정수리·가르마 등록
-              </div>
-            </label>
-          </div>
-
-          <button
-            type="button"
-            className="av-continue-btn"
-            onClick={handleRunPrecisionDiagnosis}
-            disabled={isScanning}
-            style={{ width: '100%', marginBottom: '8px', padding: '13px', fontSize: '0.88rem', fontWeight: 800 }}
-          >
-            {isScanning
-              ? 'AI 탈모 진단 리포트 생성 중...'
-              : user
-              ? '🔍 AI 정밀 탈모 진단 결과 확인하기'
-              : '🔒 회원가입 후 내 탈모 진단 결과 확인하기'}
-          </button>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-            <button
-              type="button"
-              className="med-btn-ghost"
-              onClick={handleOpenCameraApp}
-              style={{ padding: '10px', fontSize: '0.74rem', borderColor: 'rgba(212,175,55,0.35)', color: '#D4AF37' }}
-            >
-              📸 실시간 가이드 카메라 촬영
-            </button>
-            <button
-              type="button"
-              className="med-btn-ghost"
-              onClick={onOpenAreata}
-              style={{ padding: '10px', fontSize: '0.74rem', borderColor: 'rgba(100,181,246,0.4)', color: '#64B5F6' }}
-            >
-              🎯 원형탈모(SALT) 진단 이동
-            </button>
+          <div>
+            • <strong style={{ color: '#81C784' }}>높을수록 좋음 ↑</strong> : <strong>종합 모발 건강 점수</strong>(80~100점 정상) · <strong>모낭 밀도</strong>(130모/cm² 이상)<br />
+            • <strong style={{ color: '#64B5F6' }}>낮을수록 좋음 ↓</strong> : <strong>탈모 진행 단계</strong>(Norwood 1~7 / Ludwig 1~3 / BASP 1~3: 1단계가 정상) · <strong>원형탈모 SALT 점수</strong>(0점 S0 정상 ~ 100점 중증)
           </div>
         </div>
       </div>
@@ -585,6 +249,7 @@ function DashboardApp() {
             user={user}
             onRequireAuth={openAuthModal}
             onOpenAreata={() => setActiveTab('areata')}
+            onOpenSimulator={() => setActiveTab('simulator')}
           />
         );
       case 'areata':
@@ -659,6 +324,7 @@ function DashboardApp() {
             user={user}
             onRequireAuth={openAuthModal}
             onOpenAreata={() => setActiveTab('areata')}
+            onOpenSimulator={() => setActiveTab('simulator')}
           />
         );
     }
