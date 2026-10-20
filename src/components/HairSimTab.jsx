@@ -4,6 +4,7 @@ import {
   compareBeforeAfterImages,
   simulateHairGrowthClientSide,
 } from '../utils/beforeAfterAnalyzer';
+import { PrivacyMembershipNoticeCard } from './AuthGate';
 import './HairSimTab.css';
 import './MedicationTab.css';
 
@@ -1140,11 +1141,20 @@ const Step4 = ({ medInfo, onBack, onRestart }) => {
 };
 
 // ── 메인 HairSimTab ──────────────────────────────────────────────
-const HairSimTab = () => {
+const HairSimTab = ({ user = null, onRequireAuth = null }) => {
   const [mode, setMode] = useState('verification'); // 'verification' | 'wizard'
   const [step, setStep] = useState(1);
   const [medInfo, setMedInfo] = useState(null);
   const [photos, setPhotos] = useState(null);
+
+  const triggerSignupPrompt = (featureLabel = '복약 전·후 예상 경과 확인') => {
+    if (onRequireAuth) {
+      onRequireAuth({
+        mode: 'signup',
+        featureName: featureLabel,
+      });
+    }
+  };
 
   return (
     <div className="sim-container fade-in">
@@ -1152,97 +1162,214 @@ const HairSimTab = () => {
       <div className="tab-banner">
         <img src="/assets/banners/banner_simulator.jpg" alt="AI 복약 전후 분석" className="tab-banner-img" />
         <div className="tab-banner-overlay">
-          <h1 className="tab-banner-title">복약 전·후 정밀 검증 & 예측</h1>
+          <h1 className="tab-banner-title">복약 전·후 정밀 검증 & 예상 경과 확인</h1>
           <p className="tab-banner-sub">다양한 탈모 임상 사진 전후 정밀 계측 및 1·3·6·12개월 발모 시뮬레이션</p>
         </div>
       </div>
 
-      {/* Mode Switcher */}
-      <div style={{ display: 'flex', gap: '8px', padding: '12px 16px 0' }}>
-        <button
-          type="button"
-          onClick={() => setMode('verification')}
-          style={{
-            flex: 1,
-            padding: '11px',
-            borderRadius: '10px',
-            border: mode === 'verification' ? '1.5px solid #D4AF37' : '1px solid rgba(255,255,255,0.1)',
-            background: mode === 'verification' ? 'rgba(212, 175, 55, 0.18)' : 'rgba(255,255,255,0.03)',
-            color: mode === 'verification' ? '#D4AF37' : '#aaa',
-            fontSize: '0.78rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-          }}
-        >
-          🔬 다양한 탈모 사진 전·후 검증소
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode('wizard')}
-          style={{
-            flex: 1,
-            padding: '11px',
-            borderRadius: '10px',
-            border: mode === 'wizard' ? '1.5px solid #D4AF37' : '1px solid rgba(255,255,255,0.1)',
-            background: mode === 'wizard' ? 'rgba(212, 175, 55, 0.18)' : 'rgba(255,255,255,0.03)',
-            color: mode === 'wizard' ? '#D4AF37' : '#aaa',
-            fontSize: '0.78rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-          }}
-        >
-          ✨ 내 복용약 단계별 예측기
-        </button>
+      {/* 개인정보 보호 안내문 및 회원가입 유도 카드 */}
+      <div style={{ padding: '14px 16px 0' }}>
+        <PrivacyMembershipNoticeCard
+          user={user}
+          featureType="simulator"
+          onOpenAuth={onRequireAuth}
+        />
       </div>
 
-      {mode === 'verification' ? (
-        <div className="sim-content" style={{ paddingTop: '12px' }}>
-          <ClinicalVerificationLab />
+      {!user ? (
+        <div className="sim-content" style={{ paddingTop: '4px' }}>
+          <div
+            style={{
+              background: 'linear-gradient(145deg, rgba(22, 22, 28, 0.98), rgba(12, 12, 16, 0.98))',
+              border: '1px solid rgba(212, 175, 55, 0.35)',
+              borderRadius: '14px',
+              padding: '16px',
+              marginBottom: '16px',
+            }}
+          >
+            <div style={{ fontSize: '0.76rem', color: '#D4AF37', fontWeight: 800, marginBottom: '6px' }}>
+              📊 회원가입 후 즉시 이용 가능한 복약 전·후 예상 경과 확인 기능
+            </div>
+            <div style={{ fontSize: '0.88rem', color: '#f5f0e8', fontWeight: 700, marginBottom: '10px' }}>
+              피나스테리드 · 두타스테리드 · 미녹시딜 · 복합요법 1·3·6·12개월 예상 경과 정밀 시뮬레이션
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '14px' }}>
+              {[
+                { name: '피나스테리드 1mg', gain: '12개월 +62% 밀도 회복', sub: 'DHT 65~70% 선택적 억제' },
+                { name: '두타스테리드 0.5mg', gain: '12개월 +74% 밀도 회복', sub: '1형·2형 효소 92% 이중 차단' },
+                { name: '미녹시딜 5% / 경구', gain: '12개월 +56% 밀도 회복', sub: '모낭 미세혈류·성장인자 촉진' },
+                { name: '복합요법 (경구+외용)', gain: '12개월 +84% 최고 회복', sub: 'DHT 수비 + 발모 공격 시너지' },
+              ].map((d, idx) => (
+                <div
+                  key={idx}
+                  onClick={() => triggerSignupPrompt(`복약 전·후 예상 경과 확인 (${d.name})`)}
+                  style={{
+                    background: 'rgba(255,255,255,0.03)',
+                    border: '1px solid rgba(212, 175, 55, 0.25)',
+                    borderRadius: '10px',
+                    padding: '10px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ fontSize: '0.76rem', fontWeight: 800, color: '#D4AF37' }}>{d.name}</div>
+                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#81C784', marginTop: '3px' }}>{d.gain}</div>
+                  <div style={{ fontSize: '0.66rem', color: '#999', marginTop: '2px' }}>{d.sub}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* 임상 샘플 미리보기 썸네일 */}
+            <div style={{ fontSize: '0.74rem', color: '#ccc', fontWeight: 700, marginBottom: '8px' }}>
+              🔬 8종 다각도 임상 탈모 사진 전·후 비교 및 내 사진 직접 예측 (회원 전용)
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', marginBottom: '14px' }}>
+              {CLINICAL_VERIFICATION_CASES.slice(0, 4).map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => triggerSignupPrompt('복약 전·후 예상 경과 확인 (임상 전후 비교)')}
+                  style={{
+                    position: 'relative',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <img
+                    src={item.beforeImage}
+                    alt={item.title}
+                    style={{ width: '100%', height: '58px', objectFit: 'cover', filter: 'brightness(0.75)' }}
+                  />
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: 'rgba(0,0,0,0.35)',
+                      fontSize: '0.64rem',
+                      fontWeight: 700,
+                      color: '#D4AF37',
+                    }}
+                  >
+                    🔒 경과보기
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => triggerSignupPrompt('복약 전·후 예상 경과 확인')}
+              style={{
+                width: '100%',
+                padding: '14px',
+                borderRadius: '10px',
+                border: 'none',
+                background: 'linear-gradient(135deg, #D4AF37 0%, #B68D2C 100%)',
+                color: '#000',
+                fontWeight: 800,
+                fontSize: '0.88rem',
+                cursor: 'pointer',
+                boxShadow: '0 6px 20px rgba(212, 175, 55, 0.28)',
+              }}
+            >
+              🔒 회원가입하고 내 복약 전·후 1·3·6·12개월 예상 경과 확인하기 →
+            </button>
+          </div>
         </div>
       ) : (
         <>
-          <div className="sim-stepper">
-            {[1, 2, 3, 4].map((s) => (
-              <React.Fragment key={s}>
-                <div className={`sim-stepper-dot ${step >= s ? 'active' : ''} ${step === s ? 'current' : ''}`}>{s}</div>
-                {s < 4 && <div className={`sim-stepper-line ${step > s ? 'active' : ''}`} />}
-              </React.Fragment>
-            ))}
+          {/* Mode Switcher */}
+          <div style={{ display: 'flex', gap: '8px', padding: '4px 16px 0' }}>
+            <button
+              type="button"
+              onClick={() => setMode('verification')}
+              style={{
+                flex: 1,
+                padding: '11px',
+                borderRadius: '10px',
+                border: mode === 'verification' ? '1.5px solid #D4AF37' : '1px solid rgba(255,255,255,0.1)',
+                background: mode === 'verification' ? 'rgba(212, 175, 55, 0.18)' : 'rgba(255,255,255,0.03)',
+                color: mode === 'verification' ? '#D4AF37' : '#aaa',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              🔬 다양한 탈모 사진 전·후 검증소
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('wizard')}
+              style={{
+                flex: 1,
+                padding: '11px',
+                borderRadius: '10px',
+                border: mode === 'wizard' ? '1.5px solid #D4AF37' : '1px solid rgba(255,255,255,0.1)',
+                background: mode === 'wizard' ? 'rgba(212, 175, 55, 0.18)' : 'rgba(255,255,255,0.03)',
+                color: mode === 'wizard' ? '#D4AF37' : '#aaa',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              ✨ 내 복용약 단계별 예측기
+            </button>
           </div>
 
-          <div className="sim-content">
-            {step === 1 && (
-              <Step1
-                onNext={(info) => {
-                  setMedInfo(info);
-                  setStep(2);
-                }}
-              />
-            )}
-            {step === 2 && (
-              <Step2
-                onNext={(photoData) => {
-                  setPhotos(photoData);
-                  setStep(3);
-                }}
-                onBack={() => setStep(1)}
-              />
-            )}
-            {step === 3 && medInfo && photos && (
-              <Step3 medInfo={medInfo} photos={photos} onNext={() => setStep(4)} onBack={() => setStep(2)} />
-            )}
-            {step === 4 && medInfo && (
-              <Step4
-                medInfo={medInfo}
-                onBack={() => setStep(3)}
-                onRestart={() => {
-                  setStep(1);
-                  setMedInfo(null);
-                  setPhotos(null);
-                }}
-              />
-            )}
-          </div>
+          {mode === 'verification' ? (
+            <div className="sim-content" style={{ paddingTop: '12px' }}>
+              <ClinicalVerificationLab />
+            </div>
+          ) : (
+            <>
+              <div className="sim-stepper">
+                {[1, 2, 3, 4].map((s) => (
+                  <React.Fragment key={s}>
+                    <div className={`sim-stepper-dot ${step >= s ? 'active' : ''} ${step === s ? 'current' : ''}`}>{s}</div>
+                    {s < 4 && <div className={`sim-stepper-line ${step > s ? 'active' : ''}`} />}
+                  </React.Fragment>
+                ))}
+              </div>
+
+              <div className="sim-content">
+                {step === 1 && (
+                  <Step1
+                    onNext={(info) => {
+                      setMedInfo(info);
+                      setStep(2);
+                    }}
+                  />
+                )}
+                {step === 2 && (
+                  <Step2
+                    onNext={(photoData) => {
+                      setPhotos(photoData);
+                      setStep(3);
+                    }}
+                    onBack={() => setStep(1)}
+                  />
+                )}
+                {step === 3 && medInfo && photos && (
+                  <Step3 medInfo={medInfo} photos={photos} onNext={() => setStep(4)} onBack={() => setStep(2)} />
+                )}
+                {step === 4 && medInfo && (
+                  <Step4
+                    medInfo={medInfo}
+                    onBack={() => setStep(3)}
+                    onRestart={() => {
+                      setStep(1);
+                      setMedInfo(null);
+                      setPhotos(null);
+                    }}
+                  />
+                )}
+              </div>
+            </>
+          )}
         </>
       )}
     </div>

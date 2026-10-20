@@ -19,7 +19,11 @@ import NotificationView from './components/NotificationView';
 import ScanIntroView from './components/ScanIntroView';
 import PhotoGuideView from './components/PhotoGuideView';
 import AlopeciaAreataView from './components/AlopeciaAreataView';
-import AuthGate, { MemberHeaderBar, MemberProfileModal } from './components/AuthGate';
+import AuthGate, {
+  MemberHeaderBar,
+  MemberProfileModal,
+  PrivacyMembershipNoticeCard,
+} from './components/AuthGate';
 import KakaoReportModal from './components/KakaoReportModal';
 import analyzeHairLoss from './utils/diagnosis';
 import { performOfflineAnalysis } from './utils/offlineAnalysis';
@@ -77,18 +81,29 @@ function App() {
     setCurrentView('expectation');
   };
 
-  const handleRetakeSurvey = () => {
-    clearSurveyProfile();
-    setSavedProfile(null);
-    setAge(null);
-    setEthnicity(null);
-    setGoals([]);
-    setFamilyHistory(null);
-    setDuration(null);
-    setRoutine(null);
-    setProcedure(null);
-    setGender('male');
-    setCurrentView('privacy');
+  const handleRetakeSurvey = (user, openAuthModal) => {
+    const proceed = () => {
+      clearSurveyProfile();
+      setSavedProfile(null);
+      setAge(null);
+      setEthnicity(null);
+      setGoals([]);
+      setFamilyHistory(null);
+      setDuration(null);
+      setRoutine(null);
+      setProcedure(null);
+      setGender('male');
+      setCurrentView('privacy');
+    };
+    if (!user && openAuthModal) {
+      openAuthModal({
+        mode: 'signup',
+        featureName: 'AI 탈모진단앱 (맞춤 설문 및 스캔)',
+        onSuccess: proceed,
+      });
+      return;
+    }
+    proceed();
   };
 
   const handleCapture = async (imageSrc, points) => {
@@ -173,13 +188,16 @@ function App() {
 
   return (
     <AuthGate>
-      {(user, handleLogout) => (
+      {(user, handleLogout, openAuthModal) => (
         <div className="app-container" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
           <MemberHeaderBar
+            member={user}
             user={user}
+            currentMenuLabel={`진단앱 (${currentView})`}
             currentScreenName={`진단앱 (${currentView})`}
             onOpenProfile={() => setProfileModalOpen(true)}
             onOpenReport={() => setReportModalOpen(true)}
+            onOpenAuth={openAuthModal}
           />
 
           {/* Mode Quick Bar */}
@@ -245,20 +263,57 @@ function App() {
           </div>
 
           <div style={{ flex: 1, position: 'relative' }}>
-            {currentView === 'areata' && <AlopeciaAreataView />}
-            {currentView === 'onboarding' && (
-              <OnboardingView
-                savedProfile={savedProfile}
-                onStart={() => {
-                  if (savedProfile && (savedProfile.gender || savedProfile.age)) {
-                    setCurrentView('scan_intro');
-                  } else {
-                    setCurrentView('privacy');
-                  }
-                }}
-                onFastStart={() => setCurrentView('scan_intro')}
-                onRetakeSurvey={handleRetakeSurvey}
+            {currentView === 'areata' && (
+              <AlopeciaAreataView
+                user={user}
+                onRequireAuth={openAuthModal}
+                onBack={() => setCurrentView('onboarding')}
               />
+            )}
+            {currentView === 'onboarding' && (
+              <div>
+                <div style={{ padding: '12px 14px 0', background: '#09090b' }}>
+                  <PrivacyMembershipNoticeCard
+                    user={user}
+                    featureType="diagnosis"
+                    onOpenAuth={openAuthModal}
+                  />
+                </div>
+                <OnboardingView
+                  savedProfile={savedProfile}
+                  onStart={() => {
+                    const nextStep = () => {
+                      if (savedProfile && (savedProfile.gender || savedProfile.age)) {
+                        setCurrentView('scan_intro');
+                      } else {
+                        setCurrentView('privacy');
+                      }
+                    };
+                    if (!user) {
+                      openAuthModal({
+                        mode: 'signup',
+                        featureName: 'AI 정밀 탈모진단앱',
+                        onSuccess: nextStep,
+                      });
+                      return;
+                    }
+                    nextStep();
+                  }}
+                  onFastStart={() => {
+                    const nextStep = () => setCurrentView('scan_intro');
+                    if (!user) {
+                      openAuthModal({
+                        mode: 'signup',
+                        featureName: 'AI 정밀 탈모진단앱 (빠른 스캔)',
+                        onSuccess: nextStep,
+                      });
+                      return;
+                    }
+                    nextStep();
+                  }}
+                  onRetakeSurvey={() => handleRetakeSurvey(user, openAuthModal)}
+                />
+              </div>
             )}
             {currentView === 'privacy' && (
               <PrivacyView onBack={() => setCurrentView('onboarding')} onContinue={() => setCurrentView('age')} />
@@ -409,7 +464,9 @@ function App() {
           <MemberProfileModal
             isOpen={profileModalOpen}
             onClose={() => setProfileModalOpen(false)}
+            member={user}
             user={user}
+            onLoggedOut={handleLogout}
             onLogout={handleLogout}
           />
 
@@ -418,6 +475,7 @@ function App() {
             onClose={() => setReportModalOpen(false)}
             onOpen={() => setReportModalOpen(true)}
             currentMenu={`진단앱 (${currentView})`}
+            member={user}
             currentUser={user}
           />
         </div>

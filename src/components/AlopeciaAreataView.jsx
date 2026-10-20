@@ -12,8 +12,9 @@ import {
   calculateFinalAlopeciaAreataReport,
   generateVerifiedAlopeciaSample
 } from '../utils/alopeciaAreataAnalysis';
+import { PrivacyMembershipNoticeCard } from './AuthGate';
 
-const AlopeciaAreataView = ({ onBack = null }) => {
+const AlopeciaAreataView = ({ onBack = null, user = null, onRequireAuth = null }) => {
   const [scanMode, setScanMode] = useState('single'); // 'single' | 'salt4'
   const [activeQuadrant, setActiveQuadrant] = useState('top');
   const [quadrantImages, setQuadrantImages] = useState({
@@ -42,6 +43,17 @@ const AlopeciaAreataView = ({ onBack = null }) => {
   const [finalReport, setFinalReport] = useState(null);
   const fileInputRef = useRef(null);
 
+  const handleTriggerUpload = () => {
+    if (!user && onRequireAuth) {
+      onRequireAuth({
+        mode: 'signup',
+        featureName: '원형탈모 SALT 정밀 진단앱 (개인 병변 사진 분석)'
+      });
+      return;
+    }
+    fileInputRef.current?.click();
+  };
+
   const handleFileUpload = (e, targetQuad = activeQuadrant) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -54,7 +66,7 @@ const AlopeciaAreataView = ({ onBack = null }) => {
     reader.readAsDataURL(file);
   };
 
-  const handleLoadClinicalPreset = async (presetType, label) => {
+  const executeClinicalPreset = async (presetType, label) => {
     setIsAnalyzing(true);
     try {
       let sampleUrl = null;
@@ -80,7 +92,19 @@ const AlopeciaAreataView = ({ onBack = null }) => {
     }
   };
 
-  const handleRunDiagnosis = async () => {
+  const handleLoadClinicalPreset = (presetType, label) => {
+    if (!user && onRequireAuth) {
+      onRequireAuth({
+        mode: 'signup',
+        featureName: '원형탈모 SALT 정밀 탈모진단앱',
+        onSuccess: () => executeClinicalPreset(presetType, label)
+      });
+      return;
+    }
+    executeClinicalPreset(presetType, label);
+  };
+
+  const executeDiagnosis = async () => {
     const hasAnyImage = Object.values(quadrantImages).some(Boolean);
     if (!hasAnyImage) {
       alert('진단할 두피 사진을 최소 1장 이상 등록하거나 상단의 [임상 검증 샘플]을 선택해 주세요.');
@@ -101,6 +125,18 @@ const AlopeciaAreataView = ({ onBack = null }) => {
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const handleRunDiagnosis = () => {
+    if (!user && onRequireAuth) {
+      onRequireAuth({
+        mode: 'signup',
+        featureName: '원형탈모 SALT 정밀 탈모진단앱',
+        onSuccess: () => executeDiagnosis()
+      });
+      return;
+    }
+    executeDiagnosis();
   };
 
   const handleReset = () => {
@@ -156,6 +192,13 @@ const AlopeciaAreataView = ({ onBack = null }) => {
       </div>
 
       <div style={{ padding: '16px' }}>
+        {/* 개인정보 보호 안내문 및 회원가입 유도 카드 */}
+        <PrivacyMembershipNoticeCard
+          user={user}
+          featureType="areata"
+          onOpenAuth={onRequireAuth}
+        />
+
         {/* 의학적 개요 카드 */}
         <div style={{
           background: '#111',
@@ -271,7 +314,7 @@ const AlopeciaAreataView = ({ onBack = null }) => {
           marginBottom: '16px'
         }}>
           <div style={{ fontSize: '0.74rem', color: '#D4AF37', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Sparkles size={14} /> 실제 두피 기반 원형탈모 AI 검출 정확도 즉시 테스트
+            <Sparkles size={14} /> 실제 두피 기반 원형탈모 AI 검출 정확도 테스트 {!user && <span style={{ color: '#ffab91', fontSize: '0.68rem' }}>(회원가입 후 판독)</span>}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
             {[
@@ -340,7 +383,7 @@ const AlopeciaAreataView = ({ onBack = null }) => {
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button
                     type="button"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={handleTriggerUpload}
                     style={{
                       padding: '6px 10px',
                       background: '#262626',
@@ -373,7 +416,7 @@ const AlopeciaAreataView = ({ onBack = null }) => {
             </div>
           ) : (
             <div
-              onClick={() => fileInputRef.current?.click()}
+              onClick={handleTriggerUpload}
               style={{
                 padding: '44px 20px',
                 textAlign: 'center',
@@ -436,7 +479,7 @@ const AlopeciaAreataView = ({ onBack = null }) => {
             border: 'none',
             borderRadius: '8px',
             fontWeight: 800,
-            fontSize: '0.92rem',
+            fontSize: '0.9rem',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
@@ -446,7 +489,11 @@ const AlopeciaAreataView = ({ onBack = null }) => {
           }}
         >
           <Scan size={18} />
-          {isAnalyzing ? 'Connected-Component 탈모반 계측 중...' : '원형탈모 AI 정밀 진단 및 SALT 점수 산출하기'}
+          {isAnalyzing
+            ? 'Connected-Component 탈모반 계측 중...'
+            : user
+            ? '원형탈모 AI 정밀 진단 및 SALT 점수 산출하기'
+            : '🔒 회원가입하고 원형탈모 SALT 정밀 진단 결과 확인하기'}
         </button>
 
         {/* 진단 결과 리포트 */}

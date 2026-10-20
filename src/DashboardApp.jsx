@@ -8,7 +8,11 @@ import AlarmManager from './components/AlarmManager';
 import HairSimTab from './components/HairSimTab';
 import AlopeciaAreataView from './components/AlopeciaAreataView';
 import SasangTab from './components/SasangTab';
-import AuthGate, { MemberHeaderBar, MemberProfileModal } from './components/AuthGate';
+import AuthGate, {
+  MemberHeaderBar,
+  MemberProfileModal,
+  PrivacyMembershipNoticeCard,
+} from './components/AuthGate';
 import KakaoReportModal from './components/KakaoReportModal';
 import ResultView from './components/ResultView';
 import { performOfflineAnalysis } from './utils/offlineAnalysis';
@@ -17,7 +21,7 @@ import analyzeHairLoss from './utils/diagnosis';
 const TAB_NAMES = {
   diagnosis: '남성·여성 정밀 탈모 진단',
   areata: '원형탈모 SALT 진단앱',
-  simulator: '복약 전·후 정확도 검증 및 예측',
+  simulator: '복약 전·후 예상 경과 확인',
   sasang: '사상체질 체형 진단 & 맞춤 식이',
   guide: '금기식품 · 병용금기 양약 · 부작용 백과',
   medication: '복약 관리',
@@ -56,7 +60,7 @@ const QUICK_SCAN_PRESETS = [
   },
 ];
 
-function DiagnosisHubTab({ onOpenAreata }) {
+function DiagnosisHubTab({ user, onRequireAuth, onOpenAreata }) {
   const [selectedGender, setSelectedGender] = useState('male');
   const [frontPhoto, setFrontPhoto] = useState('/dataset/samples/male_s3/Front.jpg');
   const [vertexPhoto, setVertexPhoto] = useState('/dataset/samples/crown_clinical/eu_crown_1.jpg');
@@ -64,6 +68,16 @@ function DiagnosisHubTab({ onOpenAreata }) {
   const [scanResult, setScanResult] = useState(null);
 
   const handleFileChange = (e, slot) => {
+    if (!user) {
+      e.preventDefault();
+      if (onRequireAuth) {
+        onRequireAuth({
+          mode: 'signup',
+          featureName: '탈모진단앱 (개인 두피·모발 사진 정밀 분석)',
+        });
+      }
+      return;
+    }
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
@@ -74,13 +88,14 @@ function DiagnosisHubTab({ onOpenAreata }) {
     reader.readAsDataURL(file);
   };
 
-  const handleRunPrecisionDiagnosis = async () => {
+  const executePrecisionDiagnosis = async (activeUser = user) => {
     setIsScanning(true);
     try {
+      const effectiveGender = activeUser?.gender || selectedGender;
       const images = {
         front: frontPhoto,
-        left: selectedGender === 'male' ? frontPhoto : null,
-        right: selectedGender === 'male' ? frontPhoto : null,
+        left: effectiveGender === 'male' ? frontPhoto : null,
+        right: effectiveGender === 'male' ? frontPhoto : null,
         vertex: vertexPhoto,
       };
       const emptyPoints = { front: null, left: null, right: null, vertex: null };
@@ -89,7 +104,7 @@ function DiagnosisHubTab({ onOpenAreata }) {
         const features = {
           ...responseData.data.features,
           gender: selectedGender,
-          age: '30대',
+          age: activeUser?.age ? `${Math.floor(activeUser.age / 10) * 10}대` : '30대',
           familyHistory: '있음',
         };
         const result = analyzeHairLoss(features);
@@ -103,6 +118,38 @@ function DiagnosisHubTab({ onOpenAreata }) {
     } finally {
       setIsScanning(false);
     }
+  };
+
+  const handleRunPrecisionDiagnosis = () => {
+    if (!user) {
+      if (onRequireAuth) {
+        onRequireAuth({
+          mode: 'signup',
+          featureName: '남성·여성 AI 초정밀 탈모진단앱',
+          onSuccess: (loggedInUser) => {
+            executePrecisionDiagnosis(loggedInUser);
+          },
+        });
+      }
+      return;
+    }
+    executePrecisionDiagnosis(user);
+  };
+
+  const handleOpenCameraApp = () => {
+    if (!user) {
+      if (onRequireAuth) {
+        onRequireAuth({
+          mode: 'signup',
+          featureName: '4방향 실시간 카메라 AI 탈모진단앱',
+          onSuccess: () => {
+            window.location.href = '/diagnosis.html';
+          },
+        });
+      }
+      return;
+    }
+    window.location.href = '/diagnosis.html';
   };
 
   if (scanResult) {
@@ -128,6 +175,13 @@ function DiagnosisHubTab({ onOpenAreata }) {
       </div>
 
       <div style={{ padding: '14px' }}>
+        {/* 개인정보 보호 안내문 및 회원가입 유도 카드 */}
+        <PrivacyMembershipNoticeCard
+          user={user}
+          featureType="diagnosis"
+          onOpenAuth={onRequireAuth}
+        />
+
         {/* Precision Engine Highlights */}
         <div
           style={{
@@ -139,7 +193,7 @@ function DiagnosisHubTab({ onOpenAreata }) {
           }}
         >
           <div style={{ fontSize: '0.72rem', color: '#D4AF37', fontWeight: 700, marginBottom: '4px' }}>
-            ✨ 하이엔드 정밀 컴퓨터 비전 엔진 업그레이드 완료
+            ✨ 하이엔드 정밀 컴퓨터 비전 엔진
           </div>
           <div style={{ fontSize: '0.88rem', color: '#f5f0e8', fontWeight: 700, marginBottom: '6px' }}>
             남성(Norwood · BASP) & 여성(Ludwig · Sinclair 5단계) 이중 정밀 판독
@@ -212,7 +266,7 @@ function DiagnosisHubTab({ onOpenAreata }) {
         {/* Clinical Sample Quick Picker */}
         <div style={{ marginBottom: '12px' }}>
           <div style={{ fontSize: '0.76rem', color: '#D4AF37', fontWeight: 700, marginBottom: '6px' }}>
-            2. 임상 데이터셋 샘플 또는 내 사진 등록
+            2. 임상 데이터셋 샘플 또는 내 사진 등록 {!user && <span style={{ color: '#ffab91', fontSize: '0.68rem' }}>(개인 사진 진단은 회원가입 필요)</span>}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '10px' }}>
             {QUICK_SCAN_PRESETS.map((p) => (
@@ -243,6 +297,15 @@ function DiagnosisHubTab({ onOpenAreata }) {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <label
+              onClick={(e) => {
+                if (!user) {
+                  e.preventDefault();
+                  onRequireAuth && onRequireAuth({
+                    mode: 'signup',
+                    featureName: '탈모진단앱 (내 두피 사진 업로드 및 분석)',
+                  });
+                }
+              }}
               style={{
                 border: '1px dashed rgba(212, 175, 55, 0.45)',
                 borderRadius: '10px',
@@ -269,6 +332,15 @@ function DiagnosisHubTab({ onOpenAreata }) {
             </label>
 
             <label
+              onClick={(e) => {
+                if (!user) {
+                  e.preventDefault();
+                  onRequireAuth && onRequireAuth({
+                    mode: 'signup',
+                    featureName: '탈모진단앱 (내 정수리·가르마 사진 분석)',
+                  });
+                }
+              }}
               style={{
                 border: '1px dashed rgba(212, 175, 55, 0.45)',
                 borderRadius: '10px',
@@ -302,16 +374,20 @@ function DiagnosisHubTab({ onOpenAreata }) {
           className="av-continue-btn"
           onClick={handleRunPrecisionDiagnosis}
           disabled={isScanning}
-          style={{ width: '100%', marginBottom: '10px', padding: '14px', fontSize: '0.92rem', fontWeight: 800 }}
+          style={{ width: '100%', marginBottom: '10px', padding: '14px', fontSize: '0.9rem', fontWeight: 800 }}
         >
-          {isScanning ? 'AI 초정밀 모낭·헤어라인 스캔 분석 중...' : '🔍 현재 사진으로 즉시 초정밀 AI 탈모 진단 실행'}
+          {isScanning
+            ? 'AI 초정밀 모낭·헤어라인 스캔 분석 중...'
+            : user
+            ? '🔍 현재 사진으로 즉시 초정밀 AI 탈모 진단 실행'
+            : '🔒 회원가입하고 초정밀 AI 탈모 진단 결과 확인하기'}
         </button>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
           <button
             type="button"
             className="med-btn-ghost"
-            onClick={() => (window.location.href = '/diagnosis.html')}
+            onClick={handleOpenCameraApp}
             style={{ padding: '11px', fontSize: '0.76rem', borderColor: 'rgba(212,175,55,0.4)', color: '#D4AF37' }}
           >
             📸 4방향 실시간 카메라 가이드 촬영 →
@@ -341,14 +417,26 @@ function DashboardApp() {
     setActiveTab('guide');
   };
 
-  const renderTab = () => {
+  const renderTab = (user, openAuthModal) => {
     switch (activeTab) {
       case 'diagnosis':
-        return <DiagnosisHubTab onOpenAreata={() => setActiveTab('areata')} />;
+        return (
+          <DiagnosisHubTab
+            user={user}
+            onRequireAuth={openAuthModal}
+            onOpenAreata={() => setActiveTab('areata')}
+          />
+        );
       case 'areata':
-        return <AlopeciaAreataView />;
+        return (
+          <AlopeciaAreataView
+            user={user}
+            onRequireAuth={openAuthModal}
+            onBack={() => setActiveTab('diagnosis')}
+          />
+        );
       case 'simulator':
-        return <HairSimTab />;
+        return <HairSimTab user={user} onRequireAuth={openAuthModal} />;
       case 'sasang':
         return <SasangTab />;
       case 'guide':
@@ -407,13 +495,19 @@ function DashboardApp() {
           </div>
         );
       default:
-        return <DiagnosisHubTab onOpenAreata={() => setActiveTab('areata')} />;
+        return (
+          <DiagnosisHubTab
+            user={user}
+            onRequireAuth={openAuthModal}
+            onOpenAreata={() => setActiveTab('areata')}
+          />
+        );
     }
   };
 
   return (
     <AuthGate>
-      {(user, handleLogout) => (
+      {(user, handleLogout, openAuthModal) => (
         <div className="app-container dashboard-container">
           <AlarmManager />
 
@@ -421,35 +515,38 @@ function DashboardApp() {
             className="av-wrapper"
             style={{ paddingBottom: '68px', display: 'flex', flexDirection: 'column', height: '100%' }}
           >
-            {/* Global Top Header Bar with Member Info & KakaoTalk Report Trigger on EVERY menu (Req 5, 6) */}
             <MemberHeaderBar
+              member={user}
               user={user}
+              currentMenuLabel={TAB_NAMES[activeTab] || activeTab}
               currentScreenName={TAB_NAMES[activeTab] || activeTab}
               onOpenProfile={() => setProfileModalOpen(true)}
               onOpenReport={() => setReportModalOpen(true)}
+              onOpenAuth={openAuthModal}
             />
 
             <div className="dashboard-content" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
-              {renderTab()}
+              {renderTab(user, openAuthModal)}
             </div>
           </div>
 
           <BottomNavBar activeTab={activeTab} setActiveTab={setActiveTab} />
 
-          {/* Member Profile & PIPA Management Modal */}
           <MemberProfileModal
             isOpen={profileModalOpen}
             onClose={() => setProfileModalOpen(false)}
+            member={user}
             user={user}
+            onLoggedOut={handleLogout}
             onLogout={handleLogout}
           />
 
-          {/* Global KakaoTalk Inconvenience Report Modal + Floating Trigger */}
           <KakaoReportModal
             isOpen={reportModalOpen}
             onClose={() => setReportModalOpen(false)}
             onOpen={() => setReportModalOpen(true)}
             currentMenu={TAB_NAMES[activeTab] || activeTab}
+            member={user}
             currentUser={user}
           />
         </div>
