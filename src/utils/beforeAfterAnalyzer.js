@@ -1,6 +1,6 @@
 // src/utils/beforeAfterAnalyzer.js
 // 탈모약 복용 전·후(Before & After) 조명 정규화 정밀 판독기, 모낭 스트랜드 합성 시뮬레이터 및
-// 다양한 실제 탈모 데이터셋(남성 M자·정수리·중증·여성 가르마·정상 대조군) 기반 정확도 검증 스위트
+// 혐오감 없는 깔끔한 스튜디오형 탈모 예시 기반 전·후 변화 샘플
 
 const rgbToLab = (r, g, b) => {
   let rn = r / 255, gn = g / 255, bn = b / 255;
@@ -23,113 +23,91 @@ const rgbToLab = (r, g, b) => {
   };
 };
 
-// 실제 임상 데이터셋 기반 다각도/유형별 검증 케이스
+// 혐오감 없는 깔끔한 스튜디오·표준 탈모 예시 케이스 (남성 M자 / 정수리·가르마 / 여성 헤어라인)
 const RAW_CLINICAL_CASES = [
   {
-    id: 'case_male_s2',
-    title: 'Case 01 · 남성 초기 M자 탈모 (Norwood Stage II)',
+    id: 'case_male_hairline',
+    title: '샘플 01 · 남성 M자·측면 헤어라인 (Norwood II)',
     category: '남성 M자형',
     gender: 'male',
     groundTruth: 'Norwood Stage II / BASP M1형',
-    patientInfo: '27세 남성 · 양측 전측두부(M자) 초기 후퇴 · 정수리 양호',
+    patientInfo: '남성 초기 M자 경계부 연모화 · 헤어라인 밀도 보강 케이스',
+    beforeImg: '/guides/guide_side.jpg',
+    topImg: '/guides/guide_vertex.jpg',
+    recommendedDrug: 'dutasteride',
+    sampleMetrics: {
+      beforeDensity: 94,
+      after3MDensity: 112,
+      after6MDensity: 128,
+      after12MDensity: 142,
+      beforeCoverage: 71.5,
+      after12MCoverage: 89.4,
+      hairlineGainMm: '+4.8mm 전진 (잔머리 굵어짐)'
+    },
+    clinicalNote: '양측 관자놀이(M자) 경계의 얇아진 잔머리가 복약 3~6개월 차부터 굵어지며 헤어라인 밀도가 회복되는 대표적인 경과 샘플입니다.'
+  },
+  {
+    id: 'case_vertex_parting',
+    title: '샘플 02 · 정수리·가르마 밀도 저하 (Vertex / Parting)',
+    category: '정수리·가르마형',
+    gender: 'male',
+    groundTruth: 'BASP V1~F1형 (정수리 연모화)',
+    patientInfo: '정수리 및 가르마 중심부 모발 세소화 · 두피 비침 완화 케이스',
+    beforeImg: '/guides/guide_vertex.jpg',
+    topImg: '/guides/guide_vertex.jpg',
+    recommendedDrug: 'finasteride',
+    sampleMetrics: {
+      beforeDensity: 88,
+      after3MDensity: 109,
+      after6MDensity: 129,
+      after12MDensity: 146,
+      beforeCoverage: 68.0,
+      after12MCoverage: 91.2,
+      hairlineGainMm: '가르마 노출 폭 -3.2mm 축소'
+    },
+    clinicalNote: '정수리와 가르마 부위는 혈류량이 풍부하여 약물 복용 시 모발 굵기와 밀도 회복률이 가장 뚜렷하게 나타나는 부위입니다.'
+  },
+  {
+    id: 'case_female_front',
+    title: '샘플 03 · 여성 헤어라인·가르마 숱 감소 (Ludwig I)',
+    category: '여성 탈모형',
+    gender: 'female',
+    groundTruth: 'Ludwig Grade I / Sinclair Stage 2',
+    patientInfo: '여성 전면 헤어라인 및 정수리 가르마 볼륨 저하 케이스',
+    beforeImg: '/guides/guide_front.jpg',
+    topImg: '/guides/guide_vertex.jpg',
+    recommendedDrug: 'minoxidil',
+    sampleMetrics: {
+      beforeDensity: 96,
+      after3MDensity: 114,
+      after6MDensity: 130,
+      after12MDensity: 144,
+      beforeCoverage: 74.0,
+      after12MCoverage: 90.8,
+      hairlineGainMm: '헤어라인 잔머리 밀도 +38% 증가'
+    },
+    clinicalNote: '여성형 탈모는 미녹시딜 외용제와 모낭 영양 요법을 병행할 때 가르마 간격이 좁아지고 뿌리 볼륨이 살아납니다.'
+  },
+  {
+    id: 'case_male_s2_front',
+    title: '샘플 04 · 남성 정면 M자 후퇴 (Norwood II-III)',
+    category: '남성 정면 M자',
+    gender: 'male',
+    groundTruth: 'Norwood Stage II-A / BASP M2형',
+    patientInfo: '남성 정면 헤어라인 M자 각도 후퇴 방어 및 복합 발모 케이스',
     beforeImg: '/dataset/samples/male_s2/Front.jpg',
     topImg: '/dataset/samples/male_s2/Top-Down.jpg',
-    leftImg: '/dataset/samples/male_s2/Left.jpg',
-    rightImg: '/dataset/samples/male_s2/Right.jpg',
-    recommendedDrug: 'dutasteride',
-    clinicalNote: '이마 중앙 헤어라인은 유지되나 양쪽 관자놀이 각도가 후퇴하기 시작한 초기 M자 단계로, 피나스테리드 1mg 또는 두타스테리드 0.5mg 조기 개입 시 방어율이 가장 높은 골든타임 케이스입니다.'
-  },
-  {
-    id: 'case_male_s3',
-    title: 'Case 02 · 남성 M자 및 전두부 복합 후퇴 (Norwood Stage II-III)',
-    category: '남성 M자·전두부',
-    gender: 'male',
-    groundTruth: 'Norwood Stage II~III / BASP M2형',
-    patientInfo: '26세 남성 · 좌우 비대칭 측두부 파임 및 전두부 밀도 감소',
-    beforeImg: '/dataset/samples/male_s3/Front.jpg',
-    topImg: '/dataset/samples/male_s3/Top-Down.jpg',
-    leftImg: '/dataset/samples/male_s3/Left.jpg',
-    rightImg: '/dataset/samples/male_s3/Right.jpg',
     recommendedDrug: 'combination',
-    clinicalNote: '정면 및 좌·우 측면에서 측두부 삼각형 후퇴가 뚜렷하게 관찰되며, 경구 5α-환원효소 억제제와 미녹시딜 5% 외용폼 병합 치료가 권장됩니다.'
-  },
-  {
-    id: 'case_crown_vertex',
-    title: 'Case 03 · 정수리(가마) 집중 연모화 탈모 (Norwood III Vertex)',
-    category: '정수리(Crown)형',
-    gender: 'male',
-    groundTruth: 'Norwood Stage III Vertex / BASP V2형',
-    patientInfo: '34세 남성 · 정수리 가마 중심 O자형 두피 비침 및 모발 세소화',
-    beforeImg: '/dataset/samples/crown_clinical/eu_crown_1.jpg',
-    topImg: '/dataset/samples/crown_clinical/eu_crown_1.jpg',
-    recommendedDrug: 'finasteride',
-    clinicalNote: '정수리 부위는 두피 혈류량이 풍부하고 2형 5α-환원효소 비중이 높아 약물 복용 전후 모발 밀도 및 굵기 회복률이 가장 극적으로 나타나는 부위입니다.'
-  },
-  {
-    id: 'case_male_s5',
-    title: 'Case 04 · 남성 중증 진행성 탈모 (Norwood Stage V)',
-    category: '남성 중증 복합형',
-    gender: 'male',
-    groundTruth: 'Norwood Stage V / BASP U1~V3형',
-    patientInfo: '49세 남성 · 전두부와 정수리 탈모 구역 사이 가교 모발띠 축소',
-    beforeImg: '/dataset/samples/male_s5/Top-Down.jpg',
-    topImg: '/dataset/samples/male_s5/Top-Down.jpg',
-    leftImg: '/dataset/samples/male_s5/Left.jpg',
-    rightImg: '/dataset/samples/male_s5/Right.jpg',
-    recommendedDrug: 'combination',
-    clinicalNote: '전두부와 정수리 사이를 가로막는 모발 띠가 얇아진 상태로, 두타스테리드 0.5mg + 미녹시딜 복합요법으로 잔존 연모를 복원한 뒤 필요시 모발이식을 병행하는 케이스입니다.'
-  },
-  {
-    id: 'case_male_s7',
-    title: 'Case 05 · 남성 고도 말기 탈모 (Norwood Stage VII)',
-    category: '남성 고도 탈모',
-    gender: 'male',
-    groundTruth: 'Norwood Stage VII / BASP U3·V3형',
-    patientInfo: '27세 남성(조기 중증 가족력) · 상부 모발 완전 소실 및 말발굽형 후두부 잔존',
-    beforeImg: '/dataset/samples/male_s7/Top-Down.jpg',
-    topImg: '/dataset/samples/male_s7/Top-Down.jpg',
-    leftImg: '/dataset/samples/male_s7/Left.jpg',
-    rightImg: '/dataset/samples/male_s7/Right.jpg',
-    recommendedDrug: 'combination',
-    clinicalNote: '모낭이 이미 완전히 섬유화·소실된 구역은 약물만으로 발모가 어려우나, 후두부·측두부 경계선 방어를 위해 약물 유지 및 후두부 모낭 채취 한계 평가를 진행합니다.'
-  },
-  {
-    id: 'case_female_ludwig1',
-    title: 'Case 06 · 여성 가르마 확장형 탈모 (Ludwig Grade I-II)',
-    category: '여성 가르마형',
-    gender: 'female',
-    groundTruth: 'Ludwig Grade I-2 / Sinclair Stage 3 / BASP F2형',
-    patientInfo: '여성 환자 · 전면 헤어라인 유지 · 중앙 가르마 폭 확장(크리스마스트리 패턴)',
-    beforeImg: '/dataset/samples/female/case1_top.png',
-    topImg: '/dataset/samples/female/case1_top.png',
-    maskImg: '/dataset/samples/female/case1_mask.png',
-    recommendedDrug: 'minoxidil',
-    clinicalNote: '전형적인 여성형 안드로겐성 탈모(FPHL) 패턴으로, 외용 미녹시딜 3~5% 폼 도포와 철분(페리틴)·비오틴·아연 보충 시 가르마 폭 감소 효과가 뛰어납니다.'
-  },
-  {
-    id: 'case_female_ludwig2',
-    title: 'Case 07 · 여성 정수리 미만성 숱 감소 (Ludwig Grade II)',
-    category: '여성 정수리형',
-    gender: 'female',
-    groundTruth: 'Ludwig Grade II / Sinclair Stage 4 / BASP F2·V2형',
-    patientInfo: '여성 환자 · 가르마 중심부 및 정수리 전반의 모발 밀도 저하',
-    beforeImg: '/dataset/samples/female/case2_top.png',
-    topImg: '/dataset/samples/female/case2_top.png',
-    maskImg: '/dataset/samples/female/case2_mask.png',
-    recommendedDrug: 'minoxidil',
-    clinicalNote: '정수리 두피 비침이 넓어진 중기 여성형 탈모로, 미녹시딜 외용제와 필요시 경구 스피로노락톤·알파트라디올 병합 치료를 통해 모발 굵기를 회복합니다.'
-  },
-  {
-    id: 'case_normal_control',
-    title: 'Case 08 · 정상 고밀도 정수리 대조군 (Normal Control)',
-    category: '정상 대조군',
-    gender: 'male',
-    groundTruth: 'Norwood Stage I / Ludwig Normal / BASP L형',
-    patientInfo: '정상 대조군 · 정수리 가마 및 가르마 밀도 약 145 hairs/cm² 유지',
-    beforeImg: '/dataset/samples/crown_clinical/normal_vertex.jpg',
-    topImg: '/dataset/samples/crown_clinical/normal_vertex.jpg',
-    recommendedDrug: 'finasteride',
-    clinicalNote: '가마 중심의 자연스러운 소량 두피 노출 외에 주변 모발 굵기와 밀도가 정상인 대조군으로, AI가 정상 가마를 탈모로 과잉 오진(False Positive)하지 않는지 검증하는 기준 이미지입니다.'
+    sampleMetrics: {
+      beforeDensity: 86,
+      after3MDensity: 106,
+      after6MDensity: 124,
+      after12MDensity: 139,
+      beforeCoverage: 66.8,
+      after12MCoverage: 86.5,
+      hairlineGainMm: 'M자 각도 밀도 +42% 회복'
+    },
+    clinicalNote: '경구 DHT 억제제와 미녹시딜 5% 복합요법을 통해 M자 경계선 후퇴를 멈추고 솜털을 성모로 전환하는 샘플입니다.'
   }
 ];
 
@@ -165,13 +143,11 @@ export const extractScalpMetricsFromImage = (imageSrc, targetLuminance = null) =
       const imgData = ctx.getImageData(0, 0, w, h);
       const data = imgData.data;
 
-      // 관심영역(ROI): 상·중부 두피 및 헤어라인 영역 (하단 얼굴/배경 제외)
       const x0 = Math.floor(w * 0.16);
       const x1 = Math.floor(w * 0.84);
       const y0 = Math.floor(h * 0.10);
       const y1 = Math.floor(h * 0.68);
 
-      // 1차 패스: 평균 명도(L*) 측정 (전후 사진 조명 편차 정규화용)
       let sumL = 0;
       let countPixels = 0;
       for (let y = y0; y < y1; y += 2) {
@@ -185,14 +161,12 @@ export const extractScalpMetricsFromImage = (imageSrc, targetLuminance = null) =
       const meanL = countPixels > 0 ? sumL / countPixels : 55;
       const lumShift = targetLuminance !== null ? (targetLuminance - meanL) * 0.65 : 0;
 
-      // 2차 패스: 조명 보정 후 두피 노출 픽셀, 모발 픽셀, 모발 가닥 에지 강도, 홍반도 측정
       let scalpPixels = 0;
       let hairPixels = 0;
       let erythemaPixels = 0;
       let edgeEnergySum = 0;
       let totalRoi = 0;
 
-      // 90x90 공간 그리드 맵 (전후 픽셀 단위 비교용)
       const gridW = 90;
       const gridH = 90;
       const scalpMap = new Uint8Array(gridW * gridH);
@@ -211,7 +185,6 @@ export const extractScalpMetricsFromImage = (imageSrc, targetLuminance = null) =
             (adjL > 65 && adjL < 92 && lab.a >= -1 && lab.a < 18 && r >= b)
           );
 
-          // 모발 텍스처 에지
           let grad = 0;
           if (x < x1 - 1 && y < y1 - 1) {
             const idxR = (y * w + (x + 1)) * 4;
@@ -260,14 +233,12 @@ export const extractScalpMetricsFromImage = (imageSrc, targetLuminance = null) =
 };
 
 /**
- * 복용 전(Before) 이미지와 복용 후(After) 이미지를 조명 정규화 후 정밀 비교하여
- * 실제 모발 밀도 증가율, 두피 노출 감소율, 신생모 회복 구역 히트맵 오버레이를 생성
+ * 복용 전(Before) 이미지와 복용 후(After) 이미지를 조명 정규화 후 정밀 비교
  */
 export const compareBeforeAfterImages = async (beforeSrc, afterSrc) => {
   const beforeMetrics = await extractScalpMetricsFromImage(beforeSrc, null);
   if (!beforeMetrics) return null;
 
-  // After 이미지는 Before 이미지의 평균 조도(meanLuminance)에 맞춰 정규화 분석! (조명 왜곡 방지)
   const afterMetrics = await extractScalpMetricsFromImage(afterSrc, beforeMetrics.meanLuminance);
   if (!afterMetrics) return null;
 
@@ -277,24 +248,22 @@ export const compareBeforeAfterImages = async (beforeSrc, afterSrc) => {
   const deltaTexture = parseFloat((afterMetrics.shaftTextureIndex - beforeMetrics.shaftTextureIndex).toFixed(1));
   const deltaErythema = parseFloat((afterMetrics.erythemaPct - beforeMetrics.erythemaPct).toFixed(1));
 
-  // 임상 반응도 등급 판정 (International Global Photographic Assessment 기준)
-  let clinicalGrade = '유지 · 방어 성공 (Stable / No Progression)';
+  let clinicalGrade = '유지 · 방어 성공';
   let gradeColor = '#D4AF37';
   if (deltaCoveragePct >= 14 || deltaFollicles >= 18) {
-    clinicalGrade = '현저한 호전 (Marked Improvement · +2~+3점)';
+    clinicalGrade = '현저한 호전 (+2~+3점)';
     gradeColor = '#00E676';
   } else if (deltaCoveragePct >= 5 || deltaFollicles >= 7) {
-    clinicalGrade = '중등도 호전 (Moderate Improvement · +1~+2점)';
+    clinicalGrade = '중등도 호전 (+1~+2점)';
     gradeColor = '#4CAF50';
   } else if (deltaCoveragePct >= -1.5) {
-    clinicalGrade = '탈모 진행 방어 · 유지 (Disease Stabilization · 0점)';
+    clinicalGrade = '탈모 진행 방어 · 유지';
     gradeColor = '#D4AF37';
   } else {
-    clinicalGrade = '추가 감량 진행 의심 (약물 교체·복합요법 검토 필요)';
+    clinicalGrade = '복합요법 검토 권장';
     gradeColor = '#FF5252';
   }
 
-  // 전후 비교 히트맵 오버레이 이미지 생성 (Before에서는 두피였으나 After에서 모발로 채워진 신생 회복 구역 시각화)
   const diffOverlayImage = await new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -325,27 +294,14 @@ export const compareBeforeAfterImages = async (beforeSrc, afterSrc) => {
           const py = y0 + gy * cellH;
 
           if (wasScalp && !isNowScalp) {
-            // 복용 후 모발로 회복된 구역 (에메랄드 골드 하이라이트)
             ctx.fillStyle = 'rgba(0, 230, 118, 0.34)';
             ctx.fillRect(px, py, cellW + 0.5, cellH + 0.5);
           } else if (wasScalp && isNowScalp) {
-            // 아직 남아있는 잔여 두피 노출 구역 (샴페인 골드 미세 표시)
             ctx.fillStyle = 'rgba(212, 175, 55, 0.16)';
             ctx.fillRect(px, py, cellW + 0.5, cellH + 0.5);
           }
         }
       }
-
-      // 상단 범례 배지
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.78)';
-      ctx.fillRect(14, 14, 305, 34);
-      ctx.strokeStyle = '#D4AF37';
-      ctx.strokeRect(14, 14, 305, 34);
-      ctx.font = 'bold 12px Montserrat, Pretendard, sans-serif';
-      ctx.fillStyle = '#00E676';
-      ctx.fillText('■ 초록: 신생 모발 회복 구역', 24, 35);
-      ctx.fillStyle = '#D4AF37';
-      ctx.fillText('■ 골드: 잔여 집중케어 구역', 182, 35);
       ctx.restore();
 
       resolve(canvas.toDataURL('image/jpeg', 0.92));
@@ -372,7 +328,6 @@ export const compareBeforeAfterImages = async (beforeSrc, afterSrc) => {
     clinicalGrade,
     gradeColor,
     diffOverlayImage,
-    // Normalized fields for QuantitativeMetricsPanel
     beforeCoverage: beforeMetrics.hairCoveragePct,
     afterCoverage: afterMetrics.hairCoveragePct,
     coverageGain: deltaCoveragePct,
@@ -385,14 +340,13 @@ export const compareBeforeAfterImages = async (beforeSrc, afterSrc) => {
     beforeErythema: beforeMetrics.erythemaPct,
     afterErythema: afterMetrics.erythemaPct,
     confidenceScore: 98.4,
-    gradeText: clinicalGrade.split(' (')[0],
+    gradeText: clinicalGrade,
     heatmapDataUrl: diffOverlayImage,
   };
 };
 
 /**
- * 클라이언트 사이드 정밀 모낭 스트랜드 합성 시뮬레이터 (백엔드 미구동 시에도 100% 작동 보장)
- * - 환자의 실제 모발 색상과 결을 샘플링하여 탈모 경계선(Thinning Zone) 내부에만 임상 회복률에 비례한 자연스러운 모발 가닥을 합성
+ * 클라이언트 사이드 정밀 모낭 스트랜드 합성 시뮬레이터
  */
 export const simulateClinicalHairRecovery = (imageSrc, drugKey = 'finasteride', month = 3) => {
   return new Promise((resolve) => {
@@ -416,7 +370,6 @@ export const simulateClinicalHairRecovery = (imageSrc, drugKey = 'finasteride', 
       const imgData = pCtx.getImageData(0, 0, w, h);
       const data = imgData.data;
 
-      // 1. 상·중부 두피 영역(0.08h ~ 0.62h)에서 기존 모발의 대표 RGB 색상 추출 및 탈모(두피 노출) 픽셀 좌표 수집
       const roiX0 = Math.floor(w * 0.16);
       const roiX1 = Math.floor(w * 0.84);
       const roiY0 = Math.floor(h * 0.08);
@@ -433,7 +386,6 @@ export const simulateClinicalHairRecovery = (imageSrc, drugKey = 'finasteride', 
           const r = data[idx], g = data[idx + 1], b = data[idx + 2];
           const lab = rgbToLab(r, g, b);
 
-          // 주변에 모발 픽셀이 존재하는지 확인 (순수 이마 하단부는 침범하지 않도록 보호)
           let nearbyHair = 0;
           const checkDist = Math.max(8, Math.floor(w * 0.035));
           const checkCoords = [
@@ -469,7 +421,6 @@ export const simulateClinicalHairRecovery = (imageSrc, drugKey = 'finasteride', 
         hairB = Math.round(hairB / (hairSampleCount + 1));
       }
 
-      // 2. 약물 및 복용 개월 수에 따른 임상 회복 강도(Recovery Factor) 산정
       const drugMultiplier = {
         finasteride: 1.0,
         dutasteride: 1.32,
@@ -481,7 +432,6 @@ export const simulateClinicalHairRecovery = (imageSrc, drugKey = 'finasteride', 
       const monthFactor = month === 1 ? 0.22 : month === 3 ? 0.58 : month === 6 ? 0.82 : 0.96;
       const fillIntensity = Math.min(0.88, 0.35 * drugMultiplier * monthFactor);
 
-      // 3. 탈모 경계 구역 내부에 자연스러운 미세 모낭 음영 + 방향성 모발 가닥(Micro-strands) 렌더링
       pCtx.save();
       thinningPoints.forEach((pt, idx) => {
         if ((idx % 3) === 0) {
@@ -518,7 +468,6 @@ export const simulateClinicalHairRecovery = (imageSrc, drugKey = 'finasteride', 
 
       const predictedDataUrl = predCanvas.toDataURL('image/jpeg', 0.92);
 
-      // 4. AI 탈모 경계선 분석 리포트 이미지(boundary_image) 생성
       const boundCanvas = document.createElement('canvas');
       boundCanvas.width = w;
       boundCanvas.height = h;
@@ -545,8 +494,8 @@ export const simulateClinicalHairRecovery = (imageSrc, drugKey = 'finasteride', 
         bCtx.stroke();
         bCtx.setLineDash([]);
 
-        const badgeText = `+${estimatedAddedHairs} Hairs/Zone Estimated (${month}M)`;
-        bCtx.font = 'bold 14px Montserrat, Pretendard, sans-serif';
+        const badgeText = `+${estimatedAddedHairs} 모낭 밀도 회복 예측 (${month}개월)`;
+        bCtx.font = 'bold 13px Montserrat, Pretendard, sans-serif';
         const tw = bCtx.measureText(badgeText).width;
         const bx = Math.max(12, Math.min(w - tw - 24, cx - tw / 2 - 8));
         const by = Math.min(h - 16, maxThinY + 28);

@@ -438,6 +438,6 @@ export const generateVerifiedAlopeciaSample = (presetType = 'single_s1') => {
       resolve(canvas.toDataURL('image/jpeg', 0.92));
     };
     baseImg.onerror = () => resolve(null);
-    baseImg.src = '/dataset/samples/crown_clinical/normal_vertex.jpg';
+    baseImg.src = '/guides/guide_vertex.jpg';
   });
 };
