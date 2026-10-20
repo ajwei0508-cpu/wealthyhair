@@ -37,14 +37,14 @@ const DIAGNOSIS_RESULT_SAMPLES = [
     gender: 'male',
     photo: '/guides/guide_side.jpg',
     vertexPhoto: '/guides/guide_vertex.jpg',
-    badge: 'Norwood Stage II · BASP M1',
+    badge: '모발 건강 74점(↑) · Norwood II(↓)',
     title: '남성 초기 M자 헤어라인 후퇴 진단 샘플',
     summary: '양측 관자놀이(전측두부) 모발이 가늘어지며 M자 경계가 약 1.3cm 후퇴한 초기 단계입니다.',
     metrics: [
-      { label: '진단 척도 등급', value: 'Norwood II (초기)', color: '#D4AF37' },
-      { label: '추정 모낭 밀도', value: '116 모/cm² (정상 대비 -19%)', color: '#81C784' },
-      { label: 'M자 경계 연모화율', value: '23.5% (모발 굵기 감소)', color: '#FFB74D' },
-      { label: '권장 맞춤 솔루션', value: '5α-환원효소 억제제 + 미녹시딜 5%', color: '#64B5F6' },
+      { label: '종합 건강 점수 (↑높을수록 좋음)', value: '74점 / 100점 (초기 주의)', color: '#81C784' },
+      { label: '진단 척도 등급 (↓낮을수록 좋음)', value: 'Norwood 2단계 · BASP M1', color: '#D4AF37' },
+      { label: '추정 모낭 밀도 (↑높을수록 좋음)', value: '116 모/cm² (정상 130+)', color: '#64B5F6' },
+      { label: 'M자 연모화율 (↓낮을수록 좋음)', value: '23.5% (모발 굵기 감소)', color: '#FFB74D' },
     ],
     overlayType: 'hairline',
   },
@@ -54,14 +54,14 @@ const DIAGNOSIS_RESULT_SAMPLES = [
     gender: 'male',
     photo: '/guides/guide_vertex.jpg',
     vertexPhoto: '/guides/guide_vertex.jpg',
-    badge: 'BASP V1 · 정수리 초기 연모화',
+    badge: '모발 건강 71점(↑) · BASP V1(↓)',
     title: '정수리·가마 주변 밀도 저하 진단 샘플',
     summary: '가마 중심부 모발의 굵기가 가늘어져 조명에 따라 두피 비침이 시작되는 골든타임 단계입니다.',
     metrics: [
-      { label: '진단 척도 등급', value: 'BASP V1 (정수리 경증)', color: '#D4AF37' },
-      { label: '추정 모낭 밀도', value: '112 모/cm² (정상 대비 -22%)', color: '#81C784' },
-      { label: '두피 노출 비율', value: '18.4% (가마 주변 확산)', color: '#FFB74D' },
-      { label: '권장 맞춤 솔루션', value: '피나스테리드/두타스테리드 + 두피 열감 케어', color: '#64B5F6' },
+      { label: '종합 건강 점수 (↑높을수록 좋음)', value: '71점 / 100점 (골든타임)', color: '#81C784' },
+      { label: '진단 척도 등급 (↓낮을수록 좋음)', value: 'BASP V1 (1단계 경증)', color: '#D4AF37' },
+      { label: '추정 모낭 밀도 (↑높을수록 좋음)', value: '112 모/cm² (정상 130+)', color: '#64B5F6' },
+      { label: '두피 노출 비율 (↓낮을수록 좋음)', value: '18.4% (가마 주변 확산)', color: '#FFB74D' },
     ],
     overlayType: 'vertex',
   },
@@ -71,14 +71,14 @@ const DIAGNOSIS_RESULT_SAMPLES = [
     gender: 'female',
     photo: '/guides/guide_front.jpg',
     vertexPhoto: '/guides/guide_vertex.jpg',
-    badge: 'Ludwig Grade I · Sinclair 2단계',
+    badge: '모발 건강 78점(↑) · Ludwig I(↓)',
     title: '여성 헤어라인·가르마 볼륨 감소 진단 샘플',
     summary: '전면 헤어라인 형태는 유지되나 중심 가르마 간격이 넓어지고 잔머리 탄력이 저하된 단계입니다.',
     metrics: [
-      { label: '진단 척도 등급', value: 'Ludwig Grade I (초기)', color: '#D4AF37' },
-      { label: '추정 모낭 밀도', value: '121 모/cm² (연모 비율 증가)', color: '#81C784' },
-      { label: '중심 가르마 폭', value: '2.6 mm (정상 기준 1.5mm 이하)', color: '#FFB74D' },
-      { label: '권장 맞춤 솔루션', value: '미녹시딜 폼 + 비오틴·철분·맥주효모 영양케어', color: '#64B5F6' },
+      { label: '종합 건강 점수 (↑높을수록 좋음)', value: '78점 / 100점 (초기 경미)', color: '#81C784' },
+      { label: '진단 척도 등급 (↓낮을수록 좋음)', value: 'Ludwig 1단계 · Sinclair 2', color: '#D4AF37' },
+      { label: '추정 모낭 밀도 (↑높을수록 좋음)', value: '121 모/cm² (정상 130+)', color: '#64B5F6' },
+      { label: '중심 가르마 폭 (↓좁을수록 좋음)', value: '2.6 mm (정상 2.0mm 이하)', color: '#FFB74D' },
     ],
     overlayType: 'female',
   },
@@ -209,7 +209,7 @@ function DiagnosisHubTab({ user, onRequireAuth, onOpenAreata }) {
         />
 
         {/* ====================================================================
-            1. 진단하면 어떤 결과물이 보이는지 샘플 (무난하고 깔끔한 스튜디오 예시)
+            1. 진단하면 어떤 결과물이 보이는지 샘플 + 점수 높낮이 해석 가이드
         ==================================================================== */}
         <div
           style={{
@@ -363,7 +363,7 @@ function DiagnosisHubTab({ user, onRequireAuth, onOpenAreata }) {
           </div>
 
           {/* 진단 결과표 4대 핵심 수치 미리보기 */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '7px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '7px', marginBottom: '10px' }}>
             {currentSample.metrics.map((m, i) => (
               <div
                 key={i}
@@ -374,12 +374,33 @@ function DiagnosisHubTab({ user, onRequireAuth, onOpenAreata }) {
                   padding: '8px 10px',
                 }}
               >
-                <div style={{ fontSize: '0.66rem', color: '#888' }}>{m.label}</div>
-                <div style={{ fontSize: '0.76rem', fontWeight: 800, color: m.color, marginTop: '2px' }}>
+                <div style={{ fontSize: '0.65rem', color: '#999' }}>{m.label}</div>
+                <div style={{ fontSize: '0.75rem', fontWeight: 800, color: m.color, marginTop: '2px' }}>
                   {m.value}
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* 💡 점수 판독 기준 한 줄 요약 (높으면 좋은지 vs 낮으면 좋은지) */}
+          <div
+            style={{
+              background: 'rgba(212, 175, 55, 0.08)',
+              border: '1px solid rgba(212, 175, 55, 0.28)',
+              borderRadius: '9px',
+              padding: '8px 10px',
+              fontSize: '0.7rem',
+              lineHeight: 1.5,
+              color: '#ddd',
+            }}
+          >
+            <div style={{ fontWeight: 800, color: '#D4AF37', marginBottom: '2px' }}>
+              💡 산출 점수·등급 기준 안내 (높을수록 좋은가요, 낮을수록 좋은가요?)
+            </div>
+            <div>
+              • <strong style={{ color: '#81C784' }}>높을수록 좋음 ↑</strong> : <strong>종합 모발 건강 점수</strong>(80~100점 정상) · <strong>모낭 밀도</strong>(130모/cm² 이상)<br />
+              • <strong style={{ color: '#64B5F6' }}>낮을수록 좋음 ↓</strong> : <strong>탈모 진행 단계</strong>(Norwood 1~7 / Ludwig 1~3 / BASP 1~3단계: 1단계가 정상) · <strong>원형탈모 SALT 점수</strong>(0점 S0 정상 ~ 100점 중증)
+            </div>
           </div>
         </div>
 
