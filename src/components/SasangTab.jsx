@@ -19,8 +19,8 @@ const BODY_PRESETS = {
   soeum: { label: '소음인 체형', desc: '골반·하초 안정 · 상체 슬림', chest: 42, waist: 46, pelvis: 78 },
 };
 
-// ── 2D Flood-Fill 스튜디오 배경 투명화 & 몸통(Torso) 정밀 윤곽선 추출기 ──
-function processCharacterImageToAlphaCanvas(img) {
+// ── 프리베이크된 32-bit RGBA 3D 캐릭터 에셋 로더 & 해부학적 윤곽선 측정기 ──
+function prepareRiggedCharacterData(img, isFemale) {
   const w = img.naturalWidth || img.width;
   const h = img.naturalHeight || img.height;
   const off = document.createElement('canvas');
@@ -32,108 +32,58 @@ function processCharacterImageToAlphaCanvas(img) {
   const imgData = ctx.getImageData(0, 0, w, h);
   const d = imgData.data;
 
-  // 1. 외곽에서 시작하는 2D Flood-Fill로 팔과 몸통 사이, 다리 사이의 검은 배경까지 완벽히 투명화
-  const visited = new Uint8Array(w * h);
-  const queue = new Int32Array(w * h);
-  let head = 0;
-  let tail = 0;
-
-  const isBgPixel = (idx4) => {
-    const r = d[idx4];
-    const g = d[idx4 + 1];
-    const b = d[idx4 + 2];
-    return r < 18 && g < 18 && b < 22;
-  };
-
-  // 테두리 픽셀 큐 등록
-  for (let x = 0; x < w; x++) {
-    const topIdx = x;
-    const botIdx = (h - 1) * w + x;
-    if (isBgPixel(topIdx * 4)) {
-      visited[topIdx] = 1;
-      queue[tail++] = topIdx;
-    }
-    if (isBgPixel(botIdx * 4)) {
-      visited[botIdx] = 1;
-      queue[tail++] = botIdx;
-    }
-  }
-  for (let y = 1; y < h - 1; y++) {
-    const leftIdx = y * w;
-    const rightIdx = y * w + (w - 1);
-    if (isBgPixel(leftIdx * 4)) {
-      visited[leftIdx] = 1;
-      queue[tail++] = leftIdx;
-    }
-    if (isBgPixel(rightIdx * 4)) {
-      visited[rightIdx] = 1;
-      queue[tail++] = rightIdx;
-    }
-  }
-
-  while (head < tail) {
-    const curr = queue[head++];
-    d[curr * 4 + 3] = 0;
-    const cx = curr % w;
-    const cy = (curr / w) | 0;
-
-    if (cx > 0) {
-      const n = curr - 1;
-      if (!visited[n] && isBgPixel(n * 4)) {
-        visited[n] = 1;
-        queue[tail++] = n;
-      }
-    }
-    if (cx < w - 1) {
-      const n = curr + 1;
-      if (!visited[n] && isBgPixel(n * 4)) {
-        visited[n] = 1;
-        queue[tail++] = n;
-      }
-    }
-    if (cy > 0) {
-      const n = curr - w;
-      if (!visited[n] && isBgPixel(n * 4)) {
-        visited[n] = 1;
-        queue[tail++] = n;
-      }
-    }
-    if (cy < h - 1) {
-      const n = curr + w;
-      if (!visited[n] && isBgPixel(n * 4)) {
-        visited[n] = 1;
-        queue[tail++] = n;
-      }
-    }
-  }
-
-  // 2. 실루엣 경계선 안티앨리어싱 소프트 페더링 (1~2px 부드러운 알파 전환)
-  for (let y = 1; y < h - 1; y++) {
-    for (let x = 1; x < w - 1; x++) {
-      const p = y * w + x;
-      if (!visited[p]) {
-        const bgNeighbors =
-          visited[p - 1] + visited[p + 1] + visited[p - w] + visited[p + w];
-        if (bgNeighbors > 0) {
-          const idx4 = p * 4;
-          const lum = (d[idx4] + d[idx4 + 1] + d[idx4 + 2]) / 3;
-          d[idx4 + 3] = Math.min(255, Math.max(90, Math.round(lum * 5.2)));
-        }
-      }
-    }
-  }
-
-  // 3. 캐릭터 상·하단 바운딩박스 및 중앙에서 뻗어나가는 몸통(Torso) 좌·우 경계선 측정
   let minY = h;
   let maxY = 0;
   const torsoLeft = new Float32Array(h);
   const torsoRight = new Float32Array(h);
-  const midX = (w * 0.5) | 0;
+  const symCx = isFemale ? 448 : 451;
+
+  // 팔과 몸통 사이의 빈 공간(Air Gap)을 지나는 해부학적 분리 키포인트
+  const gapKps = isFemale
+    ? [
+        [0, 356, 536],
+        [315, 356, 536],
+        [400, 362, 534],
+        [480, 358, 538],
+        [550, 330, 566],
+        [600, 316, 580],
+        [680, 310, 586],
+        [h, 310, 586],
+      ]
+    : [
+        [0, 346, 555],
+        [324, 346, 555],
+        [400, 349, 553],
+        [480, 342, 560],
+        [560, 316, 586],
+        [620, 302, 600],
+        [700, 290, 612],
+        [h, 290, 612],
+      ];
+
+  const gapLeftArr = new Float32Array(h);
+  const gapRightArr = new Float32Array(h);
 
   for (let y = 0; y < h; y++) {
+    // 선형 보간으로 y행의 좌·우 팔-몸통 경계(빈 공간) 계산
+    let gl = gapKps[0][1];
+    let gr = gapKps[0][2];
+    for (let k = 0; k < gapKps.length - 1; k++) {
+      const [y0, l0, r0] = gapKps[k];
+      const [y1, l1, r1] = gapKps[k + 1];
+      if (y >= y0 && y <= y1) {
+        const t = y1 > y0 ? (y - y0) / (y1 - y0) : 0;
+        gl = l0 + (l1 - l0) * t;
+        gr = r0 + (r1 - r0) * t;
+        break;
+      }
+    }
+    gapLeftArr[y] = gl;
+    gapRightArr[y] = gr;
+
     let rowHasPixel = false;
     for (let x = 0; x < w; x++) {
-      if (d[(y * w + x) * 4 + 3] > 40) {
+      if (d[(y * w + x) * 4 + 3] > 35) {
         rowHasPixel = true;
         break;
       }
@@ -143,28 +93,36 @@ function processCharacterImageToAlphaCanvas(img) {
       if (y > maxY) maxY = y;
     }
 
-    // 중심선(midX)에서 좌·우로 스캔하여 팔과 분리된 몸통(Torso)의 실제 외곽 좌표 추출
-    let lx = midX;
-    while (lx > w * 0.18 && d[(y * w + lx) * 4 + 3] > 30) lx--;
-    let rx = midX;
-    while (rx < w * 0.82 && d[(y * w + rx) * 4 + 3] > 30) rx++;
+    // 몸통 구간(gl ~ gr) 내에서 실제 몸통 좌·우 외곽 픽셀 위치 측정
+    let lx = Math.round(gl);
+    const maxLx = symCx - 10;
+    while (lx < maxLx && d[(y * w + lx) * 4 + 3] <= 35) lx++;
+    let rx = Math.round(gr);
+    const minRx = symCx + 10;
+    while (rx > minRx && d[(y * w + rx) * 4 + 3] <= 35) rx--;
 
-    if (rx - lx > w * 0.08) {
-      torsoLeft[y] = lx / w;
-      torsoRight[y] = rx / w;
+    if (rx > lx + 20) {
+      torsoLeft[y] = lx;
+      torsoRight[y] = rx;
     } else {
-      torsoLeft[y] = 0.36;
-      torsoRight[y] = 0.64;
+      torsoLeft[y] = symCx - 75;
+      torsoRight[y] = symCx + 75;
     }
   }
 
-  ctx.putImageData(imgData, 0, 0);
   return {
     canvas: off,
     width: w,
     height: h,
-    minY: minY < maxY ? minY : 0,
-    maxY: maxY > minY ? maxY : h,
+    symCx,
+    armpitY: isFemale ? 315 : 324,
+    crotchY: isFemale ? 648 : 652,
+    armLCx0: isFemale ? 334 : 316,
+    armRCx0: isFemale ? 562 : 586,
+    minY: minY < maxY ? minY : 50,
+    maxY: maxY > minY ? maxY : h - 50,
+    gapLeftArr,
+    gapRightArr,
     torsoLeft,
     torsoRight,
   };
@@ -195,16 +153,16 @@ const Sasang3DBodyModel = ({
     pelvis: pelvisWidth,
   });
 
-  // 3D 남·여 연예인급 모델 이미지 프리로드 및 알파 실루엣 처리
+  // 3D 남·여 연예인급 모델 이미지 프리로드 및 해부학적 리깅 데이터 준비
   useEffect(() => {
     let mounted = true;
-    const loadModel = (key, src) =>
+    const loadModel = (key, src, isFemale) =>
       new Promise((resolve) => {
         const img = new Image();
         img.crossOrigin = 'anonymous';
         img.onload = () => {
           if (mounted) {
-            processedModelsRef.current[key] = processCharacterImageToAlphaCanvas(img);
+            processedModelsRef.current[key] = prepareRiggedCharacterData(img, isFemale);
           }
           resolve();
         };
@@ -213,8 +171,8 @@ const Sasang3DBodyModel = ({
       });
 
     Promise.all([
-      loadModel('male', '/assets/sasang/male_3d_model.png'),
-      loadModel('female', '/assets/sasang/female_3d_model.png'),
+      loadModel('male', '/assets/sasang/male_3d_model.png', false),
+      loadModel('female', '/assets/sasang/female_3d_model.png', true),
     ]).then(() => {
       if (mounted) setModelsLoaded(true);
     });
@@ -241,11 +199,12 @@ const Sasang3DBodyModel = ({
     let rafId;
     let startTime = performance.now();
 
-    // 코사인 벨 커브 가중치 함수 (경계면 끊김 없이 매끄럽게 체형 모핑)
-    const smoothBell = (v, center, halfWidth) => {
-      const dist = Math.abs(v - center);
-      if (dist >= halfWidth) return 0;
-      return 0.5 * (1 + Math.cos((dist / halfWidth) * Math.PI));
+    // 비대칭 코사인 벨 커브 가중치 함수 (상·중·하초 및 대퇴부 곡선을 끊김 없이 매끄럽게 연결)
+    const asymBell = (v, center, halfUp, halfDown) => {
+      const d = v - center;
+      const halfW = d >= 0 ? halfDown : halfUp;
+      if (Math.abs(d) >= halfW) return 0;
+      return 0.5 * (1 + Math.cos((Math.abs(d) / halfW) * Math.PI));
     };
 
     const render = (now) => {
@@ -274,14 +233,14 @@ const Sasang3DBodyModel = ({
       animSmoothRef.current.waist += (waistWidth - animSmoothRef.current.waist) * 0.14;
       animSmoothRef.current.pelvis += (pelvisWidth - animSmoothRef.current.pelvis) * 0.14;
 
-      const cVal = animSmoothRef.current.chest; // 25 ~ 90 (기준 58)
+      const cVal = animSmoothRef.current.chest; // 25 ~ 90 (기준 56)
       const wVal = animSmoothRef.current.waist; // 25 ~ 90 (기준 52)
       const pVal = animSmoothRef.current.pelvis; // 25 ~ 90 (기준 54)
 
-      // 기준 대비 가로 확장/수축 배율 (매끄럽고 자연스러운 3D 체형 변환)
-      const chestFactor = 1 + (cVal - 58) * 0.0068;
-      const waistFactor = 1 + (wVal - 52) * 0.0076;
-      const pelvisFactor = 1 + (pVal - 54) * 0.0072;
+      // 해부학적으로 가장 자연스럽고 유려한 3D 체형 모핑 배율
+      const chestFactor = 1 + (cVal - 56) * 0.0046;
+      const waistFactor = 1 + (wVal - 52) * 0.0048;
+      const pelvisFactor = 1 + (pVal - 54) * 0.0048;
 
       // 3D 회전 각도 업데이트
       if (autoRotate && !isDraggingRef.current) {
@@ -298,7 +257,7 @@ const Sasang3DBodyModel = ({
       const sinP = Math.sin(pitch);
 
       // 호흡 모션 (숨쉬듯 자연스럽게 흉곽이 오르내림)
-      const breath = Math.sin(dt * 2.4) * 0.010;
+      const breath = Math.sin(dt * 2.4) * 0.008;
       const floatY = Math.sin(dt * 2.4) * 2.0;
 
       const scale3D = Math.min(W, H) * 0.44;
@@ -390,7 +349,7 @@ const Sasang3DBodyModel = ({
       // 캐릭터 뒤쪽 링 먼저 그리기
       drawZoneRingsHalf(false);
 
-      // ── 4. 하이엔드 3D 미남·미녀 캐릭터 200-슬라이스 초정밀 스무스 메쉬 디포메이션 렌더링 ──
+      // ── 4. 해부학적 3D 골격 분리 리깅(Skeletal Arm-Torso-Leg Separation) & 원통형 3D 입체 투영 렌더링 ──
       const modelData = processedModelsRef.current[gender] || processedModelsRef.current.male;
 
       let shoulderLeftPx = cx - 48;
@@ -404,89 +363,175 @@ const Sasang3DBodyModel = ({
         const srcCanvas = modelData.canvas;
         const srcW = modelData.width;
         const srcH = modelData.height;
+        const symCx = modelData.symCx;
+        const armpitY = modelData.armpitY;
+        const crotchY = modelData.crotchY;
+        const armLCx0 = modelData.armLCx0;
+        const armRCx0 = modelData.armRCx0;
         const minY = modelData.minY;
         const maxY = modelData.maxY;
         const charSrcH = Math.max(100, maxY - minY);
 
-        // 화면에 표시할 캐릭터 높이 및 기본 너비
         const targetCharH = H * 0.88;
         const baseScale = targetCharH / charSrcH;
-        const targetBaseW = srcW * baseScale;
         const topDestY = (H - targetCharH) * 0.48 + floatY;
 
-        // 3D 회전 시 입체 원근감(Perspective Foreshortening & Parallax Shift)
-        const perspectiveSquash = 1 - Math.pow(Math.sin(yaw), 2) * 0.11;
-        const numSlices = 200;
+        // 3D 원통형 좌·우 반구 입체 원근 비율 (회전 시 카메라를 향하는 면은 확장되고 반대편 면은 자연스럽게 압축됨)
+        const perspectiveSquash = 1 - Math.pow(Math.sin(yaw), 2) * 0.10;
+        const cylAsym = Math.sin(yaw) * 0.16;
+        const scaleL = baseScale * perspectiveSquash * (1 + cylAsym);
+        const scaleR = baseScale * perspectiveSquash * (1 - cylAsym);
+
+        // 팔 스케일 함수 (허리·골반 슬라이더의 영향을 전혀 받지 않고 어깨 골격에만 연동!)
+        const getArmScale = (v) => {
+          if (v < 0.14) return 1.0;
+          return 1.0 + asymBell(v, 0.24, 0.09, 0.34) * (chestFactor - 1.0 + breath * 0.5);
+        };
+
+        const vArmpit = (armpitY - minY) / charSrcH;
+        const sArmpit = getArmScale(vArmpit);
+
+        // 하초(골반)나 중초(허리)가 상초(어깨)보다 넓을 때, 팔이 휘지 않고 어깨 관절에서 곧게 외전(Abduction)되도록 각도 부여
+        const hipExcess = Math.max(0, Math.max(pelvisFactor, waistFactor) - chestFactor);
+        const abductMaxSrcPx = hipExcess * 28.0;
+
+        const numSlices = 220;
         const sliceSrcH = charSrcH / numSlices;
         const sliceDestH = targetCharH / numSlices;
 
         for (let s = 0; s < numSlices; s++) {
-          const v = s / numSlices; // 0.0 (머리 끝) ~ 1.0 (발 끝)
+          const v = s / numSlices;
           const sy = minY + s * sliceSrcH;
+          const rowIdx = Math.min(srcH - 1, Math.round(sy));
 
-          // 해부학적 구간별 코사인 스무스 모핑 가중치 (실제 3D 모델의 어깨·허리·골반 높이에 정밀 매칭)
-          // 0.00 ~ 0.16: 얼굴·헤어 (왜곡 없이 연예인 이목구비 100% 보존!)
-          // 0.17 ~ 0.37: 상초 (어깨·쇄골·흉곽, 중심 v=0.26)
-          // 0.33 ~ 0.49: 중초 (허리·복부, 중심 v=0.40)
-          // 0.45 ~ 0.68: 하초 (골반·힙·허벅지, 중심 v=0.53)
-          const wUpper = smoothBell(v, 0.26, 0.11);
-          const wMiddle = smoothBell(v, 0.40, 0.10);
-          const wLower = smoothBell(v, 0.53, 0.13);
+          const wUpper = asymBell(v, 0.24, 0.09, 0.15);
+          const wMiddle = asymBell(v, 0.39, 0.14, 0.15);
+          const wLower = asymBell(v, 0.52, 0.15, 0.35);
 
-          let localStretch =
-            1 +
-            wUpper * (chestFactor - 1 + breath) +
-            wMiddle * (waistFactor - 1) +
-            wLower * (pelvisFactor - 1);
+          const sTorso =
+            v < 0.15
+              ? 1.0
+              : 1.0 +
+                wUpper * (chestFactor - 1.0 + breath) +
+                wMiddle * (waistFactor - 1.0) +
+                wLower * (pelvisFactor - 1.0);
 
-          // 얼굴·머리 영역은 원본 비율 100% 고정
-          if (v < 0.16) {
-            localStretch = 1.0;
-          }
+          const sArm = getArmScale(v);
 
-          // 3D 입체 회전 패럴랙스 (전면 돌출 부위가 회전 방향으로 부드럽게 입체 이동)
+          // 3D 원통형 입체 중심축 이동 (돌출 부위별 Z-깊이 반영)
           const depthZ =
             v < 0.16
-              ? 0.09 // 얼굴
+              ? 0.10
               : v < 0.35
-              ? 0.13 * chestFactor // 가슴(상초)
+              ? 0.14 * chestFactor
               : v < 0.48
-              ? 0.11 * waistFactor // 복부(중초)
+              ? 0.12 * waistFactor
               : v < 0.65
-              ? 0.12 * pelvisFactor // 골반(하초)
-              : 0.06; // 다리
+              ? 0.13 * pelvisFactor
+              : 0.07;
 
-          const parallaxShiftX = Math.sin(yaw) * depthZ * 82;
-          const destW = targetBaseW * localStretch * perspectiveSquash;
-          const destX = cx - destW * 0.5 + parallaxShiftX;
+          const centerScreenX = cx + Math.sin(yaw) * depthZ * 84;
           const destY = topDestY + s * sliceDestH;
+          const sh = sliceSrcH + 1.4;
+          const dh = sliceDestH + 1.15;
 
-          // 서브픽셀 틈새 방지를 위해 1.1px 오버랩 렌더링
-          ctx.drawImage(
-            srcCanvas,
-            0,
-            sy,
-            srcW,
-            sliceSrcH + 1.4,
-            destX,
-            destY,
-            destW,
-            sliceDestH + 1.1
-          );
+          if (sy <= armpitY) {
+            // 1) 겨드랑이 위(머리·목·어깨·상부 흉곽): 좌·우 원통형 반구로 매끄럽게 투영
+            const leftSrcW = symCx;
+            const rightSrcW = srcW - symCx;
+            const destWL = leftSrcW * sArm * scaleL;
+            const destWR = rightSrcW * sArm * scaleR;
 
-          // 몸통 어깨(상초 v≈0.25) 및 골반(하초 v≈0.52) 실제 윤곽 좌표 기록
-          const rowIdx = Math.min(srcH - 1, Math.round(sy));
-          const tLeft = modelData.torsoLeft[rowIdx] || 0.38;
-          const tRight = modelData.torsoRight[rowIdx] || 0.62;
+            ctx.drawImage(srcCanvas, 0, sy, leftSrcW, sh, centerScreenX - destWL, destY, destWL + 0.6, dh);
+            ctx.drawImage(srcCanvas, symCx, sy, rightSrcW, sh, centerScreenX - 0.3, destY, destWR + 0.3, dh);
+          } else if (sy <= 700) {
+            // 2) 겨드랑이 아래 ~ 손끝 구간: [왼팔+손] / [몸통(상·중·하초)] / [오른팔+손] 완벽 분리 렌더링!
+            // -> 몸통(허리·골반)이 아무리 변형되어도 양팔과 손은 100% 곧은 3D 골격 라인을 유지하여 절대 휘거나 꼬이지 않음!
+            const gapL = modelData.gapLeftArr[rowIdx];
+            const gapR = modelData.gapRightArr[rowIdx];
 
-          if (Math.abs(v - 0.25) < 0.004) {
-            shoulderLeftPx = destX + tLeft * destW;
-            shoulderRightPx = destX + tRight * destW;
+            // (A) 중앙 몸통 / 골반 / 대퇴부 상단 [gapL .. gapR]
+            if (sy <= crotchY) {
+              const tLeftSrcW = symCx - gapL;
+              const tRightSrcW = gapR - symCx;
+              const tDestWL = tLeftSrcW * sTorso * scaleL;
+              const tDestWR = tRightSrcW * sTorso * scaleR;
+
+              ctx.drawImage(srcCanvas, gapL, sy, tLeftSrcW, sh, centerScreenX - tDestWL, destY, tDestWL + 0.6, dh);
+              ctx.drawImage(srcCanvas, symCx, sy, tRightSrcW, sh, centerScreenX - 0.3, destY, tDestWR + 0.3, dh);
+            } else {
+              // 가랑이 아래 대퇴부: 좌·우 다리 중심축 독립 스케일링 (허벅지 사이 틈이 부자연스럽게 벌어지지 않도록 고정)
+              const legT = Math.min(1.0, (sy - crotchY) / 180.0);
+              const innerShiftSrc = (sTorso - 1.0) * 2.8 * legT;
+              const lLegSrcW = symCx - gapL;
+              const rLegSrcW = gapR - symCx;
+              const lLegDestW = lLegSrcW * sTorso * scaleL;
+              const rLegDestW = rLegSrcW * sTorso * scaleR;
+
+              ctx.drawImage(
+                srcCanvas,
+                gapL,
+                sy,
+                lLegSrcW,
+                sh,
+                centerScreenX - innerShiftSrc * scaleL - lLegDestW,
+                destY,
+                lLegDestW,
+                dh
+              );
+              ctx.drawImage(
+                srcCanvas,
+                symCx,
+                sy,
+                rLegSrcW,
+                sh,
+                centerScreenX + innerShiftSrc * scaleR,
+                destY,
+                rLegDestW,
+                dh
+              );
+            }
+
+            // (B) 좌·우 팔 & 손 [0 .. gapL] 및 [gapR .. srcW] (직선 골격 벡터 + 견관절 외전)
+            const armT = (sy - armpitY) / 360.0;
+            const abductShift = abductMaxSrcPx * armT;
+
+            const lArmSrcW = gapL;
+            const lArmDestW = lArmSrcW * sArm * scaleL;
+            const lArmOffsetSrc =
+              (armLCx0 - symCx) * sArmpit + (0 - armLCx0) * sArm - abductShift;
+            const lArmDestX = centerScreenX + lArmOffsetSrc * scaleL;
+            ctx.drawImage(srcCanvas, 0, sy, lArmSrcW, sh, lArmDestX, destY, lArmDestW, dh);
+
+            const rArmSrcW = srcW - gapR;
+            const rArmDestW = rArmSrcW * sArm * scaleR;
+            const rArmOffsetSrc =
+              (armRCx0 - symCx) * sArmpit + (gapR - armRCx0) * sArm + abductShift;
+            const rArmDestX = centerScreenX + rArmOffsetSrc * scaleR;
+            ctx.drawImage(srcCanvas, gapR, sy, rArmSrcW, sh, rArmDestX, destY, rArmDestW, dh);
+          } else {
+            // 3) 손끝 아래 하체(무릎·종아리·발): 좌·우 다리 독립 렌더링
+            const lLegSrcW = symCx;
+            const rLegSrcW = srcW - symCx;
+            const lLegDestW = lLegSrcW * sTorso * scaleL;
+            const rLegDestW = rLegSrcW * sTorso * scaleR;
+
+            ctx.drawImage(srcCanvas, 0, sy, lLegSrcW, sh, centerScreenX - lLegDestW, destY, lLegDestW, dh);
+            ctx.drawImage(srcCanvas, symCx, sy, rLegSrcW, sh, centerScreenX, destY, rLegDestW, dh);
+          }
+
+          // 어깨(상초 v≈0.24) 및 골반(하초 v≈0.52) 실제 몸통 윤곽 좌표 기록
+          const tLx = modelData.torsoLeft[rowIdx];
+          const tRx = modelData.torsoRight[rowIdx];
+
+          if (Math.abs(v - 0.24) < 0.004) {
+            shoulderLeftPx = centerScreenX + (tLx - symCx) * sTorso * scaleL;
+            shoulderRightPx = centerScreenX + (tRx - symCx) * sTorso * scaleR;
             shoulderPy = destY;
           }
           if (Math.abs(v - 0.52) < 0.004) {
-            pelvisLeftPx = destX + tLeft * destW;
-            pelvisRightPx = destX + tRight * destW;
+            pelvisLeftPx = centerScreenX + (tLx - symCx) * sTorso * scaleL;
+            pelvisRightPx = centerScreenX + (tRx - symCx) * sTorso * scaleR;
             pelvisPy = destY;
           }
         }
