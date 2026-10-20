@@ -19,7 +19,7 @@ const BODY_PRESETS = {
   soeum: { label: '소음인 체형', desc: '골반·하초 안정 · 상체 슬림', chest: 42, waist: 46, pelvis: 78 },
 };
 
-// ── 프리베이크된 32-bit RGBA 3D 캐릭터 에셋 로더 & 해부학적 윤곽선 측정기 ──
+// ── 정면(0°)·후면(180°) 32-bit RGBA 3D 캐릭터 에셋 로더 & 해부학적 윤곽선 측정기 ──
 function prepareRiggedCharacterData(img, isFemale) {
   const w = img.naturalWidth || img.width;
   const h = img.naturalHeight || img.height;
@@ -65,7 +65,6 @@ function prepareRiggedCharacterData(img, isFemale) {
   const gapRightArr = new Float32Array(h);
 
   for (let y = 0; y < h; y++) {
-    // 선형 보간으로 y행의 좌·우 팔-몸통 경계(빈 공간) 계산
     let gl = gapKps[0][1];
     let gr = gapKps[0][2];
     for (let k = 0; k < gapKps.length - 1; k++) {
@@ -93,7 +92,6 @@ function prepareRiggedCharacterData(img, isFemale) {
       if (y > maxY) maxY = y;
     }
 
-    // 몸통 구간(gl ~ gr) 내에서 실제 몸통 좌·우 외곽 픽셀 위치 측정
     let lx = Math.round(gl);
     const maxLx = symCx - 10;
     while (lx < maxLx && d[(y * w + lx) * 4 + 3] <= 35) lx++;
@@ -128,8 +126,70 @@ function prepareRiggedCharacterData(img, isFemale) {
   };
 }
 
+// ── 우측면(90°)·좌측면(270°) 32-bit RGBA 3D 캐릭터 로더 & 전·후방 측면 윤곽선 측정기 ──
+function prepareSideCharacterData(img) {
+  const w = img.naturalWidth || img.width;
+  const h = img.naturalHeight || img.height;
+
+  // 90° 우측면 캔버스 (오른쪽을 바라보는 측면)
+  const offRight = document.createElement('canvas');
+  offRight.width = w;
+  offRight.height = h;
+  const ctxR = offRight.getContext('2d');
+  ctxR.drawImage(img, 0, 0);
+
+  // 270° 좌측면 캔버스 (왼쪽을 바라보는 측면 - 좌우 미러)
+  const offLeft = document.createElement('canvas');
+  offLeft.width = w;
+  offLeft.height = h;
+  const ctxL = offLeft.getContext('2d');
+  ctxL.save();
+  ctxL.translate(w, 0);
+  ctxL.scale(-1, 1);
+  ctxL.drawImage(img, 0, 0);
+  ctxL.restore();
+
+  const imgData = ctxR.getImageData(0, 0, w, h);
+  const d = imgData.data;
+
+  let minY = h;
+  let maxY = 0;
+  const edgeLeft = new Float32Array(h);
+  const edgeRight = new Float32Array(h);
+  const symCx = 452;
+
+  for (let y = 0; y < h; y++) {
+    let lx = 0;
+    while (lx < w && d[(y * w + lx) * 4 + 3] <= 35) lx++;
+    let rx = w - 1;
+    while (rx >= 0 && d[(y * w + rx) * 4 + 3] <= 35) rx--;
+
+    if (rx > lx) {
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+      edgeLeft[y] = lx;
+      edgeRight[y] = rx;
+    } else {
+      edgeLeft[y] = symCx - 55;
+      edgeRight[y] = symCx + 55;
+    }
+  }
+
+  return {
+    canvasRight: offRight,
+    canvasLeft: offLeft,
+    width: w,
+    height: h,
+    symCx,
+    minY: minY < maxY ? minY : 50,
+    maxY: maxY > minY ? maxY : h - 50,
+    edgeLeft,
+    edgeRight,
+  };
+}
+
 // ============================================================================
-// High-End 3D Celebrity Character Simulator (200-Slice Mesh Deformation + 3D Motion)
+// High-End 360° 3D Celebrity Character Simulator (정면 0° · 우측면 90° · 후면 180° · 좌측면 270°)
 // ============================================================================
 const Sasang3DBodyModel = ({
   gender,
@@ -140,11 +200,16 @@ const Sasang3DBodyModel = ({
   onSelectPreset,
 }) => {
   const canvasRef = useRef(null);
-  const processedModelsRef = useRef({ male: null, female: null });
+  const processedModelsRef = useRef({
+    male: { front: null, side: null, back: null },
+    female: { front: null, side: null, back: null },
+  });
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [autoRotate, setAutoRotate] = useState(true);
-  const [targetYaw, setTargetYaw] = useState(0.28);
-  const yawRef = useRef(0.28);
+  const [angleDegUI, setAngleDegUI] = useState(0);
+  const targetYawRef = useRef(0);
+  const yawRef = useRef(0);
+  const lastFrameTimeRef = useRef(null);
   const isDraggingRef = useRef(false);
   const lastXRef = useRef(0);
   const animSmoothRef = useRef({
@@ -153,28 +218,34 @@ const Sasang3DBodyModel = ({
     pelvis: pelvisWidth,
   });
 
-  // 3D 남·여 연예인급 모델 이미지 프리로드 및 해부학적 리깅 데이터 준비
+  // 360° 남·여 3D 캐릭터(정면 0° / 측면 90°·270° / 후면 180°) 프리로드
   useEffect(() => {
     let mounted = true;
-    const loadModel = (key, src, isFemale) =>
+    const loadImg = (src) =>
       new Promise((resolve) => {
         const img = new Image();
         img.crossOrigin = 'anonymous';
-        img.onload = () => {
-          if (mounted) {
-            processedModelsRef.current[key] = prepareRiggedCharacterData(img, isFemale);
-          }
-          resolve();
-        };
-        img.onerror = () => resolve();
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(null);
         img.src = src;
       });
 
     Promise.all([
-      loadModel('male', '/assets/sasang/male_3d_model.png', false),
-      loadModel('female', '/assets/sasang/female_3d_model.png', true),
-    ]).then(() => {
-      if (mounted) setModelsLoaded(true);
+      loadImg('/assets/sasang/male_3d_model.png'),
+      loadImg('/assets/sasang/male_3d_side.png'),
+      loadImg('/assets/sasang/male_3d_back.png'),
+      loadImg('/assets/sasang/female_3d_model.png'),
+      loadImg('/assets/sasang/female_3d_side.png'),
+      loadImg('/assets/sasang/female_3d_back.png'),
+    ]).then(([mFront, mSide, mBack, fFront, fSide, fBack]) => {
+      if (!mounted) return;
+      if (mFront) processedModelsRef.current.male.front = prepareRiggedCharacterData(mFront, false);
+      if (mSide) processedModelsRef.current.male.side = prepareSideCharacterData(mSide);
+      if (mBack) processedModelsRef.current.male.back = prepareRiggedCharacterData(mBack, false);
+      if (fFront) processedModelsRef.current.female.front = prepareRiggedCharacterData(fFront, true);
+      if (fSide) processedModelsRef.current.female.side = prepareSideCharacterData(fSide);
+      if (fBack) processedModelsRef.current.female.back = prepareRiggedCharacterData(fBack, true);
+      setModelsLoaded(true);
     });
 
     return () => {
@@ -193,13 +264,22 @@ const Sasang3DBodyModel = ({
       ? '하초 발달 안정 체형 (소음형)'
       : '상·중·하초 균형 체형';
 
+  // 특정 각도(도, 0~360)로 즉시/부드럽게 회전 이동
+  const setAngleDegrees = (deg) => {
+    const normDeg = ((deg % 360) + 360) % 360;
+    const rad = (normDeg * Math.PI) / 180;
+    setAutoRotate(false);
+    targetYawRef.current = rad;
+    setAngleDegUI(Math.round(normDeg));
+  };
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     let rafId;
     let startTime = performance.now();
+    const TWO_PI = Math.PI * 2;
 
-    // 비대칭 코사인 벨 커브 가중치 함수 (상·중·하초 및 대퇴부 곡선을 끊김 없이 매끄럽게 연결)
     const asymBell = (v, center, halfUp, halfDown) => {
       const d = v - center;
       const halfW = d >= 0 ? halfDown : halfUp;
@@ -207,8 +287,13 @@ const Sasang3DBodyModel = ({
       return 0.5 * (1 + Math.cos((Math.abs(d) / halfW) * Math.PI));
     };
 
+    const wrapSignedAngle = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+
     const render = (now) => {
       const dt = (now - startTime) * 0.001;
+      const frameDelta = lastFrameTimeRef.current ? Math.min(0.05, (now - lastFrameTimeRef.current) * 0.001) : 0.016;
+      lastFrameTimeRef.current = now;
+
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const displayW = canvas.clientWidth || 340;
       const displayH = canvas.clientHeight || 390;
@@ -233,30 +318,31 @@ const Sasang3DBodyModel = ({
       animSmoothRef.current.waist += (waistWidth - animSmoothRef.current.waist) * 0.14;
       animSmoothRef.current.pelvis += (pelvisWidth - animSmoothRef.current.pelvis) * 0.14;
 
-      const cVal = animSmoothRef.current.chest; // 25 ~ 90 (기준 56)
-      const wVal = animSmoothRef.current.waist; // 25 ~ 90 (기준 52)
-      const pVal = animSmoothRef.current.pelvis; // 25 ~ 90 (기준 54)
+      const cVal = animSmoothRef.current.chest;
+      const wVal = animSmoothRef.current.waist;
+      const pVal = animSmoothRef.current.pelvis;
 
-      // 해부학적으로 가장 자연스럽고 유려한 3D 체형 모핑 배율
       const chestFactor = 1 + (cVal - 56) * 0.0046;
       const waistFactor = 1 + (wVal - 52) * 0.0048;
       const pelvisFactor = 1 + (pVal - 54) * 0.0048;
 
-      // 3D 회전 각도 업데이트
+      // 360° 연속 턴테이블 회전 업데이트 (0° → 90° 우측면 → 180° 후면 → 270° 좌측면 → 360°)
       if (autoRotate && !isDraggingRef.current) {
-        yawRef.current = Math.sin(dt * 1.05) * 0.42; // 부드러운 좌우 3D 입체 턴테이블 스윙
+        yawRef.current = (yawRef.current + frameDelta * 0.58) % TWO_PI;
+        targetYawRef.current = yawRef.current;
       } else if (!isDraggingRef.current) {
-        yawRef.current += (targetYaw - yawRef.current) * 0.14;
+        const diff = wrapSignedAngle(targetYawRef.current - yawRef.current);
+        yawRef.current = ((yawRef.current + diff * 0.16) % TWO_PI + TWO_PI) % TWO_PI;
       }
 
-      const yaw = yawRef.current;
+      const yaw = ((yawRef.current % TWO_PI) + TWO_PI) % TWO_PI;
+      const curDeg = Math.round((yaw * 180) / Math.PI) % 360;
       const pitch = 0.12;
       const cosY = Math.cos(yaw);
       const sinY = Math.sin(yaw);
       const cosP = Math.cos(pitch);
       const sinP = Math.sin(pitch);
 
-      // 호흡 모션 (숨쉬듯 자연스럽게 흉곽이 오르내림)
       const breath = Math.sin(dt * 2.4) * 0.008;
       const floatY = Math.sin(dt * 2.4) * 2.0;
 
@@ -283,8 +369,7 @@ const Sasang3DBodyModel = ({
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, W, H);
 
-      // 캐릭터 후면 림라이트 오라(Aura)
-      const auraX = cx + Math.sin(yaw) * 14;
+      const auraX = cx + Math.sin(yaw) * 10;
       const auraGrad = ctx.createRadialGradient(auraX, cy - 28, 12, auraX, cy - 28, scale3D * 0.96);
       auraGrad.addColorStop(0, 'rgba(212, 175, 55, 0.24)');
       auraGrad.addColorStop(0.48, gender === 'female' ? 'rgba(244, 143, 177, 0.11)' : 'rgba(100, 181, 246, 0.11)');
@@ -294,11 +379,11 @@ const Sasang3DBodyModel = ({
       ctx.arc(auraX, cy - 28, scale3D * 0.96, 0, Math.PI * 2);
       ctx.fill();
 
-      // ── 2. 3D 홀로그램 바닥 포디움(Pedestal) ──
+      // ── 2. 3D 홀로그램 바닥 360° 나침반 포디움(Pedestal) ──
       [0.52, 0.37].forEach((rad, rIdx) => {
         ctx.beginPath();
         for (let i = 0; i <= 50; i++) {
-          const ang = (i / 50) * Math.PI * 2 + dt * (rIdx === 0 ? 0.35 : -0.25);
+          const ang = (i / 50) * TWO_PI + (rIdx === 0 ? yaw : -yaw * 0.5);
           const pt = projectRing3D(Math.cos(ang) * rad, 0.91, Math.sin(ang) * rad);
           if (i === 0) ctx.moveTo(pt.px, pt.py);
           else ctx.lineTo(pt.px, pt.py);
@@ -312,11 +397,11 @@ const Sasang3DBodyModel = ({
         ctx.stroke();
       });
 
-      // ── 3. 상·중·하초 3D 입체 링 정의 & 후면(z < 0) 렌더링 ──
+      // ── 3. 상·중·하초 360° 3D 입체 타원 링 정의 (가로폭 rx & 전후두께 rz 동시 반영) ──
       const ringZones = [
-        { y: -0.34, rx: 0.23 * chestFactor, rz: 0.15 * chestFactor, col: '#00E676', label: '상초' },
-        { y: -0.11, rx: 0.19 * waistFactor, rz: 0.13 * waistFactor, col: '#FFB74D', label: '중초' },
-        { y: 0.09, rx: 0.22 * pelvisFactor, rz: 0.15 * pelvisFactor, col: '#4FC3F7', label: '하초' },
+        { y: -0.34, rx: 0.23 * chestFactor, rz: 0.16 * chestFactor, col: '#00E676', label: '상초' },
+        { y: -0.11, rx: 0.19 * waistFactor, rz: 0.14 * waistFactor, col: '#FFB74D', label: '중초' },
+        { y: 0.09, rx: 0.22 * pelvisFactor, rz: 0.16 * pelvisFactor, col: '#4FC3F7', label: '하초' },
       ];
 
       const drawZoneRingsHalf = (frontHalf) => {
@@ -324,7 +409,7 @@ const Sasang3DBodyModel = ({
           ctx.beginPath();
           let started = false;
           for (let i = 0; i <= 64; i++) {
-            const ang = (i / 64) * Math.PI * 2;
+            const ang = (i / 64) * TWO_PI;
             const pt = projectRing3D(Math.cos(ang) * zr.rx, zr.y, Math.sin(ang) * zr.rz);
             const isFront = pt.z >= 0;
             if (isFront === frontHalf) {
@@ -346,20 +431,27 @@ const Sasang3DBodyModel = ({
         });
       };
 
-      // 캐릭터 뒤쪽 링 먼저 그리기
       drawZoneRingsHalf(false);
 
-      // ── 4. 해부학적 3D 골격 분리 리깅(Skeletal Arm-Torso-Leg Separation) & 원통형 3D 입체 투영 렌더링 ──
-      const modelData = processedModelsRef.current[gender] || processedModelsRef.current.male;
+      // ── 4. 360° 전방위(정면 0° / 우측면 90° / 후면 180° / 좌측면 270°) 해부학 리깅 렌더링 ──
+      const genderSet = processedModelsRef.current[gender] || processedModelsRef.current.male;
 
       let shoulderLeftPx = cx - 48;
       let shoulderRightPx = cx + 48;
       let shoulderPy = cy - 75;
+      let waistFrontPx = cx + 30;
+      let waistBackPx = cx - 30;
+      let waistPy = cy - 22;
       let pelvisLeftPx = cx - 42;
       let pelvisRightPx = cx + 42;
       let pelvisPy = cy + 16;
 
-      if (modelData && modelData.canvas) {
+      // (4-A) 정면(0°) 및 후면(180°) 3D 골격 분리 렌더러 (팔·손 꼬임 0%)
+      const renderFrontOrBackView = (modelData, localYaw, viewAlpha) => {
+        if (!modelData || !modelData.canvas || viewAlpha <= 0.01) return;
+        ctx.save();
+        ctx.globalAlpha = viewAlpha;
+
         const srcCanvas = modelData.canvas;
         const srcW = modelData.width;
         const srcH = modelData.height;
@@ -376,13 +468,12 @@ const Sasang3DBodyModel = ({
         const baseScale = targetCharH / charSrcH;
         const topDestY = (H - targetCharH) * 0.48 + floatY;
 
-        // 3D 원통형 좌·우 반구 입체 원근 비율 (회전 시 카메라를 향하는 면은 확장되고 반대편 면은 자연스럽게 압축됨)
-        const perspectiveSquash = 1 - Math.pow(Math.sin(yaw), 2) * 0.10;
-        const cylAsym = Math.sin(yaw) * 0.16;
+        const clampedYaw = Math.max(-0.62, Math.min(0.62, localYaw));
+        const perspectiveSquash = Math.max(0.76, Math.cos(clampedYaw * 0.72));
+        const cylAsym = Math.sin(clampedYaw) * 0.18;
         const scaleL = baseScale * perspectiveSquash * (1 + cylAsym);
         const scaleR = baseScale * perspectiveSquash * (1 - cylAsym);
 
-        // 팔 스케일 함수 (허리·골반 슬라이더의 영향을 전혀 받지 않고 어깨 골격에만 연동!)
         const getArmScale = (v) => {
           if (v < 0.14) return 1.0;
           return 1.0 + asymBell(v, 0.24, 0.09, 0.34) * (chestFactor - 1.0 + breath * 0.5);
@@ -390,12 +481,10 @@ const Sasang3DBodyModel = ({
 
         const vArmpit = (armpitY - minY) / charSrcH;
         const sArmpit = getArmScale(vArmpit);
-
-        // 하초(골반)나 중초(허리)가 상초(어깨)보다 넓을 때, 팔이 휘지 않고 어깨 관절에서 곧게 외전(Abduction)되도록 각도 부여
         const hipExcess = Math.max(0, Math.max(pelvisFactor, waistFactor) - chestFactor);
         const abductMaxSrcPx = hipExcess * 28.0;
 
-        const numSlices = 220;
+        const numSlices = 200;
         const sliceSrcH = charSrcH / numSlices;
         const sliceDestH = targetCharH / numSlices;
 
@@ -418,7 +507,6 @@ const Sasang3DBodyModel = ({
 
           const sArm = getArmScale(v);
 
-          // 3D 원통형 입체 중심축 이동 (돌출 부위별 Z-깊이 반영)
           const depthZ =
             v < 0.16
               ? 0.10
@@ -430,13 +518,12 @@ const Sasang3DBodyModel = ({
               ? 0.13 * pelvisFactor
               : 0.07;
 
-          const centerScreenX = cx + Math.sin(yaw) * depthZ * 84;
+          const centerScreenX = cx + Math.sin(clampedYaw) * depthZ * 72;
           const destY = topDestY + s * sliceDestH;
           const sh = sliceSrcH + 1.4;
           const dh = sliceDestH + 1.15;
 
           if (sy <= armpitY) {
-            // 1) 겨드랑이 위(머리·목·어깨·상부 흉곽): 좌·우 원통형 반구로 매끄럽게 투영
             const leftSrcW = symCx;
             const rightSrcW = srcW - symCx;
             const destWL = leftSrcW * sArm * scaleL;
@@ -445,12 +532,9 @@ const Sasang3DBodyModel = ({
             ctx.drawImage(srcCanvas, 0, sy, leftSrcW, sh, centerScreenX - destWL, destY, destWL + 0.6, dh);
             ctx.drawImage(srcCanvas, symCx, sy, rightSrcW, sh, centerScreenX - 0.3, destY, destWR + 0.3, dh);
           } else if (sy <= 700) {
-            // 2) 겨드랑이 아래 ~ 손끝 구간: [왼팔+손] / [몸통(상·중·하초)] / [오른팔+손] 완벽 분리 렌더링!
-            // -> 몸통(허리·골반)이 아무리 변형되어도 양팔과 손은 100% 곧은 3D 골격 라인을 유지하여 절대 휘거나 꼬이지 않음!
             const gapL = modelData.gapLeftArr[rowIdx];
             const gapR = modelData.gapRightArr[rowIdx];
 
-            // (A) 중앙 몸통 / 골반 / 대퇴부 상단 [gapL .. gapR]
             if (sy <= crotchY) {
               const tLeftSrcW = symCx - gapL;
               const tRightSrcW = gapR - symCx;
@@ -460,7 +544,6 @@ const Sasang3DBodyModel = ({
               ctx.drawImage(srcCanvas, gapL, sy, tLeftSrcW, sh, centerScreenX - tDestWL, destY, tDestWL + 0.6, dh);
               ctx.drawImage(srcCanvas, symCx, sy, tRightSrcW, sh, centerScreenX - 0.3, destY, tDestWR + 0.3, dh);
             } else {
-              // 가랑이 아래 대퇴부: 좌·우 다리 중심축 독립 스케일링 (허벅지 사이 틈이 부자연스럽게 벌어지지 않도록 고정)
               const legT = Math.min(1.0, (sy - crotchY) / 180.0);
               const innerShiftSrc = (sTorso - 1.0) * 2.8 * legT;
               const lLegSrcW = symCx - gapL;
@@ -492,7 +575,6 @@ const Sasang3DBodyModel = ({
               );
             }
 
-            // (B) 좌·우 팔 & 손 [0 .. gapL] 및 [gapR .. srcW] (직선 골격 벡터 + 견관절 외전)
             const armT = (sy - armpitY) / 360.0;
             const abductShift = abductMaxSrcPx * armT;
 
@@ -510,7 +592,6 @@ const Sasang3DBodyModel = ({
             const rArmDestX = centerScreenX + rArmOffsetSrc * scaleR;
             ctx.drawImage(srcCanvas, gapR, sy, rArmSrcW, sh, rArmDestX, destY, rArmDestW, dh);
           } else {
-            // 3) 손끝 아래 하체(무릎·종아리·발): 좌·우 다리 독립 렌더링
             const lLegSrcW = symCx;
             const rLegSrcW = srcW - symCx;
             const lLegDestW = lLegSrcW * sTorso * scaleL;
@@ -520,65 +601,238 @@ const Sasang3DBodyModel = ({
             ctx.drawImage(srcCanvas, symCx, sy, rLegSrcW, sh, centerScreenX, destY, rLegDestW, dh);
           }
 
-          // 어깨(상초 v≈0.24) 및 골반(하초 v≈0.52) 실제 몸통 윤곽 좌표 기록
-          const tLx = modelData.torsoLeft[rowIdx];
-          const tRx = modelData.torsoRight[rowIdx];
-
-          if (Math.abs(v - 0.24) < 0.004) {
-            shoulderLeftPx = centerScreenX + (tLx - symCx) * sTorso * scaleL;
-            shoulderRightPx = centerScreenX + (tRx - symCx) * sTorso * scaleR;
-            shoulderPy = destY;
-          }
-          if (Math.abs(v - 0.52) < 0.004) {
-            pelvisLeftPx = centerScreenX + (tLx - symCx) * sTorso * scaleL;
-            pelvisRightPx = centerScreenX + (tRx - symCx) * sTorso * scaleR;
-            pelvisPy = destY;
+          if (viewAlpha >= 0.5) {
+            const tLx = modelData.torsoLeft[rowIdx];
+            const tRx = modelData.torsoRight[rowIdx];
+            if (Math.abs(v - 0.24) < 0.005) {
+              shoulderLeftPx = centerScreenX + (tLx - symCx) * sTorso * scaleL;
+              shoulderRightPx = centerScreenX + (tRx - symCx) * sTorso * scaleR;
+              shoulderPy = destY;
+            }
+            if (Math.abs(v - 0.52) < 0.005) {
+              pelvisLeftPx = centerScreenX + (tLx - symCx) * sTorso * scaleL;
+              pelvisRightPx = centerScreenX + (tRx - symCx) * sTorso * scaleR;
+              pelvisPy = destY;
+            }
           }
         }
-      }
+
+        ctx.restore();
+      };
+
+      // (4-B) 우측면(90°) 및 좌측면(270°) 전·후방 체형 입체 두께(가슴·복부·둔부) 모핑 렌더러
+      const renderSideProfileView = (sideData, isLeftProfile, localYaw, viewAlpha) => {
+        if (!sideData || viewAlpha <= 0.01) return;
+        const srcCanvas = isLeftProfile ? sideData.canvasLeft : sideData.canvasRight;
+        if (!srcCanvas) return;
+
+        ctx.save();
+        ctx.globalAlpha = viewAlpha;
+
+        const srcW = sideData.width;
+        const srcH = sideData.height;
+        const symCx = isLeftProfile ? srcW - sideData.symCx : sideData.symCx;
+        const minY = sideData.minY;
+        const maxY = sideData.maxY;
+        const charSrcH = Math.max(100, maxY - minY);
+
+        const targetCharH = H * 0.88;
+        const baseScale = targetCharH / charSrcH;
+        const topDestY = (H - targetCharH) * 0.48 + floatY;
+
+        const clampedYaw = Math.max(-0.62, Math.min(0.62, localYaw));
+        const perspectiveSquash = Math.max(0.78, Math.cos(clampedYaw * 0.7));
+        const cylAsym = Math.sin(clampedYaw) * 0.15;
+        const scaleLeftHalf = baseScale * perspectiveSquash * (1 + cylAsym);
+        const scaleRightHalf = baseScale * perspectiveSquash * (1 - cylAsym);
+
+        // 상초(흉곽 전후두께), 중초(복부 돌출·만곡), 하초(둔부·골반 전후 볼륨) 편차
+        const cDev = (cVal - 56) * 0.0052;
+        const wDev = (wVal - 52) * 0.0058;
+        const pDev = (pVal - 54) * 0.0058;
+
+        const numSlices = 200;
+        const sliceSrcH = charSrcH / numSlices;
+        const sliceDestH = targetCharH / numSlices;
+
+        for (let s = 0; s < numSlices; s++) {
+          const v = s / numSlices;
+          const sy = minY + s * sliceSrcH;
+          const rowIdx = Math.min(srcH - 1, Math.round(sy));
+
+          let sPost = 1.0; // 등·허리·둔부(Posterior) 확장 배율
+          let sAnt = 1.0;  // 가슴·복부·대퇴전면(Anterior) 확장 배율
+
+          if (v >= 0.16) {
+            const wUp = asymBell(v, 0.26, 0.10, 0.16);
+            const wMid = asymBell(v, 0.40, 0.14, 0.15);
+            const wLow = asymBell(v, 0.53, 0.15, 0.35);
+
+            sPost = 1.0 + wUp * (cDev * 0.85 + breath * 0.4) + wMid * wDev * 0.55 + wLow * pDev * 1.28;
+            sAnt = 1.0 + wUp * (cDev * 1.22 + breath) + wMid * wDev * 1.38 + wLow * pDev * 0.75;
+          }
+
+          // 90° 우측면(오른쪽 응시): 좌측 반구가 후방(등·둔부), 우측 반구가 전방(가슴·복부)
+          // 270° 좌측면(왼쪽 응시): 좌측 반구가 전방(가슴·복부), 우측 반구가 후방(등·둔부)
+          const sLeftHalf = isLeftProfile ? sAnt : sPost;
+          const sRightHalf = isLeftProfile ? sPost : sAnt;
+
+          const centerScreenX = cx + Math.sin(clampedYaw) * 9.0;
+          const destY = topDestY + s * sliceDestH;
+          const sh = sliceSrcH + 1.4;
+          const dh = sliceDestH + 1.15;
+
+          const leftSrcW = symCx;
+          const rightSrcW = srcW - symCx;
+          const destWL = leftSrcW * sLeftHalf * scaleLeftHalf;
+          const destWR = rightSrcW * sRightHalf * scaleRightHalf;
+
+          ctx.drawImage(srcCanvas, 0, sy, leftSrcW, sh, centerScreenX - destWL, destY, destWL + 0.6, dh);
+          ctx.drawImage(srcCanvas, symCx, sy, rightSrcW, sh, centerScreenX - 0.3, destY, destWR + 0.3, dh);
+
+          if (viewAlpha >= 0.5) {
+            const rawL = sideData.edgeLeft[rowIdx];
+            const rawR = sideData.edgeRight[rowIdx];
+            const eLx = isLeftProfile ? srcW - rawR : rawL;
+            const eRx = isLeftProfile ? srcW - rawL : rawR;
+
+            if (Math.abs(v - 0.26) < 0.005) {
+              shoulderLeftPx = centerScreenX + (eLx - symCx) * sLeftHalf * scaleLeftHalf;
+              shoulderRightPx = centerScreenX + (eRx - symCx) * sRightHalf * scaleRightHalf;
+              shoulderPy = destY;
+            }
+            if (Math.abs(v - 0.40) < 0.005) {
+              waistBackPx = centerScreenX + (eLx - symCx) * sLeftHalf * scaleLeftHalf;
+              waistFrontPx = centerScreenX + (eRx - symCx) * sRightHalf * scaleRightHalf;
+              waistPy = destY;
+            }
+            if (Math.abs(v - 0.53) < 0.005) {
+              pelvisLeftPx = centerScreenX + (eLx - symCx) * sLeftHalf * scaleLeftHalf;
+              pelvisRightPx = centerScreenX + (eRx - symCx) * sRightHalf * scaleRightHalf;
+              pelvisPy = destY;
+            }
+          }
+        }
+
+        ctx.restore();
+      };
+
+      // 4방향 카디널 뷰(0° 정면, 90° 우측면, 180° 후면, 270° 좌측면) 가중치 계산 및 연속 360° 블렌딩
+      const cardinals = [
+        { angle: 0, type: 'front' },
+        { angle: Math.PI * 0.5, type: 'sideRight' },
+        { angle: Math.PI, type: 'back' },
+        { angle: Math.PI * 1.5, type: 'sideLeft' },
+      ];
+
+      cardinals.forEach((c) => {
+        const delta = wrapSignedAngle(yaw - c.angle);
+        const absD = Math.abs(delta);
+        if (absD >= Math.PI * 0.5) return;
+
+        // 각 카디널 중심(±22°)에서는 100% 선명하게 표시하고, 대각선 구간(22°~68°)에서 코사인 입체 블렌딩
+        const holdRad = 0.38;
+        const fadeEndRad = Math.PI * 0.5 - 0.38;
+        let alpha = 1.0;
+        if (absD > holdRad) {
+          const t = Math.min(1.0, (absD - holdRad) / Math.max(0.01, fadeEndRad - holdRad));
+          alpha = 0.5 * (1.0 + Math.cos(t * Math.PI));
+        }
+
+        if (c.type === 'front') {
+          renderFrontOrBackView(genderSet.front, delta, alpha);
+        } else if (c.type === 'back') {
+          renderFrontOrBackView(genderSet.back || genderSet.front, delta, alpha);
+        } else if (c.type === 'sideRight') {
+          renderSideProfileView(genderSet.side, false, delta, alpha);
+        } else if (c.type === 'sideLeft') {
+          renderSideProfileView(genderSet.side, true, delta, alpha);
+        }
+      });
 
       // ── 5. 상·중·하초 3D 입체 링 전면(z >= 0) 렌더링 ──
       drawZoneRingsHalf(true);
 
-      // ── 6. 상·하초 체형 경사각(Angle Vector) 가이드 라인 & 측정 수치 HUD ──
+      // ── 6. 정면·후면(좌우 경사각) 및 좌·우 측면(전후 입체 굴곡선) 가이드 라인 & 측정 수치 HUD ──
+      const isSideDominant =
+        (curDeg >= 45 && curDeg <= 135) || (curDeg >= 225 && curDeg <= 315);
+
       ctx.save();
       ctx.setLineDash([5, 3]);
       ctx.strokeStyle = '#FFD700';
       ctx.lineWidth = 2.0;
       ctx.beginPath();
-      ctx.moveTo(shoulderLeftPx - 2, shoulderPy);
-      ctx.lineTo(pelvisLeftPx - 2, pelvisPy);
-      ctx.moveTo(shoulderRightPx + 2, shoulderPy);
-      ctx.lineTo(pelvisRightPx + 2, pelvisPy);
+      if (isSideDominant) {
+        // 측면(90° / 270°) 뷰: 전방(가슴-복부-골반) 및 후방(등-허리-둔부) 입체 굴곡 라인 표시
+        ctx.moveTo(shoulderLeftPx, shoulderPy);
+        ctx.lineTo(waistBackPx, waistPy);
+        ctx.lineTo(pelvisLeftPx, pelvisPy);
+        ctx.moveTo(shoulderRightPx, shoulderPy);
+        ctx.lineTo(waistFrontPx, waistPy);
+        ctx.lineTo(pelvisRightPx, pelvisPy);
+      } else {
+        // 정면(0°) / 후면(180°) 뷰: 좌·우 상하초 체형 경사각 라인 표시
+        ctx.moveTo(shoulderLeftPx - 2, shoulderPy);
+        ctx.lineTo(pelvisLeftPx - 2, pelvisPy);
+        ctx.moveTo(shoulderRightPx + 2, shoulderPy);
+        ctx.lineTo(pelvisRightPx + 2, pelvisPy);
+      }
       ctx.stroke();
       ctx.setLineDash([]);
 
-      [
-        [shoulderLeftPx - 2, shoulderPy, '#00E676'],
-        [shoulderRightPx + 2, shoulderPy, '#00E676'],
-        [pelvisLeftPx - 2, pelvisPy, '#4FC3F7'],
-        [pelvisRightPx + 2, pelvisPy, '#4FC3F7'],
-      ].forEach(([px, py, col]) => {
+      const guideNodes = isSideDominant
+        ? [
+            [shoulderLeftPx, shoulderPy, '#00E676'],
+            [shoulderRightPx, shoulderPy, '#00E676'],
+            [waistBackPx, waistPy, '#FFB74D'],
+            [waistFrontPx, waistPy, '#FFB74D'],
+            [pelvisLeftPx, pelvisPy, '#4FC3F7'],
+            [pelvisRightPx, pelvisPy, '#4FC3F7'],
+          ]
+        : [
+            [shoulderLeftPx - 2, shoulderPy, '#00E676'],
+            [shoulderRightPx + 2, shoulderPy, '#00E676'],
+            [pelvisLeftPx - 2, pelvisPy, '#4FC3F7'],
+            [pelvisRightPx + 2, pelvisPy, '#4FC3F7'],
+          ];
+
+      guideNodes.forEach(([px, py, col]) => {
         ctx.fillStyle = col;
         ctx.beginPath();
-        ctx.arc(px, py, 4.5, 0, Math.PI * 2);
+        ctx.arc(px, py, 4.2, 0, TWO_PI);
         ctx.fill();
         ctx.strokeStyle = '#000';
         ctx.lineWidth = 1.2;
         ctx.stroke();
       });
 
-      // 좌측 상단 체형 각도 HUD
-      ctx.fillStyle = 'rgba(10, 12, 18, 0.86)';
-      ctx.fillRect(10, 10, 152, 44);
-      ctx.strokeStyle = 'rgba(212, 175, 55, 0.5)';
-      ctx.strokeRect(10, 10, 152, 44);
+      // 현재 360° 방향 라벨
+      const dirLabel =
+        curDeg >= 315 || curDeg < 45
+          ? `정면 ${curDeg}°`
+          : curDeg >= 45 && curDeg < 135
+          ? `우측면 ${curDeg}°`
+          : curDeg >= 135 && curDeg < 225
+          ? `후면 ${curDeg}°`
+          : `좌측면 ${curDeg}°`;
+
+      // 좌측 상단 360° 각도 및 체형 경사각 HUD
+      ctx.fillStyle = 'rgba(10, 12, 18, 0.88)';
+      ctx.fillRect(10, 10, 166, 48);
+      ctx.strokeStyle = 'rgba(212, 175, 55, 0.55)';
+      ctx.strokeRect(10, 10, 166, 48);
       ctx.font = 'bold 10px Montserrat, Pretendard, sans-serif';
       ctx.fillStyle = '#D4AF37';
-      ctx.fillText(gender === 'female' ? '3D FEMALE CELEBRITY' : '3D MALE CELEBRITY', 18, 25);
-      ctx.font = 'bold 12px Pretendard, sans-serif';
+      ctx.fillText(`360° VIEW · ${dirLabel}`, 18, 25);
+      ctx.font = 'bold 11.5px Pretendard, sans-serif';
       ctx.fillStyle = '#fff';
-      ctx.fillText(`체형 경사각: ${taperAngleDeg > 0 ? `+${taperAngleDeg}°` : `${taperAngleDeg}°`}`, 18, 44);
+      ctx.fillText(
+        isSideDominant
+          ? `측면 입체굴곡: 상${chestWidth}·중${waistWidth}·하${pelvisWidth}`
+          : `체형 경사각: ${taperAngleDeg > 0 ? `+${taperAngleDeg}°` : `${taperAngleDeg}°`}`,
+        18,
+        46
+      );
 
       // 우측 상·중·하초 수치 콜아웃
       const badges = [
@@ -612,7 +866,7 @@ const Sasang3DBodyModel = ({
 
     rafId = requestAnimationFrame(render);
     return () => cancelAnimationFrame(rafId);
-  }, [gender, modelsLoaded, chestWidth, waistWidth, pelvisWidth, autoRotate, targetYaw, taperAngleDeg]);
+  }, [gender, modelsLoaded, chestWidth, waistWidth, pelvisWidth, autoRotate, taperAngleDeg]);
 
   const handlePointerDown = (clientX) => {
     isDraggingRef.current = true;
@@ -622,9 +876,11 @@ const Sasang3DBodyModel = ({
 
   const handlePointerMove = (clientX) => {
     if (!isDraggingRef.current) return;
-    const delta = (clientX - lastXRef.current) * 0.012;
-    yawRef.current = Math.max(-0.85, Math.min(0.85, yawRef.current + delta));
-    setTargetYaw(yawRef.current);
+    const TWO_PI = Math.PI * 2;
+    const delta = (clientX - lastXRef.current) * 0.015;
+    yawRef.current = ((yawRef.current + delta) % TWO_PI + TWO_PI) % TWO_PI;
+    targetYawRef.current = yawRef.current;
+    setAngleDegUI(Math.round((yawRef.current * 180) / Math.PI) % 360);
     lastXRef.current = clientX;
   };
 
@@ -670,7 +926,7 @@ const Sasang3DBodyModel = ({
         </button>
       </div>
 
-      {/* 3D 캐릭터 뷰포트 캔버스 */}
+      {/* 360° 3D 캐릭터 뷰포트 캔버스 */}
       <div
         style={{
           position: 'relative',
@@ -683,7 +939,7 @@ const Sasang3DBodyModel = ({
       >
         <canvas
           ref={canvasRef}
-          style={{ width: '100%', height: '385px', display: 'block', cursor: 'grab', touchAction: 'pan-y' }}
+          style={{ width: '100%', height: '390px', display: 'block', cursor: 'grab', touchAction: 'pan-y' }}
           onMouseDown={(e) => handlePointerDown(e.clientX)}
           onMouseMove={(e) => handlePointerMove(e.clientX)}
           onMouseUp={handlePointerUp}
@@ -693,63 +949,81 @@ const Sasang3DBodyModel = ({
           onTouchEnd={handlePointerUp}
         />
 
-        {/* 하단 3D 카메라 앵글 컨트롤 바 */}
+        {/* 하단 360° 전방위 카메라 앵글 컨트롤 바 (정면 0° / 우측면 90° / 후면 180° / 좌측면 270°) */}
         <div
           style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
             padding: '8px 10px',
-            background: 'rgba(14, 14, 18, 0.95)',
+            background: 'rgba(14, 14, 18, 0.96)',
             borderTop: '1px solid rgba(212, 175, 55, 0.22)',
-            gap: '6px',
           }}
         >
-          <div style={{ display: 'flex', gap: '5px' }}>
-            {[
-              { label: '좌측 입체', yaw: -0.42 },
-              { label: '정면 0°', yaw: 0 },
-              { label: '우측 입체', yaw: 0.42 },
-            ].map((v, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => {
-                  setAutoRotate(false);
-                  setTargetYaw(v.yaw);
-                }}
-                style={{
-                  padding: '4px 8px',
-                  borderRadius: '6px',
-                  border: !autoRotate && Math.abs(targetYaw - v.yaw) < 0.15 ? '1px solid #D4AF37' : '1px solid #333',
-                  background: !autoRotate && Math.abs(targetYaw - v.yaw) < 0.15 ? 'rgba(212,175,55,0.2)' : '#18181e',
-                  color: '#eee',
-                  fontSize: '0.68rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                {v.label}
-              </button>
-            ))}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px', marginBottom: '7px' }}>
+            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+              {[
+                { label: '정면 0°', deg: 0 },
+                { label: '우측면 90°', deg: 90 },
+                { label: '후면 180°', deg: 180 },
+                { label: '좌측면 270°', deg: 270 },
+              ].map((v, i) => {
+                const isSelected = !autoRotate && Math.abs(((angleDegUI - v.deg + 540) % 360) - 180) < 22;
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setAngleDegrees(v.deg)}
+                    style={{
+                      padding: '5px 8px',
+                      borderRadius: '6px',
+                      border: isSelected ? '1px solid #D4AF37' : '1px solid #333',
+                      background: isSelected ? 'rgba(212,175,55,0.22)' : '#18181e',
+                      color: isSelected ? '#FFD700' : '#eee',
+                      fontSize: '0.68rem',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {v.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setAutoRotate(!autoRotate)}
+              style={{
+                padding: '5px 10px',
+                borderRadius: '999px',
+                border: autoRotate ? '1px solid #00E676' : '1px solid #555',
+                background: autoRotate ? 'rgba(0, 230, 118, 0.16)' : '#18181e',
+                color: autoRotate ? '#00E676' : '#aaa',
+                fontSize: '0.68rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {autoRotate ? '● 360° 자동회전 ON' : '○ 360° 자동회전 OFF'}
+            </button>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setAutoRotate(!autoRotate)}
-            style={{
-              padding: '4px 10px',
-              borderRadius: '999px',
-              border: autoRotate ? '1px solid #00E676' : '1px solid #555',
-              background: autoRotate ? 'rgba(0, 230, 118, 0.16)' : '#18181e',
-              color: autoRotate ? '#00E676' : '#aaa',
-              fontSize: '0.68rem',
-              fontWeight: 800,
-              cursor: 'pointer',
-            }}
-          >
-            {autoRotate ? '● 3D 입체모션 ON' : '○ 3D 입체모션 OFF'}
-          </button>
+          {/* 360° 자유 회전 슬라이더 바 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '0.66rem', color: '#D4AF37', fontWeight: 800, minWidth: '64px' }}>
+              🔄 360° 회전
+            </span>
+            <input
+              type="range"
+              min="0"
+              max="360"
+              value={angleDegUI}
+              onChange={(e) => setAngleDegrees(Number(e.target.value))}
+              style={{ flex: 1, accentColor: '#D4AF37', cursor: 'pointer', height: '4px' }}
+            />
+            <span style={{ fontSize: '0.68rem', color: '#fff', fontWeight: 800, minWidth: '34px', textAlign: 'right' }}>
+              {angleDegUI}°
+            </span>
+          </div>
         </div>
       </div>
 
