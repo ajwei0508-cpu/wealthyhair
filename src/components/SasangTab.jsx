@@ -2,9 +2,9 @@
 // 하이엔드 3D 연예인급 미남·미녀 캐릭터 (남·여 구분) + 200-슬라이스 스무스 메쉬 디포메이션(상·중·하초 실시간 3D 체형 모핑) 및
 // 사상체질별 핵심 발모 약선(藥膳) 가이드
 
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
-  Sparkles, ThumbsUp, ThumbsDown, RotateCcw, Compass, ChevronRight, ChevronLeft
+  Sparkles, ThumbsUp, ThumbsDown, RotateCcw, Compass, ChevronRight, ChevronLeft, AlertTriangle, CheckCircle2
 } from 'lucide-react';
 import {
   SASANG_QUESTIONS,
@@ -87,7 +87,7 @@ function analyzeBodyConstitution(chest, waist, pelvis, lastEditedZone = null) {
   const secondaryDetails = SASANG_CONSTITUTION_DETAILS[secondaryKey];
 
   // 수동 조절 부위별 실시간 체형 변화 피드백 문구
-  let zoneLiveGuide = '';
+  let zoneLiveGuide;
   if (lastEditedZone === 'upper') {
     if (chest >= 80 && upperToLower >= 34) {
       zoneLiveGuide = `상초(${chest}%)가 극도로 발달하고 하초(${pelvis}%)가 가벼워 기운이 상부로 발산하는 '태양인(肺大肝小)' 체형으로 판별됩니다.`;
@@ -1015,12 +1015,15 @@ const Sasang3DBodyModel = ({
     isDraggingRef.current = false;
   };
 
+  const activePresetKey = liveAnalysis?.primaryKey;
+
   return (
-    <div style={{ marginBottom: '14px' }}>
+    <div style={{ marginBottom: '14px', colorScheme: 'dark' }}>
       {/* 남·여 하이엔드 3D 비주얼 모델 선택 스위치 */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
         <button
           type="button"
+          aria-pressed={gender === 'male'}
           onClick={() => onChangeGender('male')}
           style={{
             padding: '10px',
@@ -1037,6 +1040,7 @@ const Sasang3DBodyModel = ({
         </button>
         <button
           type="button"
+          aria-pressed={gender === 'female'}
           onClick={() => onChangeGender('female')}
           style={{
             padding: '10px',
@@ -1066,6 +1070,8 @@ const Sasang3DBodyModel = ({
       >
         <canvas
           ref={canvasRef}
+          role="img"
+          aria-label={`${gender === 'female' ? '여성' : '남성'} 360도 3D 사상체질 체형 시뮬레이터 — 상초 ${chestWidth}%, 중초 ${waistWidth}%, 하초 ${pelvisWidth}%`}
           style={{ width: '100%', height: '390px', display: 'block', cursor: 'grab', touchAction: 'pan-y' }}
           onMouseDown={(e) => handlePointerDown(e.clientX)}
           onMouseMove={(e) => handlePointerMove(e.clientX)}
@@ -1084,7 +1090,7 @@ const Sasang3DBodyModel = ({
             borderTop: '1px solid rgba(212, 175, 55, 0.22)',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px', marginBottom: '7px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px', marginBottom: '7px', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
               {[
                 { label: '정면 0°', deg: 0 },
@@ -1097,6 +1103,7 @@ const Sasang3DBodyModel = ({
                   <button
                     key={i}
                     type="button"
+                    aria-pressed={isSelected}
                     onClick={() => setAngleDegrees(v.deg)}
                     style={{
                       padding: '5px 8px',
@@ -1117,6 +1124,7 @@ const Sasang3DBodyModel = ({
 
             <button
               type="button"
+              aria-pressed={autoRotate}
               onClick={() => setAutoRotate(!autoRotate)}
               style={{
                 padding: '5px 10px',
@@ -1136,10 +1144,14 @@ const Sasang3DBodyModel = ({
 
           {/* 360° 자유 회전 슬라이더 바 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '0.66rem', color: '#D4AF37', fontWeight: 800, minWidth: '64px' }}>
+            <label
+              htmlFor="sasang-angle-slider"
+              style={{ fontSize: '0.66rem', color: '#D4AF37', fontWeight: 800, minWidth: '64px', cursor: 'pointer' }}
+            >
               🔄 360° 회전
-            </span>
+            </label>
             <input
+              id="sasang-angle-slider"
               type="range"
               min="0"
               max="360"
@@ -1165,61 +1177,119 @@ const Sasang3DBodyModel = ({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          fontSize: '0.75rem',
+          gap: '8px',
+          flexWrap: 'wrap',
+          fontSize: '0.74rem',
         }}
       >
         <span style={{ color: '#ddd', fontWeight: 700 }}>{bodyShapeLabel}</span>
-        <span style={{ color: '#D4AF37', fontWeight: 800 }}>슬라이더 조절 시 실시간 체형 변환</span>
+        <span style={{ color: '#D4AF37', fontWeight: 800 }}>
+          {liveAnalysis
+            ? `3D 판별: ${liveAnalysis.details.name.split(' ')[0]} (${liveAnalysis.matchConfidence}% 일치)`
+            : '슬라이더 조절 시 실시간 체형 변환'}
+        </span>
       </div>
 
       {/* 4체질 3D 체형 원클릭 프리셋 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', marginTop: '8px' }}>
-        {Object.entries(BODY_PRESETS).map(([key, p]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => onSelectPreset(key, p)}
-            style={{
-              padding: '7px 4px',
-              borderRadius: '8px',
-              border: '1px solid rgba(212, 175, 55, 0.3)',
-              background: 'rgba(255,255,255,0.03)',
-              color: '#eee',
-              fontSize: '0.7rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              textAlign: 'center',
-            }}
-          >
-            <div style={{ color: '#D4AF37' }}>{p.label}</div>
-            <div style={{ fontSize: '0.6rem', color: '#888', marginTop: '2px' }}>3D 체형변환</div>
-          </button>
-        ))}
+        {Object.entries(BODY_PRESETS).map(([key, p]) => {
+          const isMatched = activePresetKey === key;
+          return (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={isMatched}
+              onClick={() => onSelectPreset(key, p)}
+              style={{
+                padding: '7px 4px',
+                borderRadius: '8px',
+                border: isMatched ? '1.5px solid #D4AF37' : '1px solid rgba(212, 175, 55, 0.3)',
+                background: isMatched ? 'rgba(212, 175, 55, 0.16)' : 'rgba(255,255,255,0.03)',
+                color: '#eee',
+                fontSize: '0.7rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                textAlign: 'center',
+              }}
+            >
+              <div style={{ color: isMatched ? '#FFD700' : '#D4AF37', fontWeight: 800 }}>{p.label}</div>
+              <div style={{ fontSize: '0.6rem', color: isMatched ? '#ddd' : '#888', marginTop: '2px' }}>3D 체형변환</div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
 };
 
+const GOOD_FOOD_LABELS = [
+  { key: 'grains', label: '🌾 유익한 곡물 · 두류' },
+  { key: 'seafoodMeats', label: '🦪 유익한 어패류 · 육류' },
+  { key: 'vegetables', label: '🥬 유익한 채소 · 해조류' },
+  { key: 'fruitsHerbs', label: '🌿 유익한 과일 · 한방 약재' },
+];
+
 const SasangTab = () => {
+  const rootRef = useRef(null);
+  const resultHeadingRef = useRef(null);
+
   const [subMode, setSubMode] = useState('test'); // 'test' | 'food_guide'
   const [gender, setGender] = useState('male'); // 'male' | 'female'
   const [chestWidth, setChestWidth] = useState(72);
   const [waistWidth, setWaistWidth] = useState(48);
   const [pelvisWidth, setPelvisWidth] = useState(46);
+  const [lastEditedZone, setLastEditedZone] = useState(null); // 'upper' | 'middle' | 'lower' | null
 
   // 간결한 스텝형 설문 상태
   const [currentQIdx, setCurrentQIdx] = useState(0);
   const [answers, setAnswers] = useState({});
   const [resultType, setResultType] = useState(() => {
-    return localStorage.getItem('wealthyhair_sasang_result') || null;
+    const saved = localStorage.getItem('wealthyhair_sasang_result');
+    return saved && SASANG_CONSTITUTION_DETAILS[saved] ? saved : null;
   });
-  const [scoresMap, setScoresMap] = useState(null);
-  const [selectedViewType, setSelectedViewType] = useState(resultType || 'taeeum');
+  const [scoresMap, setScoresMap] = useState(() => {
+    try {
+      const raw = localStorage.getItem('wealthyhair_sasang_scores');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [selectedViewType, setSelectedViewType] = useState(() => {
+    const saved = localStorage.getItem('wealthyhair_sasang_result');
+    return saved && SASANG_CONSTITUTION_DETAILS[saved] ? saved : 'taeeum';
+  });
+
+  // 실시간 3D 상초·중초·하초 체형 기반 사상체질 판별 엔진 연동
+  const liveAnalysis = analyzeBodyConstitution(chestWidth, waistWidth, pelvisWidth, lastEditedZone);
+
+  const scrollResultIntoView = () => {
+    requestAnimationFrame(() => {
+      const scrollParent = rootRef.current?.closest('.dashboard-content');
+      if (scrollParent) {
+        scrollParent.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      if (resultHeadingRef.current) {
+        resultHeadingRef.current.focus({ preventScroll: true });
+      }
+    });
+  };
 
   const handleSelectPreset = (key, preset) => {
     setChestWidth(preset.chest);
     setWaistWidth(preset.waist);
     setPelvisWidth(preset.pelvis);
+    setLastEditedZone(null);
+  };
+
+  const handleSliderChange = (zone, value) => {
+    const num = Number(value);
+    setLastEditedZone(zone);
+    if (zone === 'upper') setChestWidth(num);
+    else if (zone === 'middle') setWaistWidth(num);
+    else if (zone === 'lower') setPelvisWidth(num);
   };
 
   const handleSelectOption = (qId, optionIdx) => {
@@ -1229,27 +1299,36 @@ const SasangTab = () => {
     }
   };
 
+  // 3D 체형 단독 즉시 결과 보기
+  const evaluateBy3DBodyOnly = () => {
+    const winner = liveAnalysis.primaryKey;
+    const percentages = { ...liveAnalysis.probabilities };
+
+    setScoresMap(percentages);
+    setResultType(winner);
+    setSelectedViewType(winner);
+    localStorage.setItem('wealthyhair_sasang_result', winner);
+    localStorage.setItem('wealthyhair_sasang_scores', JSON.stringify(percentages));
+    setSubMode('food_guide');
+    scrollResultIntoView();
+  };
+
+  // 3D 체형 + 8문항 임상 문진 종합 판정
   const evaluateConstitution = () => {
-    const totals = { taeyang: 1, soyang: 1, taeeum: 1, soeum: 1 };
+    const totals = {
+      taeyang: liveAnalysis.probabilities.taeyang * 0.08 + 1,
+      soyang: liveAnalysis.probabilities.soyang * 0.08 + 1,
+      taeeum: liveAnalysis.probabilities.taeeum * 0.08 + 1,
+      soeum: liveAnalysis.probabilities.soeum * 0.08 + 1,
+    };
 
     SASANG_QUESTIONS.forEach((q) => {
       const idx = answers[q.id];
-      const opt = q.options[idx];
-      if (opt) totals[opt.type] += opt.weight;
+      const opt = idx !== undefined ? q.options[idx] : null;
+      if (opt && totals[opt.type] !== undefined) {
+        totals[opt.type] += opt.weight;
+      }
     });
-
-    if (chestWidth >= 75 && pelvisWidth <= 44) {
-      totals.taeyang += 4.2;
-      totals.soyang += 2.5;
-    } else if (chestWidth >= waistWidth + 8 && chestWidth >= pelvisWidth + 8) {
-      totals.soyang += 4.5;
-    } else if (waistWidth >= chestWidth + 5 && waistWidth >= pelvisWidth + 4) {
-      totals.taeeum += 4.8;
-    } else if (pelvisWidth >= chestWidth + 5) {
-      totals.soeum += 4.8;
-    } else {
-      totals.taeeum += 2.0;
-    }
 
     const sumAll = Object.values(totals).reduce((a, b) => a + b, 0) || 1;
     const percentages = {
@@ -1262,23 +1341,53 @@ const SasangTab = () => {
     const sorted = Object.entries(totals).sort((a, b) => b[1] - a[1]);
     const winner = sorted[0][0];
 
+    // 설문 위주로 판정된 체질이 있을 경우 3D 프리셋도 자연스럽게 동기화(수동 조작이 없을 때)
+    if (!lastEditedZone && BODY_PRESETS[winner]) {
+      setChestWidth(BODY_PRESETS[winner].chest);
+      setWaistWidth(BODY_PRESETS[winner].waist);
+      setPelvisWidth(BODY_PRESETS[winner].pelvis);
+    }
+
     setScoresMap(percentages);
     setResultType(winner);
     setSelectedViewType(winner);
     localStorage.setItem('wealthyhair_sasang_result', winner);
+    localStorage.setItem('wealthyhair_sasang_scores', JSON.stringify(percentages));
     setSubMode('food_guide');
+    scrollResultIntoView();
+  };
+
+  const handleResetSurvey = () => {
+    setAnswers({});
+    setCurrentQIdx(0);
+    setSubMode('test');
   };
 
   const activeDetail = SASANG_CONSTITUTION_DETAILS[selectedViewType] || SASANG_CONSTITUTION_DETAILS.taeeum;
-  const activeQuestion = SASANG_QUESTIONS[currentQIdx];
+  const activeQuestion = SASANG_QUESTIONS[currentQIdx] || SASANG_QUESTIONS[0];
   const answeredCount = Object.keys(answers).length;
+  const displayScores = scoresMap || liveAnalysis.probabilities;
+
+  const goodFoodGroups = GOOD_FOOD_LABELS.map(({ key, label }) => ({
+    category: label,
+    items: Array.isArray(activeDetail.goodFoods?.[key]) ? activeDetail.goodFoods[key] : [],
+  })).filter((g) => g.items.length > 0);
+
+  const badFoodList = Array.isArray(activeDetail.badFoods?.list) ? activeDetail.badFoods.list : [];
+  const badFoodReason = activeDetail.badFoods?.reason || '';
+  const bodyFeatures = Array.isArray(activeDetail.bodyFeatureSummary) ? activeDetail.bodyFeatureSummary : [];
+  const superfoods = Array.isArray(activeDetail.hairSuperfoods) ? activeDetail.hairSuperfoods : [];
 
   return (
-    <div className="fade-in" style={{ paddingBottom: '90px', color: '#fff', background: '#000' }}>
+    <div
+      ref={rootRef}
+      className="fade-in"
+      style={{ paddingBottom: '90px', color: '#fff', background: '#000', colorScheme: 'dark' }}
+    >
       <div className="tab-banner">
         <img
           src="/assets/banners/banner_sasang.jpg"
-          alt="사상체질 3D 체형 진단"
+          alt="사상체질 3D 체형 및 발모 약선 진단 배너"
           className="tab-banner-img"
           onError={(e) => { e.currentTarget.src = '/assets/banners/banner_guide.jpg'; }}
         />
@@ -1293,6 +1402,7 @@ const SasangTab = () => {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '14px' }}>
           <button
             type="button"
+            aria-pressed={subMode === 'test'}
             onClick={() => setSubMode('test')}
             style={{
               padding: '10px',
@@ -1309,6 +1419,7 @@ const SasangTab = () => {
           </button>
           <button
             type="button"
+            aria-pressed={subMode === 'food_guide'}
             onClick={() => setSubMode('food_guide')}
             style={{
               padding: '10px',
@@ -1321,7 +1432,7 @@ const SasangTab = () => {
               cursor: 'pointer',
             }}
           >
-            🍲 체질별 발모 음식 백과
+            🍲 {resultType ? `내 체질(${SASANG_CONSTITUTION_DETAILS[resultType]?.name.split(' ')[0]}) 결과 · 백과` : '체질별 발모 음식 백과'}
           </button>
         </div>
 
@@ -1336,10 +1447,10 @@ const SasangTab = () => {
                 marginBottom: '14px',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ fontSize: '0.86rem', fontWeight: 800, color: '#D4AF37' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: '8px', flexWrap: 'wrap' }}>
+                <h2 style={{ fontSize: '0.86rem', fontWeight: 800, color: '#D4AF37', margin: 0 }}>
                   STEP 1 · 3D 비주얼 캐릭터 체형 각도 시뮬레이터
-                </span>
+                </h2>
                 <span style={{ fontSize: '0.68rem', color: '#999' }}>삼초(상·중·하) 비율 조절</span>
               </div>
 
@@ -1350,54 +1461,170 @@ const SasangTab = () => {
                 waistWidth={waistWidth}
                 pelvisWidth={pelvisWidth}
                 onSelectPreset={handleSelectPreset}
+                liveAnalysis={liveAnalysis}
               />
 
               {/* 상초·중초·하초 비율 조절 슬라이더 */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.73rem', marginBottom: '2px' }}>
-                    <span style={{ color: '#00E676', fontWeight: 700 }}>상초 (어깨·가슴·목덜미 발달도)</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.73rem', marginBottom: '3px' }}>
+                    <label htmlFor="sasang-upper-slider" style={{ color: '#00E676', fontWeight: 700, cursor: 'pointer' }}>
+                      상초 (어깨·가슴·목덜미 발달도)
+                    </label>
                     <span style={{ fontWeight: 700 }}>{chestWidth}%</span>
                   </div>
                   <input
+                    id="sasang-upper-slider"
                     type="range"
                     min="25"
                     max="90"
                     value={chestWidth}
-                    onChange={(e) => setChestWidth(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: '#00E676' }}
+                    onChange={(e) => handleSliderChange('upper', e.target.value)}
+                    style={{ width: '100%', accentColor: '#00E676', cursor: 'pointer' }}
                   />
                 </div>
 
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.73rem', marginBottom: '2px' }}>
-                    <span style={{ color: '#FFB74D', fontWeight: 700 }}>중초 (허리·복부 두께 발달도)</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.73rem', marginBottom: '3px' }}>
+                    <label htmlFor="sasang-middle-slider" style={{ color: '#FFB74D', fontWeight: 700, cursor: 'pointer' }}>
+                      중초 (허리·복부 두께 발달도)
+                    </label>
                     <span style={{ fontWeight: 700 }}>{waistWidth}%</span>
                   </div>
                   <input
+                    id="sasang-middle-slider"
                     type="range"
                     min="25"
                     max="90"
                     value={waistWidth}
-                    onChange={(e) => setWaistWidth(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: '#FFB74D' }}
+                    onChange={(e) => handleSliderChange('middle', e.target.value)}
+                    style={{ width: '100%', accentColor: '#FFB74D', cursor: 'pointer' }}
                   />
                 </div>
 
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.73rem', marginBottom: '2px' }}>
-                    <span style={{ color: '#4FC3F7', fontWeight: 700 }}>하초 (골반·엉덩이·하체 발달도)</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.73rem', marginBottom: '3px' }}>
+                    <label htmlFor="sasang-lower-slider" style={{ color: '#4FC3F7', fontWeight: 700, cursor: 'pointer' }}>
+                      하초 (골반·엉덩이·하체 발달도)
+                    </label>
                     <span style={{ fontWeight: 700 }}>{pelvisWidth}%</span>
                   </div>
                   <input
+                    id="sasang-lower-slider"
                     type="range"
                     min="25"
                     max="90"
                     value={pelvisWidth}
-                    onChange={(e) => setPelvisWidth(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: '#4FC3F7' }}
+                    onChange={(e) => handleSliderChange('lower', e.target.value)}
+                    style={{ width: '100%', accentColor: '#4FC3F7', cursor: 'pointer' }}
                   />
                 </div>
+              </div>
+
+              {/* 실시간 3D 체형 판별 결과 리포트 카드 */}
+              <div
+                data-testid="live-3d-sasang-card"
+                style={{
+                  marginTop: '14px',
+                  padding: '12px',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(145deg, rgba(28, 25, 18, 0.96), rgba(16, 16, 22, 0.96))',
+                  border: `1.5px solid ${liveAnalysis.details.color}`,
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    <span
+                      style={{
+                        fontSize: '0.66rem',
+                        fontWeight: 900,
+                        padding: '2px 7px',
+                        borderRadius: '999px',
+                        background: 'rgba(212, 175, 55, 0.22)',
+                        color: liveAnalysis.details.color,
+                      }}
+                    >
+                      실시간 3D 체형 판별
+                    </span>
+                    <strong style={{ fontSize: '0.92rem', color: '#fff', fontWeight: 800 }}>
+                      {liveAnalysis.details.name}
+                    </strong>
+                    <span style={{ fontSize: '0.72rem', color: '#bbb' }}>
+                      ({liveAnalysis.details.hanja})
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '0.76rem', fontWeight: 800, color: '#FFD700' }}>
+                    체형 부합도 {liveAnalysis.matchConfidence}%
+                  </span>
+                </div>
+
+                <p style={{ fontSize: '0.74rem', color: '#e2dfd7', margin: '0 0 8px', lineHeight: 1.45 }}>
+                  {liveAnalysis.zoneLiveGuide}
+                </p>
+
+                {/* 4체질 실시간 비율 미니 게이지 */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', marginBottom: '8px' }}>
+                  {Object.values(SASANG_CONSTITUTION_DETAILS).map((c) => {
+                    const pct = liveAnalysis.probabilities[c.id] || 0;
+                    const isTop = liveAnalysis.primaryKey === c.id;
+                    return (
+                      <div
+                        key={c.id}
+                        style={{
+                          background: isTop ? 'rgba(212, 175, 55, 0.14)' : 'rgba(255,255,255,0.03)',
+                          border: isTop ? `1px solid ${c.color}` : '1px solid rgba(255,255,255,0.07)',
+                          borderRadius: '7px',
+                          padding: '5px 6px',
+                          textAlign: 'center',
+                        }}
+                      >
+                        <div style={{ fontSize: '0.66rem', color: isTop ? c.color : '#aaa', fontWeight: 800 }}>
+                          {c.name.split(' ')[0]}
+                        </div>
+                        <div style={{ fontSize: '0.74rem', color: '#fff', fontWeight: 800 }}>
+                          {pct}%
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div
+                  style={{
+                    fontSize: '0.7rem',
+                    color: '#ffb74d',
+                    background: 'rgba(255, 183, 77, 0.08)',
+                    border: '1px solid rgba(255, 183, 77, 0.24)',
+                    borderRadius: '8px',
+                    padding: '7px 9px',
+                    marginBottom: '10px',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '6px',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  <AlertTriangle size={14} aria-hidden="true" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <span>{liveAnalysis.scalpAlert}</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={evaluateBy3DBodyOnly}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(212, 175, 55, 0.55)',
+                    background: 'rgba(212, 175, 55, 0.16)',
+                    color: '#FFD700',
+                    fontSize: '0.76rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                  }}
+                >
+                  이 3D 체형({liveAnalysis.details.name.split(' ')[0]}) 맞춤 발모 식이 결과 바로 보기 →
+                </button>
               </div>
             </div>
 
@@ -1411,13 +1638,50 @@ const SasangTab = () => {
                 marginBottom: '14px',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ fontSize: '0.84rem', fontWeight: 800, color: '#D4AF37' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: '8px', flexWrap: 'wrap' }}>
+                <h2 style={{ fontSize: '0.84rem', fontWeight: 800, color: '#D4AF37', margin: 0 }}>
                   STEP 2 · 핵심 체질 문진 ({currentQIdx + 1} / {SASANG_QUESTIONS.length})
-                </span>
+                </h2>
                 <span style={{ fontSize: '0.7rem', color: '#81C784', fontWeight: 700 }}>
-                  응답 {answeredCount}개 완료
+                  응답 {answeredCount} / {SASANG_QUESTIONS.length} 완료
                 </span>
+              </div>
+
+              {/* 문항 번호 빠른 이동 인디케이터 */}
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${SASANG_QUESTIONS.length}, 1fr)`, gap: '4px', marginBottom: '10px' }}>
+                {SASANG_QUESTIONS.map((q, idx) => {
+                  const isCurrent = idx === currentQIdx;
+                  const isDone = answers[q.id] !== undefined;
+                  return (
+                    <button
+                      key={q.id}
+                      type="button"
+                      aria-label={`${idx + 1}번 문항`}
+                      aria-pressed={isCurrent}
+                      onClick={() => setCurrentQIdx(idx)}
+                      style={{
+                        padding: '4px 0',
+                        borderRadius: '6px',
+                        border: isCurrent
+                          ? '1.5px solid #D4AF37'
+                          : isDone
+                          ? '1px solid rgba(0, 230, 118, 0.45)'
+                          : '1px solid #2b2b2b',
+                        background: isCurrent
+                          ? 'rgba(212, 175, 55, 0.22)'
+                          : isDone
+                          ? 'rgba(0, 230, 118, 0.12)'
+                          : '#18181f',
+                        color: isCurrent ? '#FFD700' : isDone ? '#81C784' : '#777',
+                        fontSize: '0.68rem',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {idx + 1}
+                    </button>
+                  );
+                })}
               </div>
 
               <div style={{ height: '5px', background: '#222', borderRadius: '3px', overflow: 'hidden', marginBottom: '12px' }}>
@@ -1426,6 +1690,7 @@ const SasangTab = () => {
                     width: `${((currentQIdx + 1) / SASANG_QUESTIONS.length) * 100}%`,
                     height: '100%',
                     background: 'linear-gradient(90deg, #D4AF37, #00E676)',
+                    transition: 'width 0.2s ease',
                   }}
                 />
               </div>
@@ -1437,28 +1702,36 @@ const SasangTab = () => {
                 {activeQuestion.question}
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '7px', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
                 {activeQuestion.options.map((opt, oIdx) => {
                   const isSelected = answers[activeQuestion.id] === oIdx;
+                  const optionTitle = opt.title || opt.text || '';
+                  const optionDesc = opt.desc || '';
                   return (
                     <button
                       key={oIdx}
                       type="button"
+                      aria-pressed={isSelected}
                       onClick={() => handleSelectOption(activeQuestion.id, oIdx)}
                       style={{
                         textAlign: 'left',
-                        padding: '10px 12px',
-                        borderRadius: '9px',
+                        padding: '11px 12px',
+                        borderRadius: '10px',
                         border: isSelected ? '1.5px solid #D4AF37' : '1px solid #2b2b2b',
                         background: isSelected ? 'rgba(212, 175, 55, 0.16)' : '#18181f',
-                        color: isSelected ? '#fff' : '#ccc',
-                        fontSize: '0.76rem',
-                        fontWeight: isSelected ? 700 : 500,
+                        color: isSelected ? '#fff' : '#ddd',
                         cursor: 'pointer',
-                        lineHeight: 1.4,
+                        lineHeight: 1.42,
                       }}
                     >
-                      {isSelected ? '✓ ' : ''}{opt.text}
+                      <div style={{ fontSize: '0.79rem', fontWeight: 800, color: isSelected ? '#FFD700' : '#f2efe9', marginBottom: optionDesc ? '3px' : 0 }}>
+                        {isSelected ? '✓ ' : ''}{optionTitle}
+                      </div>
+                      {optionDesc && (
+                        <div style={{ fontSize: '0.71rem', color: isSelected ? '#e5e0d5' : '#9e9e9e', fontWeight: 500 }}>
+                          {optionDesc}
+                        </div>
+                      )}
                     </button>
                   );
                 })}
@@ -1483,33 +1756,56 @@ const SasangTab = () => {
                     gap: '4px',
                   }}
                 >
-                  <ChevronLeft size={14} /> 이전 문항
+                  <ChevronLeft size={14} aria-hidden="true" /> 이전 문항
                 </button>
-                <button
-                  type="button"
-                  disabled={currentQIdx === SASANG_QUESTIONS.length - 1}
-                  onClick={() => setCurrentQIdx((i) => Math.min(SASANG_QUESTIONS.length - 1, i + 1))}
-                  style={{
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid #333',
-                    background: '#1a1a1f',
-                    color: currentQIdx === SASANG_QUESTIONS.length - 1 ? '#555' : '#ccc',
-                    fontSize: '0.74rem',
-                    fontWeight: 700,
-                    cursor: currentQIdx === SASANG_QUESTIONS.length - 1 ? 'default' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}
-                >
-                  다음 문항 <ChevronRight size={14} />
-                </button>
+
+                {currentQIdx < SASANG_QUESTIONS.length - 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => setCurrentQIdx((i) => Math.min(SASANG_QUESTIONS.length - 1, i + 1))}
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid #333',
+                      background: '#1a1a1f',
+                      color: '#ccc',
+                      fontSize: '0.74rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    다음 문항 <ChevronRight size={14} aria-hidden="true" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={evaluateConstitution}
+                    style={{
+                      padding: '8px 14px',
+                      borderRadius: '8px',
+                      border: '1px solid #D4AF37',
+                      background: 'linear-gradient(135deg, #D4AF37 0%, #B68D2C 100%)',
+                      color: '#000',
+                      fontSize: '0.75rem',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    설문 완료 · 결과 보기 <ChevronRight size={14} aria-hidden="true" />
+                  </button>
+                )}
               </div>
             </div>
 
             <button
               type="button"
+              data-testid="sasang-submit-btn"
               onClick={evaluateConstitution}
               style={{
                 width: '100%',
@@ -1525,14 +1821,16 @@ const SasangTab = () => {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
+                boxShadow: '0 6px 20px rgba(212, 175, 55, 0.28)',
               }}
             >
-              <Compass size={18} />
+              <Compass size={18} aria-hidden="true" />
               3D 체형 + 설문 종합 사상체질 결과 보기
             </button>
           </div>
         ) : (
-          <div className="fade-in">
+          <div className="fade-in" data-testid="sasang-result-view">
+            {/* 4체질 전환 탭 */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', marginBottom: '12px' }}>
               {Object.values(SASANG_CONSTITUTION_DETAILS).map((c) => {
                 const isSelected = selectedViewType === c.id;
@@ -1541,6 +1839,7 @@ const SasangTab = () => {
                   <button
                     key={c.id}
                     type="button"
+                    aria-pressed={isSelected}
                     onClick={() => setSelectedViewType(c.id)}
                     style={{
                       padding: '9px 4px',
@@ -1577,6 +1876,7 @@ const SasangTab = () => {
               })}
             </div>
 
+            {/* 종합 체질 판정 결과 히어로 카드 */}
             <div
               style={{
                 background: 'linear-gradient(145deg, #191815, #111114)',
@@ -1586,47 +1886,172 @@ const SasangTab = () => {
                 marginBottom: '12px',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
                 <span
                   style={{
                     fontSize: '0.68rem',
-                    padding: '3px 8px',
+                    padding: '3px 9px',
                     borderRadius: '999px',
                     background: 'rgba(212, 175, 55, 0.16)',
                     color: activeDetail.color,
                     fontWeight: 800,
                   }}
                 >
-                  {activeDetail.organBalance}
+                  {activeDetail.hanja} · {activeDetail.organBalance}
                 </span>
-                {scoresMap && (
-                  <span style={{ fontSize: '0.72rem', color: '#D4AF37', fontWeight: 700 }}>
-                    일치도 {scoresMap[selectedViewType]}%
+                {displayScores && displayScores[selectedViewType] !== undefined && (
+                  <span style={{ fontSize: '0.74rem', color: '#FFD700', fontWeight: 800 }}>
+                    종합 부합도 {displayScores[selectedViewType]}%
                   </span>
                 )}
               </div>
 
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff', margin: '0 0 6px' }}>
-                {activeDetail.name} 맞춤 발모 솔루션
-              </h3>
-              <p style={{ fontSize: '0.76rem', color: '#ccc', margin: '0 0 10px', lineHeight: 1.5 }}>
-                {activeDetail.hairLossPattern}
+              <h2
+                ref={resultHeadingRef}
+                tabIndex={-1}
+                style={{ fontSize: '1.12rem', fontWeight: 800, color: '#fff', margin: '0 0 6px', outline: 'none', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}
+              >
+                {resultType === activeDetail.id && (
+                  <CheckCircle2 size={18} color="#00E676" aria-hidden="true" />
+                )}
+                <span>
+                  {resultType === activeDetail.id
+                    ? `진단 결과: ${activeDetail.name} 맞춤 발모 솔루션`
+                    : `${activeDetail.name} 맞춤 발모 솔루션`}
+                </span>
+              </h2>
+
+              <p style={{ fontSize: '0.75rem', color: '#d8cfb8', fontWeight: 600, margin: '0 0 10px', lineHeight: 1.45 }}>
+                {activeDetail.subtitle}
               </p>
 
+              {/* 4체질 분석 점수 바 */}
+              {displayScores && (
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(4, 1fr)',
+                    gap: '6px',
+                    marginBottom: '12px',
+                    padding: '8px',
+                    borderRadius: '10px',
+                    background: 'rgba(0,0,0,0.38)',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                  }}
+                >
+                  {Object.values(SASANG_CONSTITUTION_DETAILS).map((c) => {
+                    const pct = displayScores[c.id] ?? 0;
+                    const isActive = c.id === activeDetail.id;
+                    return (
+                      <div key={c.id} style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.66rem', color: isActive ? c.color : '#999', fontWeight: 800 }}>
+                          {c.name.split(' ')[0]}
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: isActive ? '#fff' : '#bbb', fontWeight: 800, margin: '2px 0 4px' }}>
+                          {pct}%
+                        </div>
+                        <div style={{ height: '4px', background: '#25252b', borderRadius: '2px', overflow: 'hidden' }}>
+                          <div
+                            style={{
+                              width: `${Math.min(100, Math.max(4, pct))}%`,
+                              height: '100%',
+                              background: isActive ? c.color : '#555',
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* 체질별 탈모 핵심 병기 */}
               <div
                 style={{
-                  background: 'rgba(0,0,0,0.4)',
-                  borderRadius: '8px',
-                  padding: '9px 11px',
-                  fontSize: '0.73rem',
-                  color: '#bbb',
-                  border: '1px solid rgba(255,255,255,0.06)',
+                  background: 'rgba(212, 175, 55, 0.07)',
+                  border: '1px solid rgba(212, 175, 55, 0.22)',
+                  borderRadius: '9px',
+                  padding: '10px 12px',
+                  marginBottom: '10px',
                 }}
               >
-                <strong style={{ color: '#D4AF37' }}>핵심 체형 특징:</strong> {activeDetail.bodyShape}
+                <div style={{ fontSize: '0.73rem', fontWeight: 800, color: '#D4AF37', marginBottom: '4px' }}>
+                  🔬 체질별 탈모 핵심 병기 (韓醫學 病因)
+                </div>
+                <p style={{ fontSize: '0.75rem', color: '#ddd', margin: 0, lineHeight: 1.52 }}>
+                  {activeDetail.hairLossMechanism}
+                </p>
               </div>
+
+              {/* 체형 · 안면 · 생리 핵심 특징 */}
+              {bodyFeatures.length > 0 && (
+                <div
+                  style={{
+                    background: 'rgba(0,0,0,0.4)',
+                    borderRadius: '8px',
+                    padding: '10px 12px',
+                    fontSize: '0.73rem',
+                    color: '#ccc',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                  }}
+                >
+                  <strong style={{ color: '#D4AF37', display: 'block', marginBottom: '5px' }}>
+                    핵심 체형 · 용모 · 생리 특징
+                  </strong>
+                  <ul style={{ margin: 0, paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '4px', lineHeight: 1.45 }}>
+                    {bodyFeatures.map((feat, fIdx) => (
+                      <li key={fIdx}>{feat}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
 
+            {/* 1. 체질 맞춤 4대 발모 약선 슈퍼푸드 */}
+            {superfoods.length > 0 && (
+              <div
+                style={{
+                  background: '#141418',
+                  border: '1px solid rgba(212, 175, 55, 0.35)',
+                  borderRadius: '12px',
+                  padding: '14px',
+                  marginBottom: '12px',
+                }}
+              >
+                <h3 style={{ fontSize: '0.84rem', fontWeight: 800, color: '#D4AF37', margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Sparkles size={15} aria-hidden="true" /> {activeDetail.name.split(' ')[0]} 4대 핵심 발모 약선(藥膳) 슈퍼푸드
+                </h3>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {superfoods.map((sf, sIdx) => (
+                    <div
+                      key={sIdx}
+                      style={{
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid rgba(212, 175, 55, 0.2)',
+                        borderRadius: '9px',
+                        padding: '10px 11px',
+                      }}
+                    >
+                      <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#FFD700', marginBottom: '3px' }}>
+                        {sIdx + 1}. {sf.food}
+                      </div>
+                      <div style={{ fontSize: '0.68rem', color: '#81C784', fontWeight: 700, marginBottom: '4px' }}>
+                        핵심 영양소: {sf.keyNutrients}
+                      </div>
+                      <p style={{ fontSize: '0.72rem', color: '#ddd', margin: '0 0 5px', lineHeight: 1.45 }}>
+                        {sf.hairMechanism}
+                      </p>
+                      <div style={{ fontSize: '0.69rem', color: '#bfb69b', background: 'rgba(0,0,0,0.35)', padding: '5px 8px', borderRadius: '6px' }}>
+                        🍵 <strong>섭취법:</strong> {sf.intakeTip}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 2. 모낭을 살리는 유익한 발모 음식 */}
             <div
               style={{
                 background: '#121614',
@@ -1636,15 +2061,13 @@ const SasangTab = () => {
                 marginBottom: '12px',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
-                <ThumbsUp size={15} color="#81C784" />
-                <span style={{ fontSize: '0.84rem', fontWeight: 800, color: '#81C784' }}>
-                  모낭을 살리는 유익한 발모 음식 (Recommended)
-                </span>
-              </div>
+              <h3 style={{ fontSize: '0.84rem', fontWeight: 800, color: '#81C784', margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <ThumbsUp size={15} color="#81C784" aria-hidden="true" />
+                모낭을 살리는 유익한 발모 음식 (Recommended)
+              </h3>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                {activeDetail.beneficialFoods.map((grp, idx) => (
+                {goodFoodGroups.map((grp, idx) => (
                   <div
                     key={idx}
                     style={{
@@ -1655,19 +2078,17 @@ const SasangTab = () => {
                     }}
                   >
                     <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#A5D6A7', marginBottom: '4px' }}>
-                      • {grp.category}
+                      {grp.category}
                     </div>
-                    <div style={{ fontSize: '0.71rem', color: '#eee', fontWeight: 600, lineHeight: 1.4, marginBottom: '4px' }}>
-                      {grp.items.slice(0, 4).join(', ')}
-                    </div>
-                    <div style={{ fontSize: '0.66rem', color: '#999', lineHeight: 1.35 }}>
-                      {grp.reason}
+                    <div style={{ fontSize: '0.71rem', color: '#eee', fontWeight: 500, lineHeight: 1.45 }}>
+                      {grp.items.join(', ')}
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
+            {/* 3. 탈모를 악화시키는 주의 음식 */}
             <div
               style={{
                 background: '#171212',
@@ -1677,15 +2098,13 @@ const SasangTab = () => {
                 marginBottom: '12px',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
-                <ThumbsDown size={15} color="#E57373" />
-                <span style={{ fontSize: '0.84rem', fontWeight: 800, color: '#E57373' }}>
-                  탈모를 악화시키는 주의 음식 (Avoid)
-                </span>
-              </div>
+              <h3 style={{ fontSize: '0.84rem', fontWeight: 800, color: '#E57373', margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <ThumbsDown size={15} color="#E57373" aria-hidden="true" />
+                탈모를 악화시키는 주의 · 금기 음식 (Avoid)
+              </h3>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                {activeDetail.harmfulFoods.map((grp, idx) => (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: badFoodReason ? '10px' : 0 }}>
+                {badFoodList.map((grp, idx) => (
                   <div
                     key={idx}
                     style={{
@@ -1698,58 +2117,74 @@ const SasangTab = () => {
                     <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#EF9A9A', marginBottom: '4px' }}>
                       • {grp.category}
                     </div>
-                    <div style={{ fontSize: '0.71rem', color: '#eee', fontWeight: 600, lineHeight: 1.4, marginBottom: '4px' }}>
-                      {grp.items.slice(0, 4).join(', ')}
-                    </div>
-                    <div style={{ fontSize: '0.66rem', color: '#999', lineHeight: 1.35 }}>
-                      {grp.reason}
+                    <div style={{ fontSize: '0.71rem', color: '#eee', fontWeight: 500, lineHeight: 1.42 }}>
+                      {Array.isArray(grp.items) ? grp.items.join(', ') : grp.items}
                     </div>
                   </div>
                 ))}
               </div>
+
+              {badFoodReason && (
+                <div
+                  style={{
+                    background: 'rgba(229, 115, 115, 0.08)',
+                    border: '1px solid rgba(229, 115, 115, 0.24)',
+                    borderRadius: '8px',
+                    padding: '9px 10px',
+                    fontSize: '0.71rem',
+                    color: '#f3c6c6',
+                    lineHeight: 1.45,
+                  }}
+                >
+                  ⚠️ <strong>금기 사유:</strong> {badFoodReason}
+                </div>
+              )}
             </div>
 
-            <div
-              style={{
-                background: '#141418',
-                border: '1px solid rgba(212, 175, 55, 0.3)',
-                borderRadius: '12px',
-                padding: '12px 14px',
-                marginBottom: '12px',
-              }}
-            >
-              <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#D4AF37', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <Sparkles size={14} /> 맞춤 한방 차(茶) & 두피 관리 팁
-              </div>
-              <div style={{ fontSize: '0.74rem', color: '#ddd', marginBottom: '6px', lineHeight: 1.45 }}>
-                🍵 <strong>추천 약차:</strong> {activeDetail.teaPrescription}
-              </div>
-              <div style={{ fontSize: '0.72rem', color: '#aaa', lineHeight: 1.45 }}>
-                💆 <strong>생활 습관:</strong> {activeDetail.scalpCareRules[0]}
-              </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => setSubMode('test')}
+                style={{
+                  width: '100%',
+                  padding: '12px 10px',
+                  background: '#1c1c22',
+                  color: '#D4AF37',
+                  border: '1px solid rgba(212, 175, 55, 0.35)',
+                  borderRadius: '10px',
+                  fontSize: '0.76rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                }}
+              >
+                <Compass size={14} aria-hidden="true" /> 3D 체형 시뮬레이터
+              </button>
+              <button
+                type="button"
+                onClick={handleResetSurvey}
+                style={{
+                  width: '100%',
+                  padding: '12px 10px',
+                  background: 'rgba(212, 175, 55, 0.14)',
+                  color: '#FFD700',
+                  border: '1px solid rgba(212, 175, 55, 0.45)',
+                  borderRadius: '10px',
+                  fontSize: '0.76rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                }}
+              >
+                <RotateCcw size={14} aria-hidden="true" /> 설문 다시 진단하기
+              </button>
             </div>
-
-            <button
-              type="button"
-              onClick={() => setSubMode('test')}
-              style={{
-                width: '100%',
-                padding: '12px',
-                background: '#1c1c22',
-                color: '#D4AF37',
-                border: '1px solid rgba(212, 175, 55, 0.35)',
-                borderRadius: '10px',
-                fontSize: '0.78rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-              }}
-            >
-              <RotateCcw size={14} /> 3D 남·여 체형 시뮬레이터로 돌아가기
-            </button>
           </div>
         )}
       </div>
