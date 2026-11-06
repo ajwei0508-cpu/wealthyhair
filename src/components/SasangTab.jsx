@@ -14,10 +14,136 @@ import {
 // ── 체질별 표준 3D 체형 비율 프리셋 ──
 const BODY_PRESETS = {
   taeyang: { label: '태양인 체형', desc: '목덜미·상초 발달 (역삼각 상체)', chest: 84, waist: 45, pelvis: 40 },
-  soyang: { label: '소양인 체형', desc: '어깨·흉곽 발달 · 골반 슬림', chest: 78, waist: 47, pelvis: 42 },
+  soyang: { label: '소양인 체형', desc: '어깨·흉곽 발달 · 골반 슬림', chest: 76, waist: 48, pelvis: 43 },
   taeeum: { label: '태음인 체형', desc: '허리·복부(중초) 중후 · 골격 탄탄', chest: 62, waist: 82, pelvis: 66 },
   soeum: { label: '소음인 체형', desc: '골반·하초 안정 · 상체 슬림', chest: 42, waist: 46, pelvis: 78 },
 };
+
+// ── 수동 체형 조절(상초·중초·하초) 실시간 사상체질 판별 & 한의학 임상 해설 엔진 ──
+function analyzeBodyConstitution(chest, waist, pelvis, lastEditedZone = null) {
+  const upperToLower = chest - pelvis;
+  const upperToMiddle = chest - waist;
+  const lowerToUpper = pelvis - chest;
+  const middleProminence = waist - (chest * 0.52 + pelvis * 0.48);
+  const avgMass = (chest + waist + pelvis) / 3;
+  const taperAngle = Number(((chest - pelvis) * 0.38).toFixed(1));
+
+  // 각 체질별 표준 프리셋과의 거리 기반 유사도 + 삼초(상·중·하) 임상 가중치 계산
+  const distScore = (c0, w0, p0) => {
+    const d = Math.hypot((chest - c0) * 1.15, (waist - w0) * 1.25, (pelvis - p0) * 1.15);
+    return Math.max(2, 100 - d * 1.35);
+  };
+
+  let raw = {
+    taeyang: distScore(84, 45, 40),
+    soyang: distScore(74, 48, 44),
+    taeeum: distScore(62, 82, 66),
+    soeum: distScore(42, 46, 78),
+  };
+
+  // 1) 태양인 vs 소양인 (상초 우세 구간 정밀 분리)
+  if (upperToLower >= 8 && chest > waist + 4) {
+    if (chest >= 80 && upperToLower >= 34 && upperToMiddle >= 30) {
+      raw.taeyang += 38 + (chest - 80) * 1.8;
+      raw.soyang += 14;
+    } else {
+      raw.soyang += 36 + Math.min(20, upperToLower * 0.6);
+      if (chest >= 76) raw.taeyang += 16;
+    }
+  }
+
+  // 2) 태음인 (중초 허리·복부 발달 또는 전신 골격 중후형)
+  if (waist >= chest - 2 && waist >= pelvis - 2) {
+    raw.taeeum += 44 + Math.max(0, middleProminence * 1.4);
+  } else if (middleProminence >= 4 || (waist >= 62 && avgMass >= 60)) {
+    raw.taeeum += 34 + middleProminence * 1.1;
+  }
+
+  // 3) 소음인 (하초 골반·둔부 우세 및 상초 슬림형)
+  if (lowerToUpper >= 5 && pelvis > waist - 4) {
+    raw.soeum += 44 + Math.min(25, lowerToUpper * 0.9);
+  } else if (chest <= 50 && pelvis >= chest) {
+    raw.soeum += 26;
+  }
+
+  // 정규화 확률(%) 및 1순위·2순위 체질 도출
+  const totalRaw = raw.taeyang + raw.soyang + raw.taeeum + raw.soeum || 1;
+  const probabilities = {
+    taeyang: Math.round((raw.taeyang / totalRaw) * 100),
+    soyang: Math.round((raw.soyang / totalRaw) * 100),
+    taeeum: Math.round((raw.taeeum / totalRaw) * 100),
+    soeum: Math.round((raw.soeum / totalRaw) * 100),
+  };
+
+  const ranked = Object.entries(raw).sort((a, b) => b[1] - a[1]);
+  const primaryKey = ranked[0][0];
+  const secondaryKey = ranked[1][0];
+
+  // 체형 부합도 점수 (68% ~ 98% 스케일)
+  const topShare = raw[primaryKey] / totalRaw;
+  const matchConfidence = Math.min(98, Math.max(66, Math.round(52 + topShare * 88)));
+
+  const details = SASANG_CONSTITUTION_DETAILS[primaryKey];
+  const secondaryDetails = SASANG_CONSTITUTION_DETAILS[secondaryKey];
+
+  // 수동 조절 부위별 실시간 체형 변화 피드백 문구
+  let zoneLiveGuide = '';
+  if (lastEditedZone === 'upper') {
+    if (chest >= 80 && upperToLower >= 34) {
+      zoneLiveGuide = `상초(${chest}%)가 극도로 발달하고 하초(${pelvis}%)가 가벼워 기운이 상부로 발산하는 '태양인(肺大肝小)' 체형으로 판별됩니다.`;
+    } else if (chest > pelvis + 6 && chest > waist + 4) {
+      zoneLiveGuide = `상초(${chest}%)가 하초(${pelvis}%)보다 +${upperToLower}%p 넓은 역삼각 체형으로, 흉격이 발달한 '소양인(脾大腎小)' 체형에 부합합니다.`;
+    } else if (chest <= 48 && pelvis > chest) {
+      zoneLiveGuide = `상초(${chest}%)가 좁고 단정하여 상대적으로 하초(${pelvis}%)가 안정된 '소음인(腎大脾小)' 체형으로 전환되었습니다.`;
+    } else {
+      zoneLiveGuide = `상초(${chest}%) 조절 결과, 중초(${waist}%)·하초(${pelvis}%)와의 비율에 따라 '${details.name}' 체형과 ${matchConfidence}% 부합합니다.`;
+    }
+  } else if (lastEditedZone === 'middle') {
+    if (waist >= chest - 2 || waist >= 64) {
+      zoneLiveGuide = `중초(허리·복부 ${waist}%)가 두껍고 중후하게 발달하여 간(肝)의 흡수·축적 기운이 강한 '태음인(肝大肺小)' 체형으로 판별됩니다.`;
+    } else {
+      zoneLiveGuide = `중초(허리·복부 ${waist}%)가 슬림해지면서 상초(${chest}%)와 하초(${pelvis}%)의 대소 관계에 따라 '${details.name}' 체형으로 판별됩니다.`;
+    }
+  } else if (lastEditedZone === 'lower') {
+    if (pelvis >= chest + 5 && pelvis >= waist - 3) {
+      zoneLiveGuide = `하초(골반·둔부 ${pelvis}%)가 상초(${chest}%)보다 +${lowerToUpper}%p 안정적으로 발달하여 전형적인 '소음인(腎大脾小)' 체형으로 판별됩니다.`;
+    } else if (pelvis <= 45 && chest >= 70) {
+      zoneLiveGuide = `하초(골반·하체 ${pelvis}%)가 슬림해져 상초(${chest}%)와의 경사각(+${taperAngle}°)이 커지면서 '${details.name}' 역삼각 체형 특성이 뚜렷해졌습니다.`;
+    } else {
+      zoneLiveGuide = `하초(${pelvis}%) 조절 결과, 전체 삼초 밸런스가 '${details.name}' 체형(${matchConfidence}% 일치)에 가장 가깝습니다.`;
+    }
+  } else {
+    if (primaryKey === 'taeyang') {
+      zoneLiveGuide = `상초(${chest}%)가 중초(${waist}%)·하초(${pelvis}%) 대비 월등히 발달한 상체 기상형(경사각 +${taperAngle}°)으로 '태양인' 체형입니다.`;
+    } else if (primaryKey === 'soyang') {
+      zoneLiveGuide = `어깨·흉곽(상초 ${chest}%)이 발달하고 골반(하초 ${pelvis}%)이 날렵한 역삼각형(경사각 +${taperAngle}°)으로 '소양인' 체형입니다.`;
+    } else if (primaryKey === 'taeeum') {
+      zoneLiveGuide = `허리·복부(중초 ${waist}%)가 중심을 잡고 골격이 탄탄한 중후형 실루엣으로 전형적인 '태음인' 체형입니다.`;
+    } else {
+      zoneLiveGuide = `가슴·어깨(상초 ${chest}%)는 아담하고 골반·하체(하초 ${pelvis}%)가 안정된 정삼각(경사각 ${taperAngle}°) 실루엣으로 '소음인' 체형입니다.`;
+    }
+  }
+
+  // 체형별 핵심 두피·탈모 경고 요약
+  const scalpAlertMap = {
+    taeyang: '상초 열기 역상(氣逆上衝) 주의 → 정수리·전두부 진액 고갈 및 급성 스트레스성 탈모 경향',
+    soyang: '전형적 상열하한(上熱下寒) 체형 → 두피 열감·홍반 및 정수리 연모화·원형탈모 주의',
+    taeeum: '중초 습담(濕痰)·간열 축적 체형 → 두피 과다 피지·지루성 모낭염 및 M자·정수리 복합 탈모 주의',
+    soeum: '비위 허약·말초 기혈부족 체형 → 두피 영양 공급 저하로 인한 모발 전체 세모화(연모화)·휴지기 탈모 주의',
+  };
+
+  return {
+    primaryKey,
+    secondaryKey,
+    details,
+    secondaryDetails,
+    matchConfidence,
+    probabilities,
+    taperAngle,
+    zoneLiveGuide,
+    scalpAlert: scalpAlertMap[primaryKey],
+  };
+}
 
 // ── 정면(0°)·후면(180°) 32-bit RGBA 3D 캐릭터 에셋 로더 & 해부학적 윤곽선 측정기 ──
 function prepareRiggedCharacterData(img, isFemale) {
@@ -198,6 +324,7 @@ const Sasang3DBodyModel = ({
   waistWidth,
   pelvisWidth,
   onSelectPreset,
+  liveAnalysis,
 }) => {
   const canvasRef = useRef(null);
   const processedModelsRef = useRef({
