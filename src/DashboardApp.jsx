@@ -18,7 +18,7 @@ import KakaoReportModal from './components/KakaoReportModal';
 const TAB_NAMES = {
   diagnosis: 'AI 탈모 진단',
   areata: '원형탈모 진단',
-  simulator: '복약 전·후 경과',
+  simulator: '복약 전·후 AI 예측 (점검중)',
   sasang: '사상체질·식이',
   guide: '금기·약학백과',
   medication: '복약 관리',
@@ -138,7 +138,7 @@ function DashboardApp() {
       case 'areata':
         return <AlopeciaAreataView user={user} onRequireAuth={openAuthModal} />;
       case 'simulator':
-        return <HairSimTab user={user} onRequireAuth={openAuthModal} />;
+        return <HairSimTab user={user} onRequireAuth={openAuthModal} onNavigateTab={setActiveTab} />;
       case 'sasang':
         return <SasangTab />;
       case 'guide':

@@ -177,9 +177,9 @@ export const PrivacyMembershipNoticeCard = ({
   const labelMap = {
     diagnosis: 'AI 탈모진단앱',
     areata: '원형탈모(SALT) 진단앱',
-    simulator: '복약 전·후 예상 경과 확인'
+    simulator: '복약 전·후 AI 예측 (점검중)'
   };
-  const targetLabel = labelMap[featureType] || '탈모진단 및 복약 경과 확인';
+  const targetLabel = labelMap[featureType] || 'AI 탈모 정밀 진단';
 
   return (
     <div style={{
@@ -195,7 +195,7 @@ export const PrivacyMembershipNoticeCard = ({
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
         <Lock size={16} color="#D4AF37" style={{ flexShrink: 0, marginTop: '2px' }} />
         <div style={{ fontSize: '0.78rem', color: '#eee', lineHeight: 1.45 }}>
-          <strong style={{ color: '#D4AF37' }}>탈모진단앱과 복약 전·후 예상 경과 확인</strong>은 개인 두피·건강정보를 다루므로 개인정보 보호를 위해 <strong>회원가입 후 이용</strong>하실 수 있습니다.
+          <strong style={{ color: '#D4AF37' }}>AI 탈모 정밀 진단 및 원형탈모(SALT) 진단</strong>은 개인 두피·건강정보를 다루므로 개인정보 보호를 위해 <strong>회원가입 후 이용</strong>하실 수 있습니다.
         </div>
       </div>
 

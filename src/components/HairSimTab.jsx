@@ -1,13 +1,9 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import {
-  compareBeforeAfterImages,
-  simulateHairGrowthClientSide,
-} from '../utils/beforeAfterAnalyzer';
-import { PrivacyMembershipNoticeCard } from './AuthGate';
+import { useState } from 'react';
+import { Wrench, Clock, Sparkles, ArrowRight, ShieldCheck } from 'lucide-react';
 import './HairSimTab.css';
 import './MedicationTab.css';
 
-// ── 복약 성분별 1·3·6·12개월 핵심 경과 데이터 ──────────────────────────────────
+// ── 복약 성분별 1·3·6·12개월 표준 임상 경과 참고 데이터 ──────────────────────
 const DRUG_DATA = {
   finasteride: {
     name: '피나스테리드 1mg (프로페시아·피나온)',
@@ -55,268 +51,225 @@ const DRUG_DATA = {
   },
 };
 
-// ── Before / After 드래그 슬라이더 ────────────────────────
-const BeforeAfterSlider = ({ beforeSrc, afterSrc, isLoading, monthColor = '#D4AF37', rightLabel = '복약 후' }) => {
-  const [pos, setPos] = useState(50);
-  const [isDragging, setIsDragging] = useState(false);
-  const containerRef = useRef(null);
-
-  const updatePos = useCallback((clientX) => {
-    if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    const x = ((clientX - rect.left) / rect.width) * 100;
-    setPos(Math.min(Math.max(x, 2), 98));
-  }, []);
-
-  useEffect(() => {
-    if (!isDragging) return;
-    const onMove = (e) => updatePos(e.clientX);
-    const onUp = () => setIsDragging(false);
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-  }, [isDragging, updatePos]);
-
-  return (
-    <div className="ba-outer">
-      <div
-        ref={containerRef}
-        className={`ba-slider${isDragging ? ' ba-dragging' : ''}`}
-        onMouseDown={(e) => {
-          e.preventDefault();
-          setIsDragging(true);
-        }}
-        onTouchStart={(e) => {
-          setIsDragging(true);
-          updatePos(e.touches[0].clientX);
-        }}
-        onTouchMove={(e) => {
-          e.preventDefault();
-          updatePos(e.touches[0].clientX);
-        }}
-        onTouchEnd={() => setIsDragging(false)}
-      >
-        <div className="ba-layer">
-          {beforeSrc && <img src={beforeSrc} alt="복약 전" className="ba-img" />}
-          <div className="ba-tag ba-tag-before">복약 전 (Before)</div>
-        </div>
-
-        <div className="ba-layer ba-after-layer" style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }}>
-          {isLoading ? (
-            <div className="ba-overlay">
-              <div className="ba-ring"><div /><div /><div /><div /></div>
-              <p className="ba-load-text">복약 후 모발 밀도 시뮬레이션 생성 중...</p>
-            </div>
-          ) : afterSrc ? (
-            <img src={afterSrc} alt="복약 후" className="ba-img ba-img-in" />
-          ) : null}
-          <div className="ba-tag ba-tag-after" style={{ color: monthColor }}>
-            {rightLabel}
-          </div>
-        </div>
-
-        <div className="ba-div-wrap" style={{ left: `${pos}%` }}>
-          <div className="ba-div-line" />
-          <div className="ba-div-handle">
-            <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
-              <path d="M8 5.5L3 11L8 16.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M14 5.5L19 11L14 16.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
-        </div>
-      </div>
-      <p className="ba-hint">← 슬라이더를 좌우로 움직여 복약 전·후 변화를 비교해 보세요 →</p>
-    </div>
-  );
-};
-
-// ── 복약 전·후 정량 비교 요약 카드 ────────────────────────────────────────────
-const QuantitativeMetricsPanel = ({ metrics }) => {
-  if (!metrics) return null;
-  const isPositive = metrics.coverageGain >= 0;
-
-  return (
-    <div
-      style={{
-        background: 'rgba(18, 18, 22, 0.96)',
-        border: '1px solid rgba(212, 175, 55, 0.3)',
-        borderRadius: '12px',
-        padding: '12px',
-        marginTop: '12px',
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-        <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#f5f0e8' }}>
-          📊 복약 전·후 모발 밀도 변화 수치
-        </span>
-        <span
-          style={{
-            fontSize: '0.68rem',
-            fontWeight: 700,
-            padding: '2px 8px',
-            borderRadius: '999px',
-            background: 'rgba(76, 175, 80, 0.16)',
-            color: '#81C784',
-          }}
-        >
-          {metrics.gradeText}
-        </span>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '9px', borderRadius: '8px' }}>
-          <div style={{ fontSize: '0.68rem', color: '#999' }}>모발 피복률 변화 (↑높을수록 좋음)</div>
-          <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#fff', marginTop: '2px' }}>
-            {metrics.beforeCoverage}% → <span style={{ color: '#4CAF50' }}>{metrics.afterCoverage}%</span>
-          </div>
-          <div style={{ fontSize: '0.68rem', color: isPositive ? '#81C784' : '#FF8A80', fontWeight: 700 }}>
-            {isPositive ? `+${metrics.coverageGain}%p 증가` : `${metrics.coverageGain}%p`}
-          </div>
-        </div>
-
-        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '9px', borderRadius: '8px' }}>
-          <div style={{ fontSize: '0.68rem', color: '#999' }}>단위면적 모낭 밀도 (↑높을수록 좋음)</div>
-          <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#fff', marginTop: '2px' }}>
-            {metrics.beforeFollicularDensity} → <span style={{ color: '#D4AF37' }}>{metrics.afterFollicularDensity}</span>
-            <span style={{ fontSize: '0.65rem', color: '#aaa' }}> 모/cm²</span>
-          </div>
-          <div style={{ fontSize: '0.68rem', color: '#D4AF37', fontWeight: 700 }}>
-            +{metrics.follicularDensityDelta} 모/cm² 회복
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ── 메인 HairSimTab (샘플 내용 삭제 · 내 사진 시뮬레이션 & 진단앱 바로 이동 전용) ──
-const HairSimTab = ({ user = null, onRequireAuth = null }) => {
-  const [myPhoto, setMyPhoto] = useState(null);
+const HairSimTab = ({ onNavigateTab = null }) => {
   const [selectedDrug, setSelectedDrug] = useState('dutasteride');
   const [selectedMonth, setSelectedMonth] = useState(6);
-  const [simResult, setSimResult] = useState(null);
-  const [isRunning, setIsRunning] = useState(false);
-
-  // 실제 복약 전/후 2장 비교 상태
-  const [customBefore, setCustomBefore] = useState(null);
-  const [customAfter, setCustomAfter] = useState(null);
-  const [customMetrics, setCustomMetrics] = useState(null);
-  const mySimInputRef = useRef(null);
-  const beforeInputRef = useRef(null);
-  const afterInputRef = useRef(null);
-
-  const runSimulation = useCallback(async (imgSrc, drugKey, monthNum) => {
-    if (!imgSrc) return;
-    setIsRunning(true);
-    try {
-      const drugInfo = DRUG_DATA[drugKey] || DRUG_DATA.dutasteride;
-      const res = await simulateHairGrowthClientSide(imgSrc, {
-        month: monthNum,
-        drugName: drugInfo.name,
-        targetDensityGain: drugInfo.months[monthNum]?.density || 45,
-      });
-      setSimResult(res);
-    } catch (e) {
-      console.error('Simulation error:', e);
-    } finally {
-      setIsRunning(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (myPhoto) {
-      runSimulation(myPhoto, selectedDrug, selectedMonth);
-    }
-  }, [myPhoto, selectedDrug, selectedMonth, runSimulation]);
-
-  const requireAuthOrRun = (featureLabel, callback) => {
-    if (!user) {
-      if (onRequireAuth) {
-        onRequireAuth({
-          mode: 'signup',
-          featureName: featureLabel,
-          onSuccess: () => callback && callback(),
-        });
-      }
-      return;
-    }
-    if (callback) callback();
-  };
-
-  const handleMyPhotoSimulate = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setMyPhoto(ev.target.result);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleCustomCompareUpload = (e, type) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const dataUrl = ev.target.result;
-      if (type === 'before') {
-        setCustomBefore(dataUrl);
-        if (customAfter) {
-          const m = await compareBeforeAfterImages(dataUrl, customAfter);
-          setCustomMetrics(m);
-        }
-      } else {
-        setCustomAfter(dataUrl);
-        if (customBefore) {
-          const m = await compareBeforeAfterImages(customBefore, dataUrl);
-          setCustomMetrics(m);
-        }
-      }
-    };
-    reader.readAsDataURL(file);
-  };
 
   const currentDrugInfo = DRUG_DATA[selectedDrug] || DRUG_DATA.dutasteride;
   const currentMonthInfo = currentDrugInfo.months[selectedMonth] || currentDrugInfo.months[6];
 
+  const handleDisabledNoticeClick = (e) => {
+    e.preventDefault();
+  };
+
   return (
     <div className="sim-container fade-in" style={{ paddingBottom: '90px' }}>
       <div className="tab-banner">
-        <img src="/assets/banners/banner_simulator.jpg" alt="복약 전후 예상 경과" className="tab-banner-img" />
+        <img src="/assets/banners/banner_simulator.jpg" alt="복약 전후 AI 예측 서비스 점검 안내 배너" className="tab-banner-img" />
         <div className="tab-banner-overlay">
-          <h1 className="tab-banner-title">복약 전·후 예상 경과 확인</h1>
-          <p className="tab-banner-sub">내 사진 기반 1·3·6·12개월 발모 경과 예측 및 전·후 밀도 비교</p>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+            <span
+              style={{
+                padding: '2px 9px',
+                borderRadius: '999px',
+                background: 'rgba(255, 183, 77, 0.22)',
+                border: '1px solid #FFB74D',
+                color: '#FFB74D',
+                fontSize: '0.68rem',
+                fontWeight: 800,
+              }}
+            >
+              🛠️ 서비스 점검중
+            </span>
+          </div>
+          <h1 className="tab-banner-title">복약 전·후 AI 예측 (점검중)</h1>
+          <p className="tab-banner-sub">실제 임상 모낭 밀도 예측 AI 엔진 정밀도 고도화 작업 진행 중</p>
         </div>
       </div>
 
       <div style={{ padding: '14px' }}>
-        <PrivacyMembershipNoticeCard
-          user={user}
-          featureType="simulator"
-          onOpenAuth={onRequireAuth}
-        />
+        {/* 메인 점검중 안내 히어로 카드 */}
+        <div
+          data-testid="ai-sim-maintenance-card"
+          style={{
+            background: 'linear-gradient(145deg, rgba(28, 24, 16, 0.98), rgba(14, 14, 18, 0.98))',
+            border: '1.5px solid #FFB74D',
+            borderRadius: '16px',
+            padding: '22px 18px',
+            marginBottom: '14px',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.55)',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+            <div
+              style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '50%',
+                background: 'rgba(255, 183, 77, 0.14)',
+                border: '1.5px solid rgba(255, 183, 77, 0.55)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 0 24px rgba(255, 183, 77, 0.22)',
+              }}
+            >
+              <Wrench size={26} color="#FFB74D" aria-hidden="true" />
+            </div>
+          </div>
 
-        {/* 내 사진으로 직접 복약 경과 예측 & 전·후 비교 */}
+          <div style={{ textAlign: 'center', marginBottom: '14px' }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '3px 10px',
+                borderRadius: '999px',
+                background: 'rgba(255, 183, 77, 0.16)',
+                color: '#FFB74D',
+                fontSize: '0.7rem',
+                fontWeight: 800,
+                marginBottom: '8px',
+              }}
+            >
+              <Clock size={12} aria-hidden="true" /> UNDER MAINTENANCE · 시스템 점검 안내
+            </span>
+
+            <h2 style={{ fontSize: '1.08rem', fontWeight: 800, color: '#fff', margin: '0 0 8px', lineHeight: 1.4 }}>
+              복약 전·후 AI 예측은 아직 점검 중입니다
+            </h2>
+
+            <p style={{ fontSize: '0.78rem', color: '#d6d1c4', margin: 0, lineHeight: 1.55 }}>
+              내 모발 사진 기반 <strong style={{ color: '#FFD700' }}>1·3·6·12개월 복약 전·후 AI 발모 예측 시뮬레이션</strong>은 실제 임상 회복 경과와의 정밀도를 높이기 위한 AI 모델 고도화 점검을 진행하고 있습니다.
+            </p>
+          </div>
+
+          {/* 점검 상세 현황 박스 */}
+          <div
+            style={{
+              background: 'rgba(0, 0, 0, 0.42)',
+              border: '1px solid rgba(255, 183, 77, 0.24)',
+              borderRadius: '10px',
+              padding: '12px',
+              marginBottom: '14px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '7px',
+              fontSize: '0.74rem',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+              <span style={{ color: '#999', fontWeight: 700, flexShrink: 0 }}>점검 대상</span>
+              <span style={{ color: '#eee', fontWeight: 600, textAlign: 'right' }}>
+                복약 전·후 사진 AI 예측 & 비교 시뮬레이션
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+              <span style={{ color: '#999', fontWeight: 700, flexShrink: 0 }}>현재 상태</span>
+              <span style={{ color: '#FFB74D', fontWeight: 800, textAlign: 'right' }}>
+                AI 발모 예측 엔진 점검 중 (재오픈 준비 중)
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+              <span style={{ color: '#999', fontWeight: 700, flexShrink: 0 }}>정상 이용</span>
+              <span style={{ color: '#81C784', fontWeight: 700, textAlign: 'right' }}>
+                남·여 AI 탈모 진단 · 원형탈모 · 사상체질 진단
+              </span>
+            </div>
+          </div>
+
+          {/* 비활성 점검 상태 표시 버튼 (키보드 포커스 유지 + 클릭 방지) */}
+          <button
+            type="button"
+            aria-disabled="true"
+            onClick={handleDisabledNoticeClick}
+            style={{
+              width: '100%',
+              padding: '13px',
+              borderRadius: '10px',
+              border: '1px dashed rgba(255, 183, 77, 0.45)',
+              background: 'rgba(255, 183, 77, 0.09)',
+              color: '#FFB74D',
+              fontWeight: 800,
+              fontSize: '0.84rem',
+              cursor: 'not-allowed',
+              marginBottom: onNavigateTab ? '12px' : 0,
+            }}
+          >
+            🛠️ 복약 전·후 AI 예측 시뮬레이션 점검 중 (오픈 준비 중)
+          </button>
+
+          {/* 정상 운영 중인 핵심 진단 기능 바로가기 */}
+          {onNavigateTab && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => onNavigateTab('diagnosis')}
+                style={{
+                  padding: '11px 10px',
+                  borderRadius: '9px',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #D4AF37 0%, #B68D2C 100%)',
+                  color: '#000',
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '4px',
+                }}
+              >
+                <span>AI 탈모 진단하기</span>
+                <ArrowRight size={14} aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigateTab('sasang')}
+                style={{
+                  padding: '11px 10px',
+                  borderRadius: '9px',
+                  border: '1px solid rgba(212, 175, 55, 0.5)',
+                  background: 'rgba(212, 175, 55, 0.14)',
+                  color: '#f5d77f',
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '4px',
+                }}
+              >
+                <span>사상체질 진단하기</span>
+                <ArrowRight size={14} aria-hidden="true" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* 점검 기간 동안 열람 가능한 표준 임상 복약 경과 텍스트 가이드 */}
         <div
           style={{
             background: '#121216',
-            border: '1px solid rgba(212, 175, 55, 0.35)',
+            border: '1px solid rgba(212, 175, 55, 0.28)',
             borderRadius: '14px',
             padding: '14px',
-            marginBottom: '12px',
           }}
         >
-          <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#f5f0e8', marginBottom: '4px' }}>
-            📸 내 사진으로 복약 1·3·6·12개월 경과 예측하기
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '6px' }}>
+            <h3 style={{ fontSize: '0.84rem', fontWeight: 800, color: '#D4AF37', margin: 0, display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <Sparkles size={14} aria-hidden="true" /> [참고] 복약 성분별 표준 임상 회복 가이드
+            </h3>
+            <span style={{ fontSize: '0.66rem', color: '#81C784', display: 'inline-flex', alignItems: 'center', gap: '3px', fontWeight: 700 }}>
+              <ShieldCheck size={12} aria-hidden="true" /> 학술 임상 기준
+            </span>
           </div>
-          <p style={{ fontSize: '0.73rem', color: '#aaa', margin: '0 0 10px', lineHeight: 1.45 }}>
-            내 현재 모발 사진을 등록하면 복약 성분·개월 수에 따른 예상 발모 경과를 시뮬레이션합니다.
+          <p style={{ fontSize: '0.71rem', color: '#999', margin: '0 0 10px', lineHeight: 1.45 }}>
+            사진 기반 AI 예측 점검 기간 동안 성분별 평균 임상 회복 주기를 먼저 확인하실 수 있습니다.
           </p>
 
-          {/* 약물 선택 & 개월 수 선택 */}
           <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '8px' }}>
             {[
               { id: 'finasteride', label: '피나스테리드' },
@@ -327,6 +280,7 @@ const HairSimTab = ({ user = null, onRequireAuth = null }) => {
               <button
                 key={d.id}
                 type="button"
+                aria-pressed={selectedDrug === d.id}
                 onClick={() => setSelectedDrug(d.id)}
                 style={{
                   flex: 1,
@@ -346,11 +300,12 @@ const HairSimTab = ({ user = null, onRequireAuth = null }) => {
             ))}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', marginBottom: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', marginBottom: '10px' }}>
             {[1, 3, 6, 12].map((m) => (
               <button
                 key={m}
                 type="button"
+                aria-pressed={selectedMonth === m}
                 onClick={() => setSelectedMonth(m)}
                 style={{
                   padding: '7px',
@@ -363,116 +318,41 @@ const HairSimTab = ({ user = null, onRequireAuth = null }) => {
                   cursor: 'pointer',
                 }}
               >
-                {m}개월 후
+                {m}개월차
               </button>
             ))}
           </div>
 
-          <input
-            ref={mySimInputRef}
-            type="file"
-            accept="image/*"
-            style={{ display: 'none' }}
-            onChange={handleMyPhotoSimulate}
-          />
-
-          {myPhoto && (
-            <div style={{ marginBottom: '12px' }}>
-              <BeforeAfterSlider
-                beforeSrc={myPhoto}
-                afterSrc={simResult?.predicted_image}
-                isLoading={isRunning}
-                monthColor={currentMonthInfo.color}
-                rightLabel={`${selectedMonth}개월 복약 후 (${currentDrugInfo.shortName})`}
-              />
-              {simResult?.metrics && <QuantitativeMetricsPanel metrics={simResult.metrics} />}
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={() => requireAuthOrRun('내 사진 복약 경과 시뮬레이션', () => mySimInputRef.current?.click())}
+          <div
             style={{
-              width: '100%',
-              padding: '13px',
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.08)',
               borderRadius: '10px',
-              border: 'none',
-              background: 'linear-gradient(135deg, #D4AF37 0%, #B68D2C 100%)',
-              color: '#000',
-              fontWeight: 800,
-              fontSize: '0.86rem',
-              cursor: 'pointer',
-              marginBottom: '14px',
+              padding: '11px 12px',
             }}
           >
-            {user
-              ? myPhoto
-                ? '📷 다른 모발 사진으로 다시 예측하기'
-                : '📷 내 모발 사진 등록하고 1·3·6·12개월 경과 예측하기'
-              : '🔒 회원가입 후 내 사진으로 복약 경과 예측하기'}
-          </button>
-
-          {/* 실제 복용 전/후 2장 비교 슬롯 */}
-          <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#D4AF37', marginBottom: '6px' }}>
-            📊 실제 복약 전(Before) · 복약 후(After) 사진 2장 정량 비교
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-            <div
-              onClick={() => requireAuthOrRun('복약 전·후 사진 비교', () => beforeInputRef.current?.click())}
-              style={{
-                border: '1px dashed rgba(212, 175, 55, 0.4)',
-                borderRadius: '10px',
-                padding: '10px',
-                textAlign: 'center',
-                cursor: 'pointer',
-                background: 'rgba(255,255,255,0.02)',
-              }}
-            >
-              <input
-                ref={beforeInputRef}
-                type="file"
-                accept="image/*"
-                style={{ display: 'none' }}
-                onChange={(e) => handleCustomCompareUpload(e, 'before')}
-              />
-              {customBefore ? (
-                <img src={customBefore} alt="Before" style={{ width: '100%', height: '90px', objectFit: 'cover', borderRadius: '6px' }} />
-              ) : (
-                <div style={{ padding: '14px 0', color: '#aaa', fontSize: '0.73rem', fontWeight: 600 }}>
-                  📥 복약 전(Before) 사진
-                </div>
-              )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '5px' }}>
+              <strong style={{ fontSize: '0.78rem', color: '#fff' }}>{currentDrugInfo.name}</strong>
+              <span
+                style={{
+                  fontSize: '0.68rem',
+                  fontWeight: 800,
+                  color: currentMonthInfo.color,
+                  background: 'rgba(212, 175, 55, 0.12)',
+                  padding: '2px 8px',
+                  borderRadius: '999px',
+                }}
+              >
+                {selectedMonth}개월차 · {currentMonthInfo.recovery}
+              </span>
             </div>
-
-            <div
-              onClick={() => requireAuthOrRun('복약 전·후 사진 비교', () => afterInputRef.current?.click())}
-              style={{
-                border: '1px dashed rgba(76, 175, 80, 0.45)',
-                borderRadius: '10px',
-                padding: '10px',
-                textAlign: 'center',
-                cursor: 'pointer',
-                background: 'rgba(255,255,255,0.02)',
-              }}
-            >
-              <input
-                ref={afterInputRef}
-                type="file"
-                accept="image/*"
-                style={{ display: 'none' }}
-                onChange={(e) => handleCustomCompareUpload(e, 'after')}
-              />
-              {customAfter ? (
-                <img src={customAfter} alt="After" style={{ width: '100%', height: '90px', objectFit: 'cover', borderRadius: '6px' }} />
-              ) : (
-                <div style={{ padding: '14px 0', color: '#81C784', fontSize: '0.73rem', fontWeight: 600 }}>
-                  📥 복약 후(After) 사진
-                </div>
-              )}
-            </div>
+            <p style={{ fontSize: '0.72rem', color: '#bbb', margin: '0 0 6px', lineHeight: 1.45 }}>
+              {currentDrugInfo.mechanism}
+            </p>
+            <p style={{ fontSize: '0.74rem', color: '#f0ece1', margin: 0, fontWeight: 600, lineHeight: 1.48 }}>
+              • {currentMonthInfo.description}
+            </p>
           </div>
-
-          {customMetrics && <QuantitativeMetricsPanel metrics={customMetrics} />}
         </div>
       </div>
     </div>
