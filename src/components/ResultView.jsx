@@ -1,8 +1,19 @@
 import { useState, useRef, useEffect } from 'react';
+import { Save, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../supabase';
+import { saveAndrogeneticDiagnosisRecord } from '../utils/diagnosisHistoryService';
+import DiagnosisHistoryPanel from './DiagnosisHistoryPanel';
 import './ResultView.css';
 
-const ResultView = ({ diagnosisData = {}, images = {}, onReset }) => {
+const ResultView = ({
+  diagnosisData = {},
+  images = {},
+  onReset,
+  user = null,
+  savedRecordId = null,
+  onRecordSaved = null,
+  onRequireAuth = null,
+}) => {
   const [mainTab, setMainTab] = useState('Overview');
   const [sliderPosition, setSliderPosition] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
@@ -12,7 +23,13 @@ const ResultView = ({ diagnosisData = {}, images = {}, onReset }) => {
   const [surveyFeedback, setSurveyFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [surveySubmitted, setSurveySubmitted] = useState(false);
+  const [personalMemo, setPersonalMemo] = useState('');
+  const [localRecordId, setLocalRecordId] = useState(savedRecordId);
+  const [isSavingRecord, setIsSavingRecord] = useState(false);
+  const [recordSaveToast, setRecordSaveToast] = useState(false);
   const sliderRef = useRef(null);
+
+  const activeRecordId = localRecordId || savedRecordId;
 
   const norwood = diagnosisData?.norwood || '분석 완료';
   const ludwig = diagnosisData?.ludwig || '분석 완료';
@@ -617,6 +634,130 @@ const ResultView = ({ diagnosisData = {}, images = {}, onReset }) => {
               )}
             </div>
           </div>
+
+          {/* 개인 진단 기록 저장 및 경과 메모 카드 */}
+          <div
+            className="rv-card"
+            style={{
+              border: '1.5px solid rgba(212, 175, 55, 0.5)',
+              background: 'linear-gradient(145deg, rgba(26, 22, 14, 0.96), rgba(14, 14, 18, 0.98))',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '8px',
+                flexWrap: 'wrap',
+                marginBottom: '8px',
+              }}
+            >
+              <label
+                htmlFor="rv-personal-memo-input"
+                style={{ fontSize: '0.8rem', fontWeight: 800, color: '#D4AF37' }}
+              >
+                💾 내 개인 진단 기록 저장 · 경과 메모 남기기
+              </label>
+              <span
+                style={{
+                  fontSize: '0.66rem',
+                  padding: '2px 8px',
+                  borderRadius: '999px',
+                  background: 'rgba(129, 199, 132, 0.18)',
+                  color: '#81C784',
+                  fontWeight: 800,
+                }}
+              >
+                {user ? `✓ ${user.name}님 계정 자동 보관됨` : '✓ 기기 내 자동 보관됨'}
+              </span>
+            </div>
+
+            <textarea
+              id="rv-personal-memo-input"
+              name="personalMemo"
+              rows={2}
+              placeholder="예: 피나스테리드 1mg + 미녹시딜 5% 시작일, 정수리 밝은 조명 촬영"
+              value={personalMemo}
+              onChange={(e) => setPersonalMemo(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '9px 10px',
+                borderRadius: '8px',
+                border: '1px solid #333',
+                background: '#16161d',
+                color: '#fff',
+                fontSize: '0.78rem',
+                marginBottom: '9px',
+                resize: 'vertical',
+              }}
+            />
+
+            <button
+              type="button"
+              disabled={isSavingRecord}
+              onClick={async () => {
+                setIsSavingRecord(true);
+                try {
+                  const saved = await saveAndrogeneticDiagnosisRecord({
+                    member: user,
+                    gender: features.gender || 'male',
+                    diagnosisData: {
+                      ...diagnosisData,
+                      healthScore: computedHealthScore,
+                      healthGradeLabel,
+                    },
+                    images,
+                    memo: personalMemo,
+                    existingRecordId: activeRecordId,
+                    isManualSave: true,
+                  });
+                  if (saved?.id) {
+                    setLocalRecordId(saved.id);
+                    if (onRecordSaved) onRecordSaved(saved.id);
+                  }
+                  setRecordSaveToast(true);
+                  setTimeout(() => setRecordSaveToast(false), 2400);
+                } finally {
+                  setIsSavingRecord(false);
+                }
+              }}
+              style={{
+                width: '100%',
+                padding: '11px',
+                borderRadius: '9px',
+                border: 'none',
+                background: 'linear-gradient(135deg, #D4AF37, #B68D2C)',
+                color: '#000',
+                fontSize: '0.82rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+              }}
+            >
+              {recordSaveToast ? (
+                <>
+                  <CheckCircle2 size={15} /> 내 개인 진단 기록에 저장 완료!
+                </>
+              ) : (
+                <>
+                  <Save size={15} /> {isSavingRecord ? '저장 중...' : '내 개인 진단 기록·메모 저장하기'}
+                </>
+              )}
+            </button>
+          </div>
+
+          <DiagnosisHistoryPanel
+            user={user}
+            initialCategory="androgenetic"
+            allowCategorySwitch={false}
+            highlightRecordId={activeRecordId}
+            onRequireAuth={onRequireAuth}
+            title="📋 내 남·여성 탈모 누적 진단 기록"
+          />
         </div>
       </main>
 

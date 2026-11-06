@@ -49,6 +49,8 @@ const CameraView = ({
   onCapture,
   onQuickAnalyze,
   onGenderChange,
+  onPrevStep = null,
+  isSingleRetake = false,
   currentStep = 'front',
   stepIndex = 1,
   totalSteps = 4,
@@ -617,14 +619,37 @@ const CameraView = ({
           <div className="cv-progress-fill" style={{ width: `${(stepIndex / totalSteps) * 100}%` }} />
         </div>
         <div className="cv-header-flex">
-          <h2 className="cv-step-title">
-            [{stepIndex}/{totalSteps}] {getStepTitle()}
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {stepIndex > 1 && onPrevStep && !isSingleRetake && (
+              <button
+                type="button"
+                onClick={() => {
+                  setPreviewImage(null);
+                  onPrevStep();
+                }}
+                style={{
+                  padding: '3px 8px',
+                  borderRadius: '6px',
+                  border: '1px solid rgba(212, 175, 55, 0.45)',
+                  background: 'rgba(212, 175, 55, 0.12)',
+                  color: '#D4AF37',
+                  fontSize: '0.68rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                ← 이전
+              </button>
+            )}
+            <h2 className="cv-step-title">
+              [{stepIndex}/{totalSteps}] {getStepTitle()}
+            </h2>
+          </div>
           <button
             className="cv-guide-help-btn"
             onClick={() => setShowGuideModal(true)}
             type="button"
-            title="촬영 방법 안내"
+            aria-label="촬영 방법 안내"
           >
             <HelpCircle size={14} />
             <span>촬영 안내</span>
@@ -671,7 +696,7 @@ const CameraView = ({
                   onClick={approveCapture}
                 >
                   <Check size={18} strokeWidth={3} />
-                  {isLastStep
+                  {isSingleRetake || isLastStep
                     ? '촬영 완료 · 진단 확인하기 →'
                     : `이 사진 확정 · 다음(${stepIndex + 1}/${totalSteps}) →`}
                 </button>

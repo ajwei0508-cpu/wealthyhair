@@ -192,10 +192,12 @@ export const analyzeAlopeciaAreataImage = (imageSrc, quadrantId = 'top', calibra
           }
 
           const isGlare = L > 95 && chroma < 10;
+          // 실제 두피 피부는 멜라닌·헤모글로빈 색조(a* >= 2.4, b* >= 4.5, r > b + 5)를 가지므로 무채색 흰 벽·회색 의자 배경 배제
           const isSkinTone =
             !isGlare &&
-            ((L > 48 && L < 93 && a > 1.8 && a < 30 && labB > 3.5 && labB < 38 && r >= g * 0.94) ||
-              (L > 63 && L < 92 && localGrad < 26 && r >= b));
+            r > b + 5 &&
+            ((L > 48 && L < 92 && a > 2.4 && a < 30 && labB > 4.5 && labB < 38 && r >= g * 0.95) ||
+              (L > 62 && L < 90 && a > 3.2 && labB > 5.5 && localGrad < 24));
 
           if (isSkinTone && localGrad < 38) {
             isScalpGrid[i] = 1;
@@ -208,7 +210,7 @@ export const analyzeAlopeciaAreataImage = (imageSrc, quadrantId = 'top', calibra
       }
 
       // 2. 물리적 스케일(fovWidthCm: 이미지 전체 가로 폭에 해당하는 실제 cm) 산출
-      let effectiveFovWidthCm = 14.2;
+      let effectiveFovWidthCm;
       if (coinRefRatio && coinRefRatio > 0.03) {
         // 사용자가 동전 기준원으로 보정한 경우: (동전 실제 직경 cm) / (화면 폭 대비 동전 비율)
         effectiveFovWidthCm = parseFloat((coinActualCm / coinRefRatio).toFixed(2));
@@ -249,6 +251,7 @@ export const analyzeAlopeciaAreataImage = (imageSrc, quadrantId = 'top', calibra
             let sumX = 0, sumY = 0, sumErythema = 0;
             let perimeterCells = 0;
             let borderingHairCells = 0;
+            let boundaryTouchCells = 0;
 
             while (queue.length > 0) {
               const curr = queue.pop();
@@ -269,6 +272,7 @@ export const analyzeAlopeciaAreataImage = (imageSrc, quadrantId = 'top', calibra
                 const ny = cy + dy;
                 if (nx < marginX || nx >= gw - marginX || ny < marginY || ny >= gh - marginY) {
                   isBorder = true;
+                  boundaryTouchCells++;
                   continue;
                 }
                 const nIdx = ny * gw + nx;
@@ -323,10 +327,13 @@ export const analyzeAlopeciaAreataImage = (imageSrc, quadrantId = 'top', calibra
               const circularity = Math.min(1.0, (4 * Math.PI * areaCells) / Math.pow(Math.max(perimeterCells, 4), 2));
               const hairBorderRatio = borderingHairCells / Math.max(1, perimeterCells);
 
-              // 가늘고 긴 가르마 선(aspectRatio > 3.4 & circularity < 0.28)은 원형탈모반에서 제외
-              const isPartingLine = aspectRatio > 3.4 && circularity < 0.28;
+              // 가늘고 긴 가르마 선(aspectRatio > 3.2 & circularity < 0.30) 및 프레임 외곽 배경/이마 노출(boundaryTouchRatio > 0.12)은 원형탈모반에서 배제
+              const isPartingLine = aspectRatio > 3.2 && circularity < 0.30;
+              const boundaryTouchRatio = boundaryTouchCells / Math.max(1, perimeterCells);
+              const isSurroundedByHair =
+                (boundaryTouchRatio <= 0.12 && hairBorderRatio >= 0.42) || hairBorderRatio >= 0.68;
 
-              if (!isPartingLine && (hairBorderRatio >= 0.20 || areaCells >= 150)) {
+              if (!isPartingLine && isSurroundedByHair) {
                 rawPatches.push({
                   areaCells,
                   cx: meanX / gw,
@@ -430,6 +437,11 @@ export const analyzeAlopeciaAreataImage = (imageSrc, quadrantId = 'top', calibra
 
       const annotatedImage = canvas.toDataURL('image/jpeg', 0.92);
 
+      const calAx = patches.length > 0 ? Math.max(0.08, patches[0].cx - patches[0].rx) : 0.38;
+      const calAy = patches.length > 0 ? patches[0].cy : 0.45;
+      const calBx = patches.length > 0 ? Math.min(0.92, patches[0].cx + patches[0].rx) : 0.56;
+      const calBy = patches.length > 0 ? patches[0].cy : 0.45;
+
       resolve({
         quadrantId,
         patches,
@@ -439,15 +451,16 @@ export const analyzeAlopeciaAreataImage = (imageSrc, quadrantId = 'top', calibra
         effectiveFovWidthCm,
         cmPerPixel: parseFloat((effectiveFovWidthCm / w).toFixed(4)),
         // 1번 병변 기준 초기 디지털 캘리퍼스 정규화 좌표 (0~1)
-        defaultCaliper:
-          patches.length > 0
-            ? {
-                x1: Math.max(0.08, patches[0].cx - patches[0].rx),
-                y1: patches[0].cy,
-                x2: Math.min(0.92, patches[0].cx + patches[0].rx),
-                y2: patches[0].cy,
-              }
-            : { x1: 0.38, y1: 0.45, x2: 0.56, y2: 0.45 },
+        defaultCaliper: {
+          ax: calAx,
+          ay: calAy,
+          bx: calBx,
+          by: calBy,
+          x1: calAx,
+          y1: calAy,
+          x2: calBx,
+          y2: calBy,
+        },
       });
     };
     img.onerror = () => resolve(null);
@@ -518,9 +531,9 @@ export const calculateFinalAlopeciaAreataReport = (
   const maxDiameterCm =
     allPatches.length > 0 ? parseFloat(Math.max(...allPatches.map((p) => p.diameterCm)).toFixed(1)) : 0;
 
-  let saltGrade = 'S0 (탈모반 없음 · 0%)';
-  let severityLabel = '정상 (무증상)';
-  let severityColor = '#4CAF50';
+  let saltGrade;
+  let severityLabel;
+  let severityColor;
 
   if (weightedSaltScore === 0 && totalPatchCount === 0) {
     saltGrade = 'S0 (정상 · 탈모반 미검출)';
@@ -548,7 +561,7 @@ export const calculateFinalAlopeciaAreataReport = (
     severityColor = '#FF1744';
   }
 
-  let clinicalPattern = '단발성 원형탈모 (Single Patch)';
+  let clinicalPattern;
   if (totalPatchCount === 0) {
     clinicalPattern = '뚜렷한 원형탈모반 관찰되지 않음';
   } else if (clinicalChecklist.ophiasisBand || (quadrantResults.back && quadrantResults.left)) {
@@ -620,11 +633,41 @@ export const generateVerifiedAlopeciaSample = (presetType = 'single_s1') => {
       canvas.width = w;
       canvas.height = h;
       const ctx = canvas.getContext('2d');
-      ctx.drawImage(baseImg, 0, 0, w, h);
+      // 가이드 원본에서 주변 배경(의자·팔·이마)을 제외한 순수 정수리 모발 영역만 클로즈업 크롭
+      const bw = baseImg.naturalWidth || baseImg.width || 640;
+      const bh = baseImg.naturalHeight || baseImg.height || 480;
+      ctx.drawImage(
+        baseImg,
+        Math.floor(bw * 0.34),
+        Math.floor(bh * 0.31),
+        Math.floor(bw * 0.32),
+        Math.floor(bh * 0.28),
+        0,
+        0,
+        w,
+        h
+      );
 
-      // 경계부 블러로 인한 직경 오차를 없애기 위해 선명한 무모반 경계(Sharp Glabrous Boundary) 렌더링
+      // 경계부 블러 및 기존 정수리 가마 틈새 병합으로 인한 직경 오차를 없애기 위해
+      // 주변 모발 밀도 보강 후 선명한 무모반 경계(Sharp Glabrous Boundary) 렌더링
       const drawCalibratedGlabrousPatch = (cx, cy, rx, ry, erythemaLevel = 0) => {
         ctx.save();
+        const hairHalo = ctx.createRadialGradient(
+          cx,
+          cy,
+          Math.max(rx, ry) * 0.95,
+          cx,
+          cy,
+          Math.max(rx, ry) * 1.65
+        );
+        hairHalo.addColorStop(0, 'rgba(26, 22, 20, 0.82)');
+        hairHalo.addColorStop(0.65, 'rgba(30, 26, 24, 0.55)');
+        hairHalo.addColorStop(1, 'rgba(30, 26, 24, 0)');
+        ctx.fillStyle = hairHalo;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, rx * 1.65, ry * 1.65, 0, 0, Math.PI * 2);
+        ctx.fill();
+
         const grad = ctx.createRadialGradient(cx, cy, Math.min(rx, ry) * 0.2, cx, cy, Math.max(rx, ry));
         if (erythemaLevel > 0) {
           grad.addColorStop(0, 'rgba(232, 182, 168, 0.98)');
@@ -642,18 +685,25 @@ export const generateVerifiedAlopeciaSample = (presetType = 'single_s1') => {
         ctx.restore();
       };
 
+      // 가이드 원본 중앙 가마 틈새가 별도 미세 병변으로 잡히지 않도록 자연스러운 모발 음영 보정
+      const crownShade = ctx.createRadialGradient(w * 0.5, h * 0.48, 10, w * 0.5, h * 0.48, 150);
+      crownShade.addColorStop(0, 'rgba(26, 22, 20, 0.65)');
+      crownShade.addColorStop(1, 'rgba(26, 22, 20, 0)');
+      ctx.fillStyle = crownShade;
+      ctx.fillRect(0, 0, w, h);
+
       if (presetType === 'single_s1') {
-        // 단발성 100원 동전 크기 원형탈모 (실제 직경 약 2.4cm -> 반경 54px)
-        drawCalibratedGlabrousPatch(w * 0.48, h * 0.45, 55, 52, 0);
+        // 단발성 100원 동전 크기 원형탈모 (실제 직경 약 2.4cm)
+        drawCalibratedGlabrousPatch(w * 0.48, h * 0.45, 42, 40, 0);
       } else if (presetType === 'multiple_s2') {
         // 다발성 원형탈모 (직경 약 2.5cm, 1.9cm, 1.5cm 3개 병변)
-        drawCalibratedGlabrousPatch(w * 0.38, h * 0.42, 57, 52, 1);
-        drawCalibratedGlabrousPatch(w * 0.62, h * 0.48, 43, 40, 1);
-        drawCalibratedGlabrousPatch(w * 0.47, h * 0.65, 34, 32, 0);
+        drawCalibratedGlabrousPatch(w * 0.38, h * 0.42, 44, 41, 1);
+        drawCalibratedGlabrousPatch(w * 0.62, h * 0.48, 34, 32, 1);
+        drawCalibratedGlabrousPatch(w * 0.47, h * 0.65, 27, 25, 0);
       } else if (presetType === 'severe_s3') {
         // 중증 융합형 원형탈모
-        drawCalibratedGlabrousPatch(w * 0.45, h * 0.44, 108, 88, 1);
-        drawCalibratedGlabrousPatch(w * 0.63, h * 0.56, 74, 62, 1);
+        drawCalibratedGlabrousPatch(w * 0.45, h * 0.44, 96, 80, 1);
+        drawCalibratedGlabrousPatch(w * 0.63, h * 0.56, 66, 56, 1);
       }
 
       resolve(canvas.toDataURL('image/jpeg', 0.92));

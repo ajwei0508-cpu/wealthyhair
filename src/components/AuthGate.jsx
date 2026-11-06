@@ -1,25 +1,37 @@
 // src/components/AuthGate.jsx
 // 대한민국 개인정보보호법(제15조·제22조·제23조) 준수
-// - 시작 시 강제 회원가입 차단으로 인한 이탈 방지 (개방형 탐색 지원)
-// - 탈모진단앱 및 복약 전·후 예상 경과 확인은 개인정보 내용으로 간결한 안내문과 함께 회원가입 유도
+// - 회원가입 · 로그인 · 향후 자동로그인 유지 · 개인 진단기록 연동 통합 인증 게이트
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
-  ShieldCheck, Lock, User, Mail, Phone, Calendar, CheckCircle2,
-  Eye, EyeOff, FileText, X, AlertCircle, LogOut, Trash2, Sparkles
+  ShieldCheck,
+  Lock,
+  User,
+  Eye,
+  EyeOff,
+  FileText,
+  X,
+  AlertCircle,
+  LogOut,
+  Trash2,
+  Sparkles,
 } from 'lucide-react';
 import {
   getCurrentMember,
+  restoreMemberSession,
+  getAutoLoginPreference,
+  setAutoLoginForCurrentMember,
   registerKoreanMember,
   loginKoreanMember,
   formatKoreanPhone,
   calculateKoreanAge,
   KOREAN_LEGAL_TERMS,
   logoutMember,
-  withdrawMemberAccount
+  withdrawMemberAccount,
 } from '../utils/authService';
+import { getDiagnosisHistory } from '../utils/diagnosisHistoryService';
 
-// ── 1. 상단 글로벌 헤더 바 (간결한 핵심 구성) ──
+// ── 1. 상단 글로벌 헤더 바 ──
 export const MemberHeaderBar = ({
   member,
   user,
@@ -27,54 +39,62 @@ export const MemberHeaderBar = ({
   currentScreenName,
   onOpenReport,
   onOpenProfile,
-  onOpenAuth
+  onOpenAuth,
 }) => {
   const activeMember = member || user || null;
   const menuLabel = currentMenuLabel || currentScreenName || '';
 
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: '10px 14px',
-      background: 'rgba(12, 12, 14, 0.96)',
-      backdropFilter: 'blur(10px)',
-      borderBottom: '1px solid rgba(212, 175, 55, 0.22)',
-      position: 'sticky',
-      top: 0,
-      zIndex: 90
-    }}>
+    <header
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '10px 14px',
+        background: 'rgba(12, 12, 14, 0.96)',
+        backdropFilter: 'blur(10px)',
+        borderBottom: '1px solid rgba(212, 175, 55, 0.22)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 90,
+      }}
+    >
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
         <img
           src="/logo_transparent.png"
-          alt="모발부자"
+          alt="모발부자 로고"
           style={{ width: 24, height: 24, objectFit: 'contain' }}
-          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+          }}
         />
-        <span style={{
-          fontFamily: 'var(--font-serif)',
-          fontSize: '0.9rem',
-          fontWeight: 700,
-          color: '#D4AF37',
-          letterSpacing: '0.03em',
-          whiteSpace: 'nowrap'
-        }}>
+        <span
+          style={{
+            fontFamily: 'var(--font-serif)',
+            fontSize: '0.9rem',
+            fontWeight: 700,
+            color: '#D4AF37',
+            letterSpacing: '0.03em',
+            whiteSpace: 'nowrap',
+          }}
+        >
           WEALTHY HAIR
         </span>
         {menuLabel && (
-          <span style={{
-            fontSize: '0.68rem',
-            padding: '2px 8px',
-            borderRadius: '999px',
-            background: 'rgba(212, 175, 55, 0.12)',
-            border: '1px solid rgba(212, 175, 55, 0.3)',
-            color: '#E5C158',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            maxWidth: '130px'
-          }}>
+          <span
+            style={{
+              fontSize: '0.68rem',
+              padding: '2px 8px',
+              borderRadius: '999px',
+              background: 'rgba(212, 175, 55, 0.12)',
+              border: '1px solid rgba(212, 175, 55, 0.3)',
+              color: '#E5C158',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              maxWidth: '130px',
+            }}
+          >
             {menuLabel}
           </span>
         )}
@@ -95,11 +115,11 @@ export const MemberHeaderBar = ({
             padding: '5px 9px',
             fontSize: '0.7rem',
             fontWeight: 700,
-            cursor: 'pointer'
+            cursor: 'pointer',
           }}
-          title="불편사항 카카오톡 전송"
+          aria-label="불편사항 카카오톡 문의"
         >
-          <span>💬</span>
+          <span aria-hidden="true">💬</span>
           <span>카톡문의</span>
         </button>
 
@@ -108,6 +128,9 @@ export const MemberHeaderBar = ({
             type="button"
             onClick={onOpenProfile}
             style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
               background: 'rgba(212, 175, 55, 0.12)',
               border: '1px solid rgba(212, 175, 55, 0.4)',
               color: '#D4AF37',
@@ -115,16 +138,26 @@ export const MemberHeaderBar = ({
               padding: '5px 9px',
               fontSize: '0.7rem',
               fontWeight: 700,
-              cursor: 'pointer'
+              cursor: 'pointer',
             }}
           >
-            {activeMember.name}님
+            <span
+              aria-hidden="true"
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                background: '#81C784',
+                display: 'inline-block',
+              }}
+            />
+            <span>{activeMember.name}님</span>
           </button>
         ) : (
           onOpenAuth && (
             <button
               type="button"
-              onClick={() => onOpenAuth({ mode: 'signup', featureName: '탈모진단 및 복약 경과 확인' })}
+              onClick={() => onOpenAuth({ mode: 'signup', featureName: '탈모진단 및 개인 기록 저장' })}
               style={{
                 background: 'linear-gradient(135deg, #D4AF37, #B68D2C)',
                 border: 'none',
@@ -134,7 +167,7 @@ export const MemberHeaderBar = ({
                 fontSize: '0.7rem',
                 fontWeight: 800,
                 cursor: 'pointer',
-                whiteSpace: 'nowrap'
+                whiteSpace: 'nowrap',
               }}
             >
               회원가입·로그인
@@ -142,34 +175,53 @@ export const MemberHeaderBar = ({
           )
         )}
       </div>
-    </div>
+    </header>
   );
 };
 
-// ── 2. 탈모진단앱 & 복약전후 예상 경과 확인 전용 간결한 개인정보 안내 배너 ──
+// ── 2. 탈모진단앱 & 원형탈모 진단 개인정보·자동로그인 상태 배너 ──
 export const PrivacyMembershipNoticeCard = ({
   user,
-  featureType = 'diagnosis', // 'diagnosis' | 'areata' | 'simulator'
-  onOpenAuth
+  featureType = 'diagnosis',
+  onOpenAuth,
 }) => {
   if (user) {
+    const autoLoginActive = user.autoLogin !== false;
     return (
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        background: 'rgba(76, 175, 80, 0.1)',
-        border: '1px solid rgba(129, 199, 132, 0.35)',
-        borderRadius: '10px',
-        padding: '8px 12px',
-        marginBottom: '12px',
-        fontSize: '0.74rem',
-        color: '#c8e6c9'
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '8px',
+          flexWrap: 'wrap',
+          background: 'rgba(76, 175, 80, 0.1)',
+          border: '1px solid rgba(129, 199, 132, 0.35)',
+          borderRadius: '10px',
+          padding: '8px 12px',
+          marginBottom: '12px',
+          fontSize: '0.73rem',
+          color: '#c8e6c9',
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <ShieldCheck size={15} color="#81c784" />
-          <span><strong>{user.name}님</strong> 개인정보 암호화 보호 적용 중 (전 기능 활성화)</span>
+          <ShieldCheck size={15} color="#81c784" style={{ flexShrink: 0 }} />
+          <span>
+            <strong>{user.name}님</strong> 개인 진단 기록 자동저장 · 암호화 보호 중
+          </span>
         </div>
+        <span
+          style={{
+            fontSize: '0.64rem',
+            padding: '2px 7px',
+            borderRadius: '999px',
+            background: autoLoginActive ? 'rgba(129, 199, 132, 0.2)' : 'rgba(255,255,255,0.08)',
+            color: autoLoginActive ? '#81c784' : '#ccc',
+            fontWeight: 700,
+          }}
+        >
+          {autoLoginActive ? '자동로그인 유지 중' : '이번 세션 로그인'}
+        </span>
       </div>
     );
   }
@@ -177,25 +229,28 @@ export const PrivacyMembershipNoticeCard = ({
   const labelMap = {
     diagnosis: 'AI 탈모진단앱',
     areata: '원형탈모(SALT) 진단앱',
-    simulator: '복약 전·후 AI 예측 (점검중)'
+    simulator: '복약 전·후 AI 예측 (점검중)',
   };
   const targetLabel = labelMap[featureType] || 'AI 탈모 정밀 진단';
 
   return (
-    <div style={{
-      background: 'linear-gradient(135deg, rgba(28, 23, 14, 0.96), rgba(15, 15, 18, 0.98))',
-      border: '1px solid rgba(212, 175, 55, 0.45)',
-      borderRadius: '12px',
-      padding: '12px 14px',
-      marginBottom: '14px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '10px'
-    }}>
+    <div
+      style={{
+        background: 'linear-gradient(135deg, rgba(28, 23, 14, 0.96), rgba(15, 15, 18, 0.98))',
+        border: '1px solid rgba(212, 175, 55, 0.45)',
+        borderRadius: '12px',
+        padding: '12px 14px',
+        marginBottom: '14px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px',
+      }}
+    >
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
         <Lock size={16} color="#D4AF37" style={{ flexShrink: 0, marginTop: '2px' }} />
         <div style={{ fontSize: '0.78rem', color: '#eee', lineHeight: 1.45 }}>
-          <strong style={{ color: '#D4AF37' }}>AI 탈모 정밀 진단 및 원형탈모(SALT) 진단</strong>은 개인 두피·건강정보를 다루므로 개인정보 보호를 위해 <strong>회원가입 후 이용</strong>하실 수 있습니다.
+          <strong style={{ color: '#D4AF37' }}>AI 탈모 정밀 진단 및 개인 기록 보관</strong>은 민감 건강·두피 정보를 다루므로{' '}
+          <strong>회원가입(향후 자동로그인 지원)</strong> 후 안전하게 이용하실 수 있습니다.
         </div>
       </div>
 
@@ -216,7 +271,7 @@ export const PrivacyMembershipNoticeCard = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '5px'
+            gap: '5px',
           }}
         >
           <Sparkles size={14} />
@@ -235,7 +290,7 @@ export const PrivacyMembershipNoticeCard = ({
             fontWeight: 700,
             fontSize: '0.76rem',
             cursor: 'pointer',
-            whiteSpace: 'nowrap'
+            whiteSpace: 'nowrap',
           }}
         >
           로그인
@@ -245,116 +300,283 @@ export const PrivacyMembershipNoticeCard = ({
   );
 };
 
-// ── 3. 내 회원정보 및 개인정보 동의 관리 모달 ──
+// ── 3. 내 회원정보 · 자동로그인 설정 · 개인기록 요약 모달 ──
 export const MemberProfileModal = ({ member, user, isOpen, onClose, onLoggedOut, onLogout }) => {
   const activeMember = member || user;
   const handleLogoutCallback = onLoggedOut || onLogout;
+  const [historyCount, setHistoryCount] = useState(0);
+  const [confirmWithdraw, setConfirmWithdraw] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen || !activeMember) return;
+    getDiagnosisHistory(activeMember, 'all')
+      .then((list) => setHistoryCount(list.length))
+      .catch(() => setHistoryCount(0));
+  }, [isOpen, activeMember]);
 
   if (!isOpen || !activeMember) return null;
 
-  const handleWithdraw = () => {
-    if (window.confirm('회원 탈퇴 시 저장된 개인정보 및 진단·복약 기록이 즉시 파기됩니다. 탈퇴하시겠습니까?')) {
-      withdrawMemberAccount(activeMember.id);
-      onClose();
-      if (handleLogoutCallback) handleLogoutCallback();
-    }
+  const isAutoLogin = activeMember.autoLogin !== false;
+
+  const handleCloseModal = () => {
+    setConfirmWithdraw(false);
+    onClose();
+  };
+
+  const handleToggleAutoLogin = () => {
+    setAutoLoginForCurrentMember(!isAutoLogin);
+  };
+
+  const handleConfirmWithdraw = () => {
+    withdrawMemberAccount(activeMember.id);
+    setConfirmWithdraw(false);
+    onClose();
+    if (handleLogoutCallback) handleLogoutCallback();
   };
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      background: 'rgba(0,0,0,0.84)',
-      backdropFilter: 'blur(6px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '16px',
-      zIndex: 9999
-    }} onClick={onClose}>
-      <div style={{
-        width: '100%',
-        maxWidth: '380px',
-        background: '#121215',
-        border: '1px solid #D4AF37',
-        borderRadius: '12px',
-        padding: '18px',
-        color: '#fff'
-      }} onClick={e => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <h3 style={{ fontSize: '0.96rem', color: '#D4AF37', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
-            <ShieldCheck size={17} /> 내 회원정보
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="wh-member-profile-title"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.84)',
+        backdropFilter: 'blur(6px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px',
+        zIndex: 9999,
+      }}
+      onClick={handleCloseModal}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '390px',
+          background: '#121215',
+          border: '1px solid #D4AF37',
+          borderRadius: '12px',
+          padding: '18px',
+          color: '#fff',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '12px',
+          }}
+        >
+          <h3
+            id="wh-member-profile-title"
+            style={{
+              fontSize: '0.96rem',
+              color: '#D4AF37',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              margin: 0,
+            }}
+          >
+            <ShieldCheck size={17} /> 내 회원정보 및 자동로그인 관리
           </h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#999', cursor: 'pointer' }}>
+          <button
+            type="button"
+            onClick={handleCloseModal}
+            aria-label="내 회원정보 닫기"
+            style={{ background: 'none', border: 'none', color: '#999', cursor: 'pointer' }}
+          >
             <X size={18} />
           </button>
         </div>
 
-        <div style={{ background: '#18181c', borderRadius: '8px', padding: '12px', fontSize: '0.8rem', lineHeight: 1.75, border: '1px solid #2a2a2a' }}>
-          <div><strong style={{ color: '#D4AF37' }}>성명:</strong> {activeMember.name}</div>
-          <div><strong style={{ color: '#D4AF37' }}>이메일:</strong> {activeMember.email}</div>
-          <div><strong style={{ color: '#D4AF37' }}>연락처:</strong> {activeMember.phone || '등록됨'}</div>
-          <div><strong style={{ color: '#D4AF37' }}>생년월일/성별:</strong> {activeMember.birthDate || '-'} ({activeMember.gender === 'female' ? '여성' : '남성'})</div>
+        <div
+          style={{
+            background: '#18181c',
+            borderRadius: '8px',
+            padding: '12px',
+            fontSize: '0.8rem',
+            lineHeight: 1.75,
+            border: '1px solid #2a2a2a',
+          }}
+        >
+          <div>
+            <strong style={{ color: '#D4AF37' }}>성명:</strong> {activeMember.name}
+          </div>
+          <div>
+            <strong style={{ color: '#D4AF37' }}>이메일:</strong> {activeMember.email}
+          </div>
+          <div>
+            <strong style={{ color: '#D4AF37' }}>연락처:</strong> {activeMember.phone || '등록됨'}
+          </div>
+          <div>
+            <strong style={{ color: '#D4AF37' }}>생년월일/성별:</strong> {activeMember.birthDate || '-'} (
+            {activeMember.gender === 'female' ? '여성' : '남성'})
+          </div>
+          <div>
+            <strong style={{ color: '#D4AF37' }}>보관된 개인 진단 기록:</strong>{' '}
+            <span style={{ color: '#81C784', fontWeight: 800 }}>{historyCount}건</span>
+          </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
+        {/* 향후 자동로그인 ON/OFF 스위치 */}
+        <div
+          style={{
+            marginTop: '10px',
+            padding: '10px 12px',
+            borderRadius: '8px',
+            background: 'rgba(212, 175, 55, 0.08)',
+            border: '1px solid rgba(212, 175, 55, 0.28)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '10px',
+          }}
+        >
+          <div>
+            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#f5f0e8' }}>
+              향후 자동로그인 유지
+            </div>
+            <div style={{ fontSize: '0.67rem', color: '#aaa' }}>
+              {isAutoLogin
+                ? '브라우저 재방문 시 별도 로그인 없이 바로 연결됩니다.'
+                : '브라우저를 닫으면 자동 로그아웃됩니다.'}
+            </div>
+          </div>
           <button
             type="button"
-            onClick={() => {
-              logoutMember();
-              onClose();
-              if (handleLogoutCallback) handleLogoutCallback();
-            }}
+            aria-pressed={isAutoLogin}
+            onClick={handleToggleAutoLogin}
             style={{
-              flex: 1,
-              padding: '10px',
-              background: '#222',
-              color: '#fff',
-              border: '1px solid #444',
-              borderRadius: '8px',
-              fontSize: '0.8rem',
-              fontWeight: 600,
+              padding: '6px 12px',
+              borderRadius: '999px',
+              border: isAutoLogin ? '1px solid #81C784' : '1px solid #555',
+              background: isAutoLogin ? 'rgba(129, 199, 132, 0.2)' : '#25252b',
+              color: isAutoLogin ? '#81C784' : '#aaa',
+              fontSize: '0.72rem',
+              fontWeight: 800,
               cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px'
+              flexShrink: 0,
             }}
           >
-            <LogOut size={14} /> 로그아웃
-          </button>
-          <button
-            type="button"
-            onClick={handleWithdraw}
-            style={{
-              padding: '10px 12px',
-              background: 'rgba(255, 82, 82, 0.12)',
-              color: '#ff6b6b',
-              border: '1px solid rgba(255, 82, 82, 0.4)',
-              borderRadius: '8px',
-              fontSize: '0.76rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px'
-            }}
-          >
-            <Trash2 size={13} /> 탈퇴
+            {isAutoLogin ? '켜짐 ON' : '꺼짐 OFF'}
           </button>
         </div>
+
+        {confirmWithdraw ? (
+          <div
+            role="alert"
+            style={{
+              marginTop: '12px',
+              padding: '11px',
+              borderRadius: '8px',
+              background: 'rgba(255, 82, 82, 0.12)',
+              border: '1px solid rgba(255, 82, 82, 0.45)',
+            }}
+          >
+            <div style={{ fontSize: '0.74rem', color: '#ffcdd2', marginBottom: '8px', lineHeight: 1.45 }}>
+              탈퇴 시 개인정보 및 저장된 모든 진단·복약 기록이 즉시 영구 파기됩니다. 정말 탈퇴하시겠습니까?
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={handleConfirmWithdraw}
+                style={{
+                  flex: 1,
+                  padding: '8px',
+                  borderRadius: '7px',
+                  border: 'none',
+                  background: '#ff5252',
+                  color: '#fff',
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                }}
+              >
+                영구 파기 및 탈퇴 확정
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmWithdraw(false)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '7px',
+                  border: '1px solid #444',
+                  background: '#222',
+                  color: '#ccc',
+                  fontSize: '0.75rem',
+                  cursor: 'pointer',
+                }}
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
+            <button
+              type="button"
+              onClick={() => {
+                logoutMember();
+                onClose();
+                if (handleLogoutCallback) handleLogoutCallback();
+              }}
+              style={{
+                flex: 1,
+                padding: '10px',
+                background: '#222',
+                color: '#fff',
+                border: '1px solid #444',
+                borderRadius: '8px',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+              }}
+            >
+              <LogOut size={14} /> 로그아웃
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmWithdraw(true)}
+              style={{
+                padding: '10px 12px',
+                background: 'rgba(255, 82, 82, 0.12)',
+                color: '#ff6b6b',
+                border: '1px solid rgba(255, 82, 82, 0.4)',
+                borderRadius: '8px',
+                fontSize: '0.76rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              <Trash2 size={13} /> 탈퇴
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
-// ── 4. 회원가입 · 로그인 모달 (핵심 안내 + 간편 가입) ──
+// ── 4. 회원가입 · 로그인 모달 (표준 Autofill + 약관 동기화 + 향후 자동로그인 지원) ──
 export const AuthModal = ({
   isOpen,
   initialMode = 'signup',
-  featureName = '탈모진단 및 복약 경과 확인',
+  featureName = '탈모진단 및 개인 기록 저장',
   onClose,
-  onAuthenticated
+  onAuthenticated,
 }) => {
   const [mode, setMode] = useState(initialMode || 'signup');
   const [name, setName] = useState('');
@@ -364,30 +586,25 @@ export const AuthModal = ({
   const [gender, setGender] = useState('male');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [autoLogin, setAutoLogin] = useState(() => getAutoLoginPreference().enabled !== false);
 
   const [consents, setConsents] = useState({
     age14: true,
     terms: true,
     privacyRequired: true,
     sensitiveHealth: true,
-    marketingOptIn: false
+    marketingOptIn: false,
   });
 
   const [viewingTermKey, setViewingTermKey] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (isOpen) {
-      setMode(initialMode || 'signup');
-      setErrorMsg('');
-    }
-  }, [isOpen, initialMode]);
-
   if (!isOpen) return null;
 
-  const allChecked = Object.values(consents).every(Boolean);
-  const requiredChecked = consents.age14 && consents.terms && consents.privacyRequired && consents.sensitiveHealth;
+  const corePrivacyChecked = consents.age14 && consents.terms && consents.privacyRequired;
+  const requiredChecked = corePrivacyChecked && consents.sensitiveHealth;
+  const allChecked = requiredChecked && consents.marketingOptIn;
 
   const toggleAllConsents = () => {
     const next = !allChecked;
@@ -396,12 +613,23 @@ export const AuthModal = ({
       terms: next,
       privacyRequired: next,
       sensitiveHealth: next,
-      marketingOptIn: next
+      marketingOptIn: next,
     });
   };
 
-  const toggleConsent = (key) => {
-    setConsents(prev => ({ ...prev, [key]: !prev[key] }));
+  // [필수 1] 만 14세 이상 · 이용약관 · 개인정보 수집 동의는 단일 통합 체크박스로 3개 필드를 동시 동기화 (해제 후 재체크 시 먹통 버그 완벽 해결)
+  const toggleCorePrivacyConsent = () => {
+    const next = !corePrivacyChecked;
+    setConsents((prev) => ({
+      ...prev,
+      age14: next,
+      terms: next,
+      privacyRequired: next,
+    }));
+  };
+
+  const toggleSingleConsent = (key) => {
+    setConsents((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   const handleSignupSubmit = async (e) => {
@@ -431,7 +659,7 @@ export const AuthModal = ({
       return;
     }
     if (!requiredChecked) {
-      setErrorMsg('필수 개인정보 보호 동의 항목에 체크해 주세요.');
+      setErrorMsg('필수 개인정보 및 민감정보 보호 동의 항목에 모두 체크해 주세요.');
       return;
     }
 
@@ -444,7 +672,8 @@ export const AuthModal = ({
         birthDate,
         gender,
         password,
-        consents
+        consents,
+        autoLogin,
       });
       if (onAuthenticated) onAuthenticated(user);
     } catch (err) {
@@ -463,7 +692,7 @@ export const AuthModal = ({
     }
     setIsSubmitting(true);
     try {
-      const user = await loginKoreanMember(email, password);
+      const user = await loginKoreanMember(email, password, { autoLogin });
       if (onAuthenticated) onAuthenticated(user);
     } catch (err) {
       setErrorMsg(err.message || '로그인에 실패했습니다.');
@@ -474,6 +703,9 @@ export const AuthModal = ({
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="wh-auth-modal-heading"
       style={{
         position: 'fixed',
         inset: 0,
@@ -483,29 +715,47 @@ export const AuthModal = ({
         alignItems: 'center',
         justifyContent: 'center',
         padding: '14px',
-        zIndex: 9998
+        zIndex: 9998,
       }}
       onClick={onClose}
     >
       <div
         style={{
           width: '100%',
-          maxWidth: '410px',
-          maxHeight: '90vh',
+          maxWidth: '415px',
+          maxHeight: '92vh',
           overflowY: 'auto',
           background: '#121216',
           border: '1.5px solid #D4AF37',
           borderRadius: '16px',
           padding: '18px',
           color: '#fff',
-          boxShadow: '0 20px 50px rgba(0,0,0,0.85)'
+          boxShadow: '0 20px 50px rgba(0,0,0,0.85)',
         }}
-        onClick={e => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#D4AF37', display: 'flex', alignItems: 'center', gap: '5px' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '10px',
+          }}
+        >
+          <h2
+            id="wh-auth-modal-heading"
+            style={{
+              margin: 0,
+              fontSize: '0.82rem',
+              fontWeight: 800,
+              color: '#D4AF37',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+            }}
+          >
             <ShieldCheck size={15} /> 개인정보 암호화 보호 멤버십
-          </span>
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -519,7 +769,7 @@ export const AuthModal = ({
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '4px'
+              gap: '4px',
             }}
           >
             <span>닫기</span>
@@ -527,32 +777,39 @@ export const AuthModal = ({
           </button>
         </div>
 
-        {/* 간결한 핵심 안내 */}
-        <div style={{
-          background: 'rgba(212, 175, 55, 0.1)',
-          border: '1px solid rgba(212, 175, 55, 0.35)',
-          borderRadius: '10px',
-          padding: '10px 12px',
-          marginBottom: '12px',
-          fontSize: '0.76rem',
-          color: '#eee',
-          lineHeight: 1.45
-        }}>
-          <strong style={{ color: '#D4AF37' }}>🔒 {featureName}</strong>은(는) 개인 민감정보(두피·복약 기록) 보호를 위해 회원가입 후 이용 가능합니다.
+        {/* 핵심 안내 */}
+        <div
+          style={{
+            background: 'rgba(212, 175, 55, 0.1)',
+            border: '1px solid rgba(212, 175, 55, 0.35)',
+            borderRadius: '10px',
+            padding: '10px 12px',
+            marginBottom: '12px',
+            fontSize: '0.75rem',
+            color: '#eee',
+            lineHeight: 1.45,
+          }}
+        >
+          <strong style={{ color: '#D4AF37' }}>🔒 {featureName}</strong>은(는) 개인 두피·진단 이력 보호 및 자동 보관을 위해 회원가입 후 이용 가능합니다.
         </div>
 
-        {/* 탭 전환 */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          background: '#1a1a20',
-          borderRadius: '8px',
-          padding: '3px',
-          marginBottom: '12px'
-        }}>
+        {/* 가입 / 로그인 탭 전환 */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            background: '#1a1a20',
+            borderRadius: '8px',
+            padding: '3px',
+            marginBottom: '12px',
+          }}
+        >
           <button
             type="button"
-            onClick={() => { setMode('signup'); setErrorMsg(''); }}
+            onClick={() => {
+              setMode('signup');
+              setErrorMsg('');
+            }}
             style={{
               padding: '8px',
               borderRadius: '6px',
@@ -561,14 +818,17 @@ export const AuthModal = ({
               color: mode === 'signup' ? '#000' : '#999',
               fontWeight: 800,
               fontSize: '0.8rem',
-              cursor: 'pointer'
+              cursor: 'pointer',
             }}
           >
             무료 회원가입
           </button>
           <button
             type="button"
-            onClick={() => { setMode('login'); setErrorMsg(''); }}
+            onClick={() => {
+              setMode('login');
+              setErrorMsg('');
+            }}
             style={{
               padding: '8px',
               borderRadius: '6px',
@@ -577,7 +837,7 @@ export const AuthModal = ({
               color: mode === 'login' ? '#000' : '#999',
               fontWeight: 800,
               fontSize: '0.8rem',
-              cursor: 'pointer'
+              cursor: 'pointer',
             }}
           >
             로그인
@@ -585,18 +845,21 @@ export const AuthModal = ({
         </div>
 
         {errorMsg && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: 'rgba(255, 82, 82, 0.14)',
-            border: '1px solid rgba(255, 82, 82, 0.45)',
-            color: '#ff8a80',
-            padding: '8px 10px',
-            borderRadius: '8px',
-            fontSize: '0.74rem',
-            marginBottom: '10px'
-          }}>
+          <div
+            role="alert"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'rgba(255, 82, 82, 0.14)',
+              border: '1px solid rgba(255, 82, 82, 0.45)',
+              color: '#ff8a80',
+              padding: '8px 10px',
+              borderRadius: '8px',
+              fontSize: '0.74rem',
+              marginBottom: '10px',
+            }}
+          >
             <AlertCircle size={14} style={{ flexShrink: 0 }} />
             <span>{errorMsg}</span>
           </div>
@@ -606,14 +869,31 @@ export const AuthModal = ({
           <form onSubmit={handleSignupSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '8px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.7rem', color: '#aaa', marginBottom: '3px' }}>성명 *</label>
+                <label
+                  htmlFor="wh-signup-name"
+                  style={{ display: 'block', fontSize: '0.7rem', color: '#aaa', marginBottom: '3px' }}
+                >
+                  성명 *
+                </label>
                 <div style={{ position: 'relative' }}>
-                  <User size={13} color="#777" style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)' }} />
+                  <User
+                    size={13}
+                    color="#777"
+                    aria-hidden="true"
+                    style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)' }}
+                  />
                   <input
+                    id="wh-signup-name"
+                    name="name"
                     type="text"
+                    autoComplete="name"
+                    required
                     placeholder="홍길동"
                     value={name}
-                    onChange={e => setName(e.target.value)}
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      if (errorMsg) setErrorMsg('');
+                    }}
                     style={{
                       width: '100%',
                       padding: '8px 8px 8px 28px',
@@ -621,22 +901,25 @@ export const AuthModal = ({
                       border: '1px solid #333',
                       borderRadius: '6px',
                       color: '#fff',
-                      fontSize: '0.8rem'
+                      fontSize: '0.82rem',
                     }}
                   />
                 </div>
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.7rem', color: '#aaa', marginBottom: '3px' }}>성별 *</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', height: '34px' }}>
+              <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
+                <legend style={{ fontSize: '0.7rem', color: '#aaa', marginBottom: '3px', padding: 0 }}>
+                  성별 *
+                </legend>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', height: '35px' }}>
                   {[
                     { key: 'male', label: '남성' },
-                    { key: 'female', label: '여성' }
-                  ].map(g => (
+                    { key: 'female', label: '여성' },
+                  ].map((g) => (
                     <button
                       key={g.key}
                       type="button"
+                      aria-pressed={gender === g.key}
                       onClick={() => setGender(g.key)}
                       style={{
                         borderRadius: '6px',
@@ -645,24 +928,36 @@ export const AuthModal = ({
                         color: gender === g.key ? '#D4AF37' : '#888',
                         fontWeight: 700,
                         fontSize: '0.76rem',
-                        cursor: 'pointer'
+                        cursor: 'pointer',
                       }}
                     >
                       {g.label}
                     </button>
                   ))}
                 </div>
-              </div>
+              </fieldset>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.7rem', color: '#aaa', marginBottom: '3px' }}>생년월일 *</label>
+                <label
+                  htmlFor="wh-signup-bday"
+                  style={{ display: 'block', fontSize: '0.7rem', color: '#aaa', marginBottom: '3px' }}
+                >
+                  생년월일 *
+                </label>
                 <input
+                  id="wh-signup-bday"
+                  name="birthDate"
                   type="date"
+                  autoComplete="bday"
+                  required
                   value={birthDate}
                   max={new Date().toISOString().split('T')[0]}
-                  onChange={e => setBirthDate(e.target.value)}
+                  onChange={(e) => {
+                    setBirthDate(e.target.value);
+                    if (errorMsg) setErrorMsg('');
+                  }}
                   style={{
                     width: '100%',
                     padding: '8px',
@@ -670,18 +965,31 @@ export const AuthModal = ({
                     border: '1px solid #333',
                     borderRadius: '6px',
                     color: '#fff',
-                    fontSize: '0.78rem'
+                    fontSize: '0.78rem',
                   }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.7rem', color: '#aaa', marginBottom: '3px' }}>휴대전화 *</label>
+                <label
+                  htmlFor="wh-signup-phone"
+                  style={{ display: 'block', fontSize: '0.7rem', color: '#aaa', marginBottom: '3px' }}
+                >
+                  휴대전화 *
+                </label>
                 <input
+                  id="wh-signup-phone"
+                  name="phone"
                   type="tel"
+                  autoComplete="tel"
+                  inputMode="tel"
+                  required
                   placeholder="010-1234-5678"
                   value={phone}
-                  onChange={e => setPhone(formatKoreanPhone(e.target.value))}
+                  onChange={(e) => {
+                    setPhone(formatKoreanPhone(e.target.value));
+                    if (errorMsg) setErrorMsg('');
+                  }}
                   style={{
                     width: '100%',
                     padding: '8px',
@@ -689,7 +997,7 @@ export const AuthModal = ({
                     border: '1px solid #333',
                     borderRadius: '6px',
                     color: '#fff',
-                    fontSize: '0.78rem'
+                    fontSize: '0.78rem',
                   }}
                 />
               </div>
@@ -697,12 +1005,25 @@ export const AuthModal = ({
 
             <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: '8px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.7rem', color: '#aaa', marginBottom: '3px' }}>이메일(ID) *</label>
+                <label
+                  htmlFor="wh-signup-email"
+                  style={{ display: 'block', fontSize: '0.7rem', color: '#aaa', marginBottom: '3px' }}
+                >
+                  이메일(ID) *
+                </label>
                 <input
+                  id="wh-signup-email"
+                  name="email"
                   type="email"
+                  autoComplete="username"
+                  spellCheck={false}
+                  required
                   placeholder="id@email.com"
                   value={email}
-                  onChange={e => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (errorMsg) setErrorMsg('');
+                  }}
                   style={{
                     width: '100%',
                     padding: '8px',
@@ -710,33 +1031,58 @@ export const AuthModal = ({
                     border: '1px solid #333',
                     borderRadius: '6px',
                     color: '#fff',
-                    fontSize: '0.78rem'
+                    fontSize: '0.78rem',
                   }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.7rem', color: '#aaa', marginBottom: '3px' }}>비밀번호(6자+) *</label>
+                <label
+                  htmlFor="wh-signup-password"
+                  style={{ display: 'block', fontSize: '0.7rem', color: '#aaa', marginBottom: '3px' }}
+                >
+                  비밀번호(6자+) *
+                </label>
                 <div style={{ position: 'relative' }}>
                   <input
+                    id="wh-signup-password"
+                    name="password"
                     type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    minLength={6}
+                    required
                     placeholder="비밀번호"
                     value={password}
-                    onChange={e => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (errorMsg) setErrorMsg('');
+                    }}
                     style={{
                       width: '100%',
-                      padding: '8px 26px 8px 8px',
+                      padding: '8px 28px 8px 8px',
                       background: '#18181e',
                       border: '1px solid #333',
                       borderRadius: '6px',
                       color: '#fff',
-                      fontSize: '0.78rem'
+                      fontSize: '0.78rem',
                     }}
                   />
                   <button
                     type="button"
+                    aria-pressed={showPassword}
+                    aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 표시'}
                     onClick={() => setShowPassword(!showPassword)}
-                    style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#888', cursor: 'pointer', padding: 0 }}
+                    style={{
+                      position: 'absolute',
+                      right: 6,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: '#888',
+                      cursor: 'pointer',
+                      padding: 2,
+                    }}
                   >
                     {showPassword ? <EyeOff size={13} /> : <Eye size={13} />}
                   </button>
@@ -744,15 +1090,17 @@ export const AuthModal = ({
               </div>
             </div>
 
-            {/* 간결한 약관 동의 */}
-            <div style={{
-              background: '#16161c',
-              border: '1px solid rgba(212, 175, 55, 0.3)',
-              borderRadius: '8px',
-              padding: '9px 10px'
-            }}>
-              <div
-                onClick={toggleAllConsents}
+            {/* 약관 동의 (이중 클릭 버그 및 필수 체크 누락 함정 수정 완료) */}
+            <div
+              style={{
+                background: '#16161c',
+                border: '1px solid rgba(212, 175, 55, 0.3)',
+                borderRadius: '8px',
+                padding: '9px 10px',
+              }}
+            >
+              <label
+                htmlFor="wh-consent-all"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -760,10 +1108,11 @@ export const AuthModal = ({
                   paddingBottom: '6px',
                   marginBottom: '6px',
                   borderBottom: '1px solid #2a2a2a',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
                 }}
               >
                 <input
+                  id="wh-consent-all"
                   type="checkbox"
                   checked={allChecked}
                   onChange={toggleAllConsents}
@@ -772,26 +1121,133 @@ export const AuthModal = ({
                 <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#D4AF37' }}>
                   개인정보 및 민감정보 보호 전체 동의
                 </span>
-              </div>
+              </label>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.7rem', color: '#ccc' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                    <input type="checkbox" checked={consents.privacyRequired} onChange={() => toggleConsent('privacyRequired')} style={{ accentColor: '#D4AF37' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', fontSize: '0.7rem', color: '#ccc' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+                  <label
+                    htmlFor="wh-consent-core"
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                  >
+                    <input
+                      id="wh-consent-core"
+                      type="checkbox"
+                      checked={corePrivacyChecked}
+                      onChange={toggleCorePrivacyConsent}
+                      style={{ accentColor: '#D4AF37' }}
+                    />
                     <span>[필수] 만 14세 이상 · 이용약관 · 개인정보 수집 동의</span>
                   </label>
-                  <button type="button" onClick={() => setViewingTermKey('privacyRequired')} style={{ background: 'none', border: 'none', color: '#999', fontSize: '0.66rem', textDecoration: 'underline', cursor: 'pointer' }}>보기</button>
+                  <button
+                    type="button"
+                    onClick={() => setViewingTermKey('privacyRequired')}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#aaa',
+                      fontSize: '0.66rem',
+                      textDecoration: 'underline',
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                    }}
+                  >
+                    보기
+                  </button>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                    <input type="checkbox" checked={consents.sensitiveHealth} onChange={() => toggleConsent('sensitiveHealth')} style={{ accentColor: '#D4AF37' }} />
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+                  <label
+                    htmlFor="wh-consent-sensitive"
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                  >
+                    <input
+                      id="wh-consent-sensitive"
+                      type="checkbox"
+                      checked={consents.sensitiveHealth}
+                      onChange={() => toggleSingleConsent('sensitiveHealth')}
+                      style={{ accentColor: '#D4AF37' }}
+                    />
                     <span>[필수] 두피·복약 민감정보 암호화 처리 동의</span>
                   </label>
-                  <button type="button" onClick={() => setViewingTermKey('sensitiveHealth')} style={{ background: 'none', border: 'none', color: '#999', fontSize: '0.66rem', textDecoration: 'underline', cursor: 'pointer' }}>보기</button>
+                  <button
+                    type="button"
+                    onClick={() => setViewingTermKey('sensitiveHealth')}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#aaa',
+                      fontSize: '0.66rem',
+                      textDecoration: 'underline',
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                    }}
+                  >
+                    보기
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+                  <label
+                    htmlFor="wh-consent-marketing"
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: '#999' }}
+                  >
+                    <input
+                      id="wh-consent-marketing"
+                      type="checkbox"
+                      checked={consents.marketingOptIn}
+                      onChange={() => toggleSingleConsent('marketingOptIn')}
+                      style={{ accentColor: '#D4AF37' }}
+                    />
+                    <span>[선택] 복약 골든타임 알림 및 케어 정보 수신</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setViewingTermKey('marketingOptIn')}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#888',
+                      fontSize: '0.66rem',
+                      textDecoration: 'underline',
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                    }}
+                  >
+                    보기
+                  </button>
                 </div>
               </div>
             </div>
 
+            {/* 향후 자동로그인 유지 체크박스 */}
+            <label
+              htmlFor="wh-signup-autologin"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '7px',
+                padding: '8px 10px',
+                borderRadius: '8px',
+                background: 'rgba(129, 199, 132, 0.08)',
+                border: '1px solid rgba(129, 199, 132, 0.28)',
+                cursor: 'pointer',
+                fontSize: '0.73rem',
+                color: '#dcedc8',
+              }}
+            >
+              <input
+                id="wh-signup-autologin"
+                name="autoLogin"
+                type="checkbox"
+                checked={autoLogin}
+                onChange={(e) => setAutoLogin(e.target.checked)}
+                style={{ accentColor: '#81C784' }}
+              />
+              <span>
+                <strong>향후 자동로그인 유지</strong> (다음 방문 시 바로 내 진단기록 연결)
+              </span>
+            </label>
+
             <button
               type="submit"
               disabled={isSubmitting}
@@ -803,44 +1259,126 @@ export const AuthModal = ({
                 borderRadius: '8px',
                 fontWeight: 800,
                 fontSize: '0.86rem',
-                cursor: 'pointer'
+                cursor: isSubmitting ? 'wait' : 'pointer',
               }}
             >
-              {isSubmitting ? '처리 중...' : '가입 완료하고 바로 시작하기 →'}
+              {isSubmitting ? '가입 처리 중...' : '회원가입 완료하고 바로 시작하기 →'}
             </button>
           </form>
         ) : (
           <form onSubmit={handleLoginSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <input
-              type="email"
-              placeholder="이메일 주소"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
+            <div>
+              <label
+                htmlFor="wh-login-email"
+                style={{ display: 'block', fontSize: '0.72rem', color: '#aaa', marginBottom: '4px' }}
+              >
+                이메일 주소
+              </label>
+              <input
+                id="wh-login-email"
+                name="email"
+                type="email"
+                autoComplete="username"
+                spellCheck={false}
+                required
+                placeholder="id@email.com"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (errorMsg) setErrorMsg('');
+                }}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  background: '#18181e',
+                  border: '1px solid #333',
+                  borderRadius: '6px',
+                  color: '#fff',
+                  fontSize: '0.84rem',
+                }}
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="wh-login-password"
+                style={{ display: 'block', fontSize: '0.72rem', color: '#aaa', marginBottom: '4px' }}
+              >
+                비밀번호
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  id="wh-login-password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  required
+                  placeholder="비밀번호 입력"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (errorMsg) setErrorMsg('');
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '10px 34px 10px 10px',
+                    background: '#18181e',
+                    border: '1px solid #333',
+                    borderRadius: '6px',
+                    color: '#fff',
+                    fontSize: '0.84rem',
+                  }}
+                />
+                <button
+                  type="button"
+                  aria-pressed={showPassword}
+                  aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 표시'}
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: 8,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: '#888',
+                    cursor: 'pointer',
+                    padding: 2,
+                  }}
+                >
+                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
+            </div>
+
+            <label
+              htmlFor="wh-login-autologin"
               style={{
-                width: '100%',
-                padding: '10px',
-                background: '#18181e',
-                border: '1px solid #333',
-                borderRadius: '6px',
-                color: '#fff',
-                fontSize: '0.84rem'
+                display: 'flex',
+                alignItems: 'center',
+                gap: '7px',
+                padding: '8px 10px',
+                borderRadius: '8px',
+                background: 'rgba(129, 199, 132, 0.08)',
+                border: '1px solid rgba(129, 199, 132, 0.28)',
+                cursor: 'pointer',
+                fontSize: '0.74rem',
+                color: '#dcedc8',
               }}
-            />
-            <input
-              type="password"
-              placeholder="비밀번호"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px',
-                background: '#18181e',
-                border: '1px solid #333',
-                borderRadius: '6px',
-                color: '#fff',
-                fontSize: '0.84rem'
-              }}
-            />
+            >
+              <input
+                id="wh-login-autologin"
+                name="autoLogin"
+                type="checkbox"
+                checked={autoLogin}
+                onChange={(e) => setAutoLogin(e.target.checked)}
+                style={{ accentColor: '#81C784' }}
+              />
+              <span>
+                <strong>향후 자동로그인 유지</strong> (재방문 시 자동 로그인)
+              </span>
+            </label>
+
             <button
               type="submit"
               disabled={isSubmitting}
@@ -852,10 +1390,10 @@ export const AuthModal = ({
                 borderRadius: '8px',
                 fontWeight: 800,
                 fontSize: '0.86rem',
-                cursor: 'pointer'
+                cursor: isSubmitting ? 'wait' : 'pointer',
               }}
             >
-              {isSubmitting ? '로그인 중...' : '로그인 →'}
+              {isSubmitting ? '로그인 중...' : '로그인하기 →'}
             </button>
           </form>
         )}
@@ -863,6 +1401,8 @@ export const AuthModal = ({
 
       {viewingTermKey && KOREAN_LEGAL_TERMS[viewingTermKey] && (
         <div
+          role="dialog"
+          aria-modal="true"
           style={{
             position: 'fixed',
             inset: 0,
@@ -871,7 +1411,7 @@ export const AuthModal = ({
             alignItems: 'center',
             justifyContent: 'center',
             padding: '18px',
-            zIndex: 10001
+            zIndex: 10001,
           }}
           onClick={() => setViewingTermKey(null)}
         >
@@ -885,29 +1425,52 @@ export const AuthModal = ({
               borderRadius: '12px',
               padding: '16px',
               display: 'flex',
-              flexDirection: 'column'
+              flexDirection: 'column',
             }}
-            onClick={e => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <h3 style={{ fontSize: '0.88rem', color: '#D4AF37', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '10px',
+              }}
+            >
+              <h3
+                style={{
+                  fontSize: '0.88rem',
+                  color: '#D4AF37',
+                  margin: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
                 <FileText size={15} /> {KOREAN_LEGAL_TERMS[viewingTermKey].title}
               </h3>
-              <button onClick={() => setViewingTermKey(null)} style={{ background: 'none', border: 'none', color: '#999', cursor: 'pointer' }}>
+              <button
+                type="button"
+                onClick={() => setViewingTermKey(null)}
+                aria-label="약관 닫기"
+                style={{ background: 'none', border: 'none', color: '#999', cursor: 'pointer' }}
+              >
                 <X size={16} />
               </button>
             </div>
-            <div style={{
-              flex: 1,
-              overflowY: 'auto',
-              whiteSpace: 'pre-line',
-              fontSize: '0.75rem',
-              color: '#ccc',
-              lineHeight: 1.6,
-              background: '#0d0d10',
-              padding: '12px',
-              borderRadius: '6px'
-            }}>
+            <div
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                whiteSpace: 'pre-line',
+                fontSize: '0.75rem',
+                color: '#ccc',
+                lineHeight: 1.6,
+                background: '#0d0d10',
+                padding: '12px',
+                borderRadius: '6px',
+              }}
+            >
               {KOREAN_LEGAL_TERMS[viewingTermKey].content}
             </div>
             <button
@@ -922,7 +1485,7 @@ export const AuthModal = ({
                 borderRadius: '6px',
                 fontWeight: 700,
                 fontSize: '0.8rem',
-                cursor: 'pointer'
+                cursor: 'pointer',
               }}
             >
               확인
@@ -934,23 +1497,32 @@ export const AuthModal = ({
   );
 };
 
-// ── 5. 비차단형(Non-Blocking) AuthGate 컨테이너 ──
+// ── 5. 비차단형(Non-Blocking) AuthGate 컨테이너 + 자동로그인 복원 ──
 const AuthGate = ({ children }) => {
   const [user, setUser] = useState(() => getCurrentMember());
   const [authModalState, setAuthModalState] = useState({
     isOpen: false,
+    openSeq: 0,
     mode: 'signup',
-    featureName: '탈모진단 및 복약 전·후 예상 경과 확인',
-    onSuccess: null
+    featureName: '탈모진단 및 개인 기록 저장',
+    onSuccess: null,
   });
 
   useEffect(() => {
+    let active = true;
+    restoreMemberSession().then((restored) => {
+      if (active && restored) {
+        setUser(restored);
+      }
+    });
+
     const syncAuth = () => {
       setUser(getCurrentMember());
     };
     window.addEventListener('authChanged', syncAuth);
     window.addEventListener('storage', syncAuth);
     return () => {
+      active = false;
       window.removeEventListener('authChanged', syncAuth);
       window.removeEventListener('storage', syncAuth);
     };
@@ -962,37 +1534,44 @@ const AuthGate = ({ children }) => {
   }, []);
 
   const openAuthModal = useCallback((options = {}) => {
-    setAuthModalState({
+    setAuthModalState((prev) => ({
       isOpen: true,
+      openSeq: prev.openSeq + 1,
       mode: options.mode || 'signup',
-      featureName: options.featureName || '탈모진단 및 복약 전·후 예상 경과 확인',
-      onSuccess: options.onSuccess || null
-    });
+      featureName: options.featureName || '탈모진단 및 개인 기록 저장',
+      onSuccess: options.onSuccess || null,
+    }));
   }, []);
 
   const closeAuthModal = useCallback(() => {
-    setAuthModalState(prev => ({ ...prev, isOpen: false, onSuccess: null }));
+    setAuthModalState((prev) => ({ ...prev, isOpen: false, onSuccess: null }));
   }, []);
 
-  const handleAuthenticated = useCallback((authenticatedUser) => {
-    setUser(authenticatedUser);
-    const pendingCallback = authModalState.onSuccess;
-    setAuthModalState(prev => ({ ...prev, isOpen: false, onSuccess: null }));
-    if (typeof pendingCallback === 'function') {
-      pendingCallback(authenticatedUser);
-    }
-  }, [authModalState.onSuccess]);
+  const handleAuthenticated = useCallback(
+    (authenticatedUser) => {
+      setUser(authenticatedUser);
+      const pendingCallback = authModalState.onSuccess;
+      setAuthModalState((prev) => ({ ...prev, isOpen: false, onSuccess: null }));
+      if (typeof pendingCallback === 'function') {
+        pendingCallback(authenticatedUser);
+      }
+    },
+    [authModalState.onSuccess]
+  );
 
   return (
     <>
       {typeof children === 'function' ? children(user, handleLogout, openAuthModal) : children}
-      <AuthModal
-        isOpen={authModalState.isOpen}
-        initialMode={authModalState.mode}
-        featureName={authModalState.featureName}
-        onClose={closeAuthModal}
-        onAuthenticated={handleAuthenticated}
-      />
+      {authModalState.isOpen && (
+        <AuthModal
+          key={authModalState.openSeq}
+          isOpen={authModalState.isOpen}
+          initialMode={authModalState.mode}
+          featureName={authModalState.featureName}
+          onClose={closeAuthModal}
+          onAuthenticated={handleAuthenticated}
+        />
+      )}
     </>
   );
 };

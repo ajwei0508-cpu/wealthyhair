@@ -1,9 +1,14 @@
 // src/utils/authService.js
-// 대한민국 개인정보보호법(제15조, 제22조, 제23조, 제36조) 및 정보통신망법 준수 회원 인증·동의 이력·세션 관리 서비스
+// 대한민국 개인정보보호법(제15조, 제22조, 제23조, 제36조) 및 정보통신망법 준수 회원 인증·동의 이력·자동로그인 세션 관리 서비스
 
 import { supabase } from '../supabase';
+import { syncMemberToSurveyProfile, clearSurveyProfile } from './surveyStorage';
+import { migrateGuestHistoryToMember, clearMemberDiagnosisHistory } from './diagnosisHistoryService';
 
 const SESSION_KEY = 'wealthyhair_auth_session_v1';
+const TEMP_SESSION_KEY = 'wealthyhair_auth_session_temp_v1';
+const AUTO_LOGIN_PREF_KEY = 'wealthyhair_auto_login_pref_v1';
+const EXPLICIT_LOGOUT_KEY = 'wealthyhair_explicit_logout_v1';
 const USERS_STORAGE_KEY = 'wealthyhair_registered_members_v1';
 
 // Web Crypto API 기반 SHA-256 단방향 해시 (비밀번호 평문 저장 절대 금지)
@@ -12,12 +17,12 @@ export async function hashPasswordSHA256(password) {
   const data = encoder.encode(`wh_salt_2026_${password}`);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 // 한국 휴대전화번호 자동 하이픈 포맷팅 (010-XXXX-XXXX)
 export function formatKoreanPhone(value) {
-  const digits = value.replace(/\D/g, '').slice(0, 11);
+  const digits = String(value || '').replace(/\D/g, '').slice(0, 11);
   if (digits.length <= 3) return digits;
   if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
   return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7, 11)}`;
@@ -37,16 +42,6 @@ export function calculateKoreanAge(birthDateStr) {
   return age;
 }
 
-export function getCurrentMember() {
-  try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
 export function getRegisteredMembers() {
   try {
     const raw = localStorage.getItem(USERS_STORAGE_KEY);
@@ -54,6 +49,202 @@ export function getRegisteredMembers() {
   } catch {
     return [];
   }
+}
+
+export function getAutoLoginPreference() {
+  try {
+    const raw = localStorage.getItem(AUTO_LOGIN_PREF_KEY);
+    if (!raw) return { enabled: true };
+    const parsed = JSON.parse(raw);
+    return {
+      enabled: parsed?.enabled !== false,
+      memberId: parsed?.memberId || null,
+      email: parsed?.email || null,
+      updatedAt: parsed?.updatedAt || null,
+    };
+  } catch {
+    return { enabled: true };
+  }
+}
+
+function persistMemberSession(memberObj, autoLogin = true) {
+  const safeSession = { ...memberObj, autoLogin: Boolean(autoLogin) };
+  delete safeSession.passwordHash;
+
+  try {
+    localStorage.removeItem(EXPLICIT_LOGOUT_KEY);
+  } catch {
+    // ignore
+  }
+
+  const serialized = JSON.stringify(safeSession);
+  try {
+    sessionStorage.setItem(TEMP_SESSION_KEY, serialized);
+  } catch {
+    // ignore
+  }
+
+  try {
+    if (autoLogin) {
+      localStorage.setItem(SESSION_KEY, serialized);
+      localStorage.setItem(
+        AUTO_LOGIN_PREF_KEY,
+        JSON.stringify({
+          enabled: true,
+          memberId: safeSession.id,
+          email: safeSession.email,
+          updatedAt: new Date().toISOString(),
+        })
+      );
+    } else {
+      localStorage.removeItem(SESSION_KEY);
+      localStorage.setItem(
+        AUTO_LOGIN_PREF_KEY,
+        JSON.stringify({
+          enabled: false,
+          memberId: null,
+          email: null,
+          updatedAt: new Date().toISOString(),
+        })
+      );
+    }
+  } catch (err) {
+    console.warn('[AuthService] Session storage warning:', err);
+  }
+
+  return safeSession;
+}
+
+/**
+ * 현재 로그인된 회원 즉시 조회
+ * 1) localStorage 영구 세션 (향후 자동로그인 활성 시)
+ * 2) sessionStorage 탭 세션 (일회성 로그인 시 페이지 이동 간 유지)
+ * 3) 자동로그인 토큰 기반 자가 복구 (브라우저 캐시 일부 정리 시 레지스트리에서 자동 복원)
+ */
+export function getCurrentMember() {
+  try {
+    const rawPersistent = localStorage.getItem(SESSION_KEY);
+    if (rawPersistent) {
+      const parsed = JSON.parse(rawPersistent);
+      if (parsed && (parsed.id || parsed.email)) {
+        const normalized = { ...parsed, autoLogin: parsed.autoLogin !== false };
+        try {
+          sessionStorage.setItem(TEMP_SESSION_KEY, JSON.stringify(normalized));
+        } catch {
+          // ignore
+        }
+        return normalized;
+      }
+    }
+  } catch {
+    // fallback below
+  }
+
+  try {
+    const rawTemp = sessionStorage.getItem(TEMP_SESSION_KEY);
+    if (rawTemp) {
+      const parsed = JSON.parse(rawTemp);
+      if (parsed && (parsed.id || parsed.email)) {
+        return { ...parsed, autoLogin: Boolean(parsed.autoLogin) };
+      }
+    }
+  } catch {
+    // fallback below
+  }
+
+  // 자가 복구: 명시적 로그아웃이 없고 자동로그인 설정이 켜져 있으면 등록 회원 레지스트리에서 세션 자동 복원
+  try {
+    const explicitLogout = localStorage.getItem(EXPLICIT_LOGOUT_KEY) === '1';
+    if (!explicitLogout) {
+      const pref = getAutoLoginPreference();
+      if (pref.enabled && (pref.memberId || pref.email)) {
+        const members = getRegisteredMembers();
+        const matched = members.find(
+          (m) => (pref.memberId && m.id === pref.memberId) || (pref.email && m.email === pref.email)
+        );
+        if (matched) {
+          return persistMemberSession(
+            { ...matched, restoredAt: new Date().toISOString() },
+            true
+          );
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  return null;
+}
+
+/**
+ * 앱 시작 시 비동기 자동로그인 복원 (로컬 세션 + Supabase Auth 클라우드 세션 이중 확인 및 비회원 기록 마이그레이션)
+ */
+export async function restoreMemberSession() {
+  const current = getCurrentMember();
+  if (current) {
+    syncMemberToSurveyProfile(current, false);
+    migrateGuestHistoryToMember(current).catch(() => {});
+    return current;
+  }
+
+  try {
+    if (localStorage.getItem(EXPLICIT_LOGOUT_KEY) === '1') {
+      return null;
+    }
+  } catch {
+    // ignore
+  }
+
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (!error && data?.session?.user) {
+      const sbUser = data.session.user;
+      const meta = sbUser.user_metadata || {};
+      const cleanEmail = (sbUser.email || '').toLowerCase();
+      const localMatch = getRegisteredMembers().find((m) => m.email === cleanEmail);
+
+      const hydrated = localMatch
+        ? { ...localMatch }
+        : {
+            id: sbUser.id,
+            name: meta.name || cleanEmail.split('@')[0] || '회원',
+            email: cleanEmail,
+            phone: meta.phone || '',
+            birthDate: meta.birth_date || '',
+            age: meta.birth_date ? calculateKoreanAge(meta.birth_date) : null,
+            gender: meta.gender || 'male',
+            consents: meta.consents || { consentedAt: sbUser.created_at },
+            createdAt: sbUser.created_at,
+          };
+
+      const pref = getAutoLoginPreference();
+      const sessionUser = persistMemberSession(hydrated, pref.enabled !== false);
+      syncMemberToSurveyProfile(sessionUser, false);
+      await migrateGuestHistoryToMember(sessionUser).catch(() => {});
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('authChanged'));
+      }
+      return sessionUser;
+    }
+  } catch {
+    // ignore offline/network error
+  }
+
+  return null;
+}
+
+/**
+ * 로그인된 회원이 프로필 모달에서 향후 자동로그인 유지 여부를 즉시 변경
+ */
+export function setAutoLoginForCurrentMember(enabled) {
+  const current = getCurrentMember();
+  if (!current) return null;
+  const updated = persistMemberSession(current, Boolean(enabled));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('authChanged'));
+  }
+  return updated;
 }
 
 export async function registerKoreanMember(payload) {
@@ -64,14 +255,17 @@ export async function registerKoreanMember(payload) {
     birthDate,
     gender,
     password,
-    consents
+    consents,
+    autoLogin = true,
   } = payload;
 
   const cleanEmail = email.trim().toLowerCase();
   const age = calculateKoreanAge(birthDate);
 
   if (age < 14) {
-    throw new Error('대한민국 개인정보보호법 제22조 제6항에 따라 만 14세 미만 아동은 법정대리인 동의 없이 가입할 수 없습니다.');
+    throw new Error(
+      '대한민국 개인정보보호법 제22조 제6항에 따라 만 14세 미만 아동은 법정대리인 동의 없이 가입할 수 없습니다.'
+    );
   }
 
   if (!consents?.age14 || !consents?.terms || !consents?.privacyRequired || !consents?.sensitiveHealth) {
@@ -79,7 +273,7 @@ export async function registerKoreanMember(payload) {
   }
 
   const members = getRegisteredMembers();
-  if (members.some(m => m.email === cleanEmail)) {
+  if (members.some((m) => m.email === cleanEmail)) {
     throw new Error('이미 가입된 이메일 주소입니다. 로그인 탭을 이용해 주세요.');
   }
 
@@ -103,28 +297,23 @@ export async function registerKoreanMember(payload) {
       thirdPartyResearch: Boolean(consents.thirdPartyResearch),
       marketingOptIn: Boolean(consents.marketingOptIn),
       consentedAt: nowIso,
-      lawVersion: '개인정보보호법 제15조·제22조·제23조 (2026 표준약관)'
+      lawVersion: '개인정보보호법 제15조·제22조·제23조 (2026 표준약관)',
     },
-    createdAt: nowIso
+    createdAt: nowIso,
   };
 
   // 1. 로컬 암호화 레지스트리 저장
   members.push(newMember);
   localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(members));
 
-  // 2. 기존 설문 프로필과도 연령·성별 자동 연동
-  try {
-    const existingSurvey = JSON.parse(localStorage.getItem('wealthyhair_survey_profile_v1') || '{}');
-    localStorage.setItem('wealthyhair_survey_profile_v1', JSON.stringify({
-      ...existingSurvey,
-      age: String(age),
-      gender
-    }));
-  } catch {
-    // ignore
-  }
+  // 2. 통합 설문 프로필과 연령·성별 즉시 연동 (기존 잘못된 키 불일치 해결)
+  syncMemberToSurveyProfile(newMember, true);
 
-  // 3. Supabase Auth 및 클라우드 DB에 회원가입 동의 이력 동기화
+  // 3. 세션 및 향후 자동로그인 상태 저장 + 비회원 임시 진단기록 병합
+  const sessionUser = persistMemberSession(newMember, autoLogin);
+  await migrateGuestHistoryToMember(sessionUser).catch(() => {});
+
+  // 4. Supabase Auth 및 클라우드 DB에 회원가입 동의 이력 동기화 (비차단형 안전 처리)
   try {
     await supabase.auth.signUp({
       email: cleanEmail,
@@ -135,9 +324,9 @@ export async function registerKoreanMember(payload) {
           phone: newMember.phone,
           birth_date: newMember.birthDate,
           gender: newMember.gender,
-          consents: newMember.consents
-        }
-      }
+          consents: newMember.consents,
+        },
+      },
     });
   } catch (err) {
     console.warn('Supabase Auth sync notice:', err?.message);
@@ -147,47 +336,48 @@ export async function registerKoreanMember(payload) {
     await supabase.from('surveys').insert([
       {
         score: 5,
-        feedback: `[MEMBER_SIGNUP] 성명:${newMember.name} | 연락처:${newMember.phone} | 이메일:${newMember.email} | 필수약관·민감정보동의완료(${nowIso})`,
+        feedback: `[MEMBER_SIGNUP] 성명:${newMember.name} | 연락처:${newMember.phone} | 이메일:${newMember.email} | 자동로그인:${autoLogin ? 'ON' : 'OFF'} | 필수약관·민감정보동의완료(${nowIso})`,
         norwood: 'MEMBER_REGISTERED',
         has_hair_loss: false,
         gender: newMember.gender,
-        age: String(newMember.age)
-      }
+        age: String(newMember.age),
+      },
     ]);
   } catch (err) {
     console.warn('Supabase member log notice:', err?.message);
   }
 
-  const sessionUser = { ...newMember };
-  delete sessionUser.passwordHash;
-  localStorage.setItem(SESSION_KEY, JSON.stringify(sessionUser));
   window.dispatchEvent(new Event('authChanged'));
   return sessionUser;
 }
 
-export async function loginKoreanMember(email, password) {
+export async function loginKoreanMember(email, password, options = {}) {
+  const { autoLogin = true } = options;
   const cleanEmail = email.trim().toLowerCase();
   const passwordHash = await hashPasswordSHA256(password);
   const members = getRegisteredMembers();
 
-  const found = members.find(m => m.email === cleanEmail && m.passwordHash === passwordHash);
+  const found = members.find((m) => m.email === cleanEmail && m.passwordHash === passwordHash);
   if (found) {
-    const sessionUser = { ...found, lastLoginAt: new Date().toISOString() };
-    delete sessionUser.passwordHash;
-    localStorage.setItem(SESSION_KEY, JSON.stringify(sessionUser));
+    const sessionUser = persistMemberSession(
+      { ...found, lastLoginAt: new Date().toISOString() },
+      autoLogin
+    );
+    syncMemberToSurveyProfile(sessionUser, false);
+    await migrateGuestHistoryToMember(sessionUser).catch(() => {});
     window.dispatchEvent(new Event('authChanged'));
     return sessionUser;
   }
 
-  // 로컬에 없을 경우 Supabase Auth 로그인 시도
+  // 로컬에 없을 경우 Supabase Auth 클라우드 계정 로그인 시도 (성공 시 로컬 레지스트리에도 캐싱하여 오프라인 자동로그인 보장)
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
       email: cleanEmail,
-      password
+      password,
     });
     if (!error && data?.user) {
       const meta = data.user.user_metadata || {};
-      const sessionUser = {
+      const cloudMemberRecord = {
         id: data.user.id,
         name: meta.name || cleanEmail.split('@')[0],
         email: cleanEmail,
@@ -195,10 +385,18 @@ export async function loginKoreanMember(email, password) {
         birthDate: meta.birth_date || '',
         age: meta.birth_date ? calculateKoreanAge(meta.birth_date) : null,
         gender: meta.gender || 'male',
+        passwordHash,
         consents: meta.consents || { consentedAt: data.user.created_at },
-        createdAt: data.user.created_at
+        createdAt: data.user.created_at,
+        lastLoginAt: new Date().toISOString(),
       };
-      localStorage.setItem(SESSION_KEY, JSON.stringify(sessionUser));
+
+      const updatedMembers = [...members.filter((m) => m.email !== cleanEmail), cloudMemberRecord];
+      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updatedMembers));
+
+      const sessionUser = persistMemberSession(cloudMemberRecord, autoLogin);
+      syncMemberToSurveyProfile(sessionUser, false);
+      await migrateGuestHistoryToMember(sessionUser).catch(() => {});
       window.dispatchEvent(new Event('authChanged'));
       return sessionUser;
     }
@@ -210,7 +408,29 @@ export async function loginKoreanMember(email, password) {
 }
 
 export function logoutMember() {
-  localStorage.removeItem(SESSION_KEY);
+  try {
+    localStorage.removeItem(SESSION_KEY);
+    localStorage.setItem(EXPLICIT_LOGOUT_KEY, '1');
+    const prevPref = getAutoLoginPreference();
+    localStorage.setItem(
+      AUTO_LOGIN_PREF_KEY,
+      JSON.stringify({
+        enabled: prevPref.enabled !== false,
+        memberId: null,
+        email: null,
+        updatedAt: new Date().toISOString(),
+      })
+    );
+  } catch {
+    // ignore
+  }
+
+  try {
+    sessionStorage.removeItem(TEMP_SESSION_KEY);
+  } catch {
+    // ignore
+  }
+
   try {
     supabase.auth.signOut();
   } catch {
@@ -219,14 +439,27 @@ export function logoutMember() {
   window.dispatchEvent(new Event('authChanged'));
 }
 
-// 개인정보보호법 제36조(개인정보의 정정·삭제)에 따른 회원탈퇴 및 데이터 즉시 파기
+// 개인정보보호법 제36조(개인정보의 정정·삭제)에 따른 회원탈퇴 및 개인 진단·복약 데이터 즉시 파기
 export function withdrawMemberAccount(memberId) {
-  const members = getRegisteredMembers().filter(m => m.id !== memberId);
+  const members = getRegisteredMembers().filter((m) => m.id !== memberId);
   localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(members));
   localStorage.removeItem(SESSION_KEY);
-  localStorage.removeItem('wealthyhair_survey_profile_v1');
+  localStorage.removeItem(AUTO_LOGIN_PREF_KEY);
+  localStorage.setItem(EXPLICIT_LOGOUT_KEY, '1');
+  try {
+    sessionStorage.removeItem(TEMP_SESSION_KEY);
+  } catch {
+    // ignore
+  }
+  clearSurveyProfile();
+  clearMemberDiagnosisHistory(memberId).catch(() => {});
   localStorage.removeItem('medicationAlarm');
   localStorage.removeItem('medicationLedger');
+  try {
+    supabase.auth.signOut();
+  } catch {
+    // ignore
+  }
   window.dispatchEvent(new Event('authChanged'));
 }
 
@@ -246,15 +479,15 @@ export const KOREAN_LEGAL_TERMS = {
 2. 만 14세 미만의 아동은 개인정보보호법 제22조 제6항에 의거하여 법정대리인의 별도 동의 없이는 회원으로 가입할 수 없습니다.
 
 제4조 (회원의 의무 및 권리)
-회원은 언제든지 본인의 개인정보 및 민감정보 열람, 정정, 동의 철회(회원탈퇴)를 요청할 수 있으며, 회사는 탈퇴 요청 즉시 관련 데이터를 지체 없이 파기합니다.`
+회원은 언제든지 본인의 개인정보 및 민감정보 열람, 정정, 동의 철회(회원탈퇴)를 요청할 수 있으며, 회사는 탈퇴 요청 즉시 관련 데이터를 지체 없이 파기합니다.`,
   },
   privacyRequired: {
     title: '[필수] 개인정보 수집 및 이용 동의서 (개인정보보호법 제15조)',
     content: `모발부자(WealthyHair)는 「개인정보보호법」 제15조 제1항 제1호 및 제22조에 따라 아래와 같이 개인정보를 수집·이용하고자 합니다. 내용을 자세히 읽으신 후 동의 여부를 결정하여 주시기 바랍니다.
 
 1. 개인정보의 수집 및 이용 목적
-- 회원제 서비스 이용에 따른 본인 식별·인증, 회원자격 유지·관리
-- 연령·성별에 따른 맞춤형 탈모 척도(남성 노우드/여성 루드비히/한국형 BASP) 자동 적용
+- 회원제 서비스 이용에 따른 본인 식별·인증, 회원자격 유지·관리 및 향후 자동로그인 편의 제공
+- 연령·성별에 따른 맞춤형 탈모 척도(남성 노우드/여성 루드비히/한국형 BASP) 자동 적용 및 개인 진단 이력 저장
 - 서비스 내 불편사항 신고 접수 및 제작자 카카오톡 상담 회신 처리
 
 2. 수집하는 개인정보의 항목 (최소 수집 원칙 준수)
@@ -269,34 +502,34 @@ export const KOREAN_LEGAL_TERMS = {
   · 서비스 접속 및 로그인 기록: 3개월 (통신비밀보호법)
 
 4. 동의를 거부할 권리 및 동의 거부에 따른 불이익
-- 귀하는 위 개인정보 수집·이용에 대한 동의를 거부할 권리가 있습니다. 다만, 필수항목 수집에 동의하지 않으실 경우 회원가입 및 맞춤형 진단 서비스 이용이 제한됩니다.`
+- 귀하는 위 개인정보 수집·이용에 대한 동의를 거부할 권리가 있습니다. 다만, 필수항목 수집에 동의하지 않으실 경우 회원가입 및 맞춤형 진단 서비스 이용이 제한됩니다.`,
   },
   sensitiveHealth: {
     title: '[필수] 민감정보(건강·두피·체질 데이터) 수집 및 이용 별도 동의 (개인정보보호법 제23조)',
     content: `「개인정보보호법」 제23조(민감정보의 처리 제한)에 따라, 건강 및 신체적 특징과 관련된 민감정보는 일반 개인정보와 구분하여 정보주체의 별도 동의를 받아 처리합니다.
 
 1. 민감정보의 수집 및 이용 목적
-- 카메라 촬영 또는 사진 업로드를 통한 AI 남성·여성·원형탈모(SALT) 정밀 계측
+- 카메라 촬영 또는 사진 업로드를 통한 AI 남성·여성·원형탈모(SALT) 정밀 계측 및 개인 진단 기록 보관
 - 탈모약 복용 전·후 모발 밀도 및 경계선 변화 정밀 비교
 - 사상체질(태양·소양·태음·소음인) 체형·소증 분석 및 맞춤 식이·약물 상호작용 안내
 - 개인별 모발 성장 일지 및 복약 캘린더 이력 관리
 
 2. 처리하는 민감정보 항목
-- 두피·모발 촬영 이미지 및 비전 분석 계측값(후퇴 깊이 cm, 가르마 폭 mm, 밀도 %, 홍반도 %)
+- 두피·모발 촬영 이미지 및 비전 분석 계측값(후퇴 깊이 cm, 가르마 폭 mm, 밀도 %, 홍반도 %, 원형탈모 직경·면적)
 - 탈모 가족력, 진행 기간, 관리 목표, 복용 중인 탈모약 성분 및 용량, 사상체질 설문 응답 데이터
 
 3. 민감정보의 보유 및 이용 기간
-- 두피·모발 원본 사진은 이용자의 기기 내 로컬 스토리지(IndexedDB)를 우선 활용하여 보호되며, 회원 탈퇴 또는 민감정보 처리 동의 철회 시 **즉시 영구 파기**됩니다.
+- 두피·모발 원본 사진 및 진단 기록은 이용자의 기기 내 로컬 스토리지(IndexedDB)를 우선 활용하여 보호되며, 회원 탈퇴 또는 민감정보 처리 동의 철회 시 **즉시 영구 파기**됩니다.
 
 4. 동의 거부 권리 및 불이익 안내
-- 민감정보 수집 및 이용에 대한 동의를 거부할 수 있으나, 미동의 시 AI 두피 스캔 및 사상체질·복약 맞춤 진단 기능을 이용하실 수 없습니다.`
+- 민감정보 수집 및 이용에 대한 동의를 거부할 수 있으나, 미동의 시 AI 두피 스캔 및 사상체질·복약 맞춤 진단 기능을 이용하실 수 없습니다.`,
   },
   thirdPartyResearch: {
     title: '[선택] AI 탈모 진단 알고리즘 고도화를 위한 가명·익명정보 활용 동의',
-    content: `「개인정보보호법」 제28조의2(가명정보의 처리 등)에 따라, 개인을 식별할 수 없도록 완전히 비식별화(가명·익명 처리)된 탈모 계측 통계 데이터를 한국인 표준 탈모 AI 알고리즘 정밀도 향상 연구에 활용하는 것에 동의합니다. (선택 사항으로 동의하지 않아도 모든 서비스를 정상적으로 이용하실 수 있습니다.)`
+    content: `「개인정보보호법」 제28조의2(가명정보의 처리 등)에 따라, 개인을 식별할 수 없도록 완전히 비식별화(가명·익명 처리)된 탈모 계측 통계 데이터를 한국인 표준 탈모 AI 알고리즘 정밀도 향상 연구에 활용하는 것에 동의합니다. (선택 사항으로 동의하지 않아도 모든 서비스를 정상적으로 이용하실 수 있습니다.)`,
   },
   marketingOptIn: {
     title: '[선택] 맞춤형 복약 알림 및 모발 건강 케어 정보 수신 동의 (정보통신망법 제50조)',
-    content: `「정보통신망 이용촉진 및 정보보호 등에 관한 법률」 제50조에 따라, 복약 골든타임 알림, 계절별 두피 케어 가이드, 신규 임상 리포트 안내를 앱 푸시·이메일·문자(SMS/카카오톡)로 수신하는 것에 동의합니다. (선택 사항으로 동의하지 않아도 회원가입 및 서비스 이용에는 아무런 제한이 없으며, 가입 후 언제든지 철회할 수 있습니다.)`
-  }
+    content: `「정보통신망 이용촉진 및 정보보호 등에 관한 법률」 제50조에 따라, 복약 골든타임 알림, 계절별 두피 케어 가이드, 신규 임상 리포트 안내를 앱 푸시·이메일·문자(SMS/카카오톡)로 수신하는 것에 동의합니다. (선택 사항으로 동의하지 않아도 회원가입 및 서비스 이용에는 아무런 제한이 없으며, 가입 후 언제든지 철회할 수 있습니다.)`,
+  },
 };

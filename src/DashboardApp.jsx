@@ -13,6 +13,7 @@ import AuthGate, {
   MemberProfileModal,
   PrivacyMembershipNoticeCard,
 } from './components/AuthGate';
+import DiagnosisHistoryPanel from './components/DiagnosisHistoryPanel';
 import KakaoReportModal from './components/KakaoReportModal';
 
 const TAB_NAMES = {
@@ -115,6 +116,14 @@ function DiagnosisHubTab({ user, onRequireAuth }) {
             </button>
           </div>
         </div>
+
+        {/* 회원별 개인 탈모 진단 기록 보관함 (남·여성 탈모 + 원형탈모 SALT 통합 열람·메모·경과 비교) */}
+        <DiagnosisHistoryPanel
+          user={user}
+          initialCategory="all"
+          allowCategorySwitch={true}
+          onRequireAuth={onRequireAuth}
+        />
       </div>
     </div>
   );

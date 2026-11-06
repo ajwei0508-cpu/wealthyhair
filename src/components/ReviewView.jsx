@@ -8,7 +8,14 @@ const STEP_LABELS = {
   vertex: '정수리·가르마 (TOP)',
 };
 
-const ReviewView = ({ photos = {}, gender = 'male', onStartAnalysis, onRetakeAll, onBack }) => {
+const ReviewView = ({
+  photos = {},
+  gender = 'male',
+  onStartAnalysis,
+  onRetakeAll,
+  onRetakeStep = null,
+  onBack,
+}) => {
   const orderedKeys = gender === 'female' ? ['front', 'vertex'] : ['front', 'left', 'right', 'vertex'];
   const visibleKeys = orderedKeys.filter((k) => Boolean(photos[k]));
   const displayKeys = visibleKeys.length > 0 ? visibleKeys : orderedKeys;
@@ -16,7 +23,7 @@ const ReviewView = ({ photos = {}, gender = 'male', onStartAnalysis, onRetakeAll
   return (
     <div className="rvw-wrapper">
       <div className="rvw-top-bar">
-        <button className="rvw-icon-btn" type="button" onClick={onBack} title="이전 단계">
+        <button className="rvw-icon-btn" type="button" onClick={onBack} aria-label="이전 촬영 단계로 이동">
           <ChevronLeft size={24} />
         </button>
         <div style={{ textAlign: 'center' }}>
@@ -33,7 +40,7 @@ const ReviewView = ({ photos = {}, gender = 'male', onStartAnalysis, onRetakeAll
       <div className="rvw-content">
         <div className={`rvw-grid ${displayKeys.length <= 2 ? 'rvw-grid-two' : ''}`}>
           {displayKeys.map((key) => (
-            <div key={key} className="rvw-grid-item">
+            <div key={key} className="rvw-grid-item" style={{ position: 'relative' }}>
               {photos[key] ? (
                 <img src={photos[key]} alt={STEP_LABELS[key]} />
               ) : (
@@ -54,6 +61,28 @@ const ReviewView = ({ photos = {}, gender = 'male', onStartAnalysis, onRetakeAll
               <div className="rvw-label">{STEP_LABELS[key]}</div>
               {photos[key] && (
                 <CheckCircle className="rvw-check-icon" size={20} color="#D4AF37" fill="#111111" />
+              )}
+              {onRetakeStep && (
+                <button
+                  type="button"
+                  onClick={() => onRetakeStep(key)}
+                  style={{
+                    position: 'absolute',
+                    top: 8,
+                    left: 8,
+                    padding: '3px 8px',
+                    borderRadius: '6px',
+                    border: '1px solid rgba(212, 175, 55, 0.5)',
+                    background: 'rgba(10, 10, 14, 0.82)',
+                    color: '#E5C158',
+                    fontSize: '0.64rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    zIndex: 5,
+                  }}
+                >
+                  이 각도 재촬영
+                </button>
               )}
             </div>
           ))}
