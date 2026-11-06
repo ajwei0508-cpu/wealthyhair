@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import BottomNavBar from './components/BottomNavBar';
 import MedicationTab from './components/MedicationTab';
 import GuideTab from './components/GuideTab';
@@ -27,18 +27,19 @@ const TAB_NAMES = {
 };
 
 function DiagnosisHubTab({ user, onRequireAuth }) {
-  const handleStartDiagnosisMode = () => {
+  const handleStartDiagnosisMode = (targetGender = 'male') => {
+    const destUrl = `/diagnosis.html?direct=1&gender=${targetGender}`;
     if (!user && onRequireAuth) {
       onRequireAuth({
         mode: 'signup',
         featureName: 'AI 탈모진단앱',
         onSuccess: () => {
-          window.location.href = '/diagnosis.html?direct=1';
+          window.location.href = destUrl;
         },
       });
       return;
     }
-    window.location.href = '/diagnosis.html?direct=1';
+    window.location.href = destUrl;
   };
 
   return (
@@ -58,7 +59,7 @@ function DiagnosisHubTab({ user, onRequireAuth }) {
           onOpenAuth={onRequireAuth}
         />
 
-        {/* 단일 메뉴: 진단 모드로 바로 돌입하는 카드 하나만 배치 */}
+        {/* 단일 메뉴: 진단 모드로 바로 돌입하는 카드 */}
         <div
           style={{
             background: 'linear-gradient(145deg, rgba(24, 24, 30, 0.98), rgba(14, 14, 18, 0.98))',
@@ -73,26 +74,46 @@ function DiagnosisHubTab({ user, onRequireAuth }) {
             📸 AI 탈모 정밀 진단
           </h2>
           <p style={{ fontSize: '0.78rem', color: '#bbb', margin: '0 0 18px', lineHeight: 1.5 }}>
-            카메라 촬영 또는 사진 등록으로 즉시 탈모 진단 모드를 시작합니다.
+            카메라 촬영 또는 사진 등록으로 남성(Norwood·BASP) 및 여성(Ludwig·Sinclair) 맞춤 탈모 진단을 즉시 시작합니다.
           </p>
 
-          <button
-            type="button"
-            onClick={handleStartDiagnosisMode}
-            style={{
-              width: '100%',
-              padding: '15px',
-              borderRadius: '10px',
-              border: 'none',
-              background: 'linear-gradient(135deg, #D4AF37 0%, #B68D2C 100%)',
-              color: '#000',
-              fontSize: '0.92rem',
-              fontWeight: 800,
-              cursor: 'pointer',
-            }}
-          >
-            {user ? 'AI 탈모 진단 바로 시작하기 →' : '🔒 회원가입 후 AI 탈모 진단 시작하기 →'}
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <button
+              type="button"
+              onClick={() => handleStartDiagnosisMode('male')}
+              style={{
+                width: '100%',
+                padding: '14px',
+                borderRadius: '10px',
+                border: 'none',
+                background: 'linear-gradient(135deg, #D4AF37 0%, #B68D2C 100%)',
+                color: '#000',
+                fontSize: '0.9rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+              }}
+            >
+              {user ? '👨 남성 탈모 정밀 진단 시작하기 →' : '🔒 남성 탈모 정밀 진단 시작 (회원가입) →'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleStartDiagnosisMode('female')}
+              style={{
+                width: '100%',
+                padding: '14px',
+                borderRadius: '10px',
+                border: '1.5px solid #D4AF37',
+                background: 'rgba(212, 175, 55, 0.14)',
+                color: '#f5d77f',
+                fontSize: '0.9rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+              }}
+            >
+              {user ? '👩 여성 탈모 정밀 진단 시작하기 →' : '🔒 여성 탈모 정밀 진단 시작 (회원가입) →'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

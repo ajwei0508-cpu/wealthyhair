@@ -187,9 +187,8 @@ const analyzeHairlineGeometry = (imageSrc, maskSrc = null, pts = null, regionTyp
           }
 
           // 3. 해부학적 비율(안면 상안면부 표준 높이 5.8cm 기준)로 전두부 후퇴 및 M자 파임 깊이(cm) 산출
-          // pxPerCm: 얼굴 높이(약 18.5cm) 기준 픽셀당 cm 환산
           const pxPerCm = Math.max(12, faceHeightPx / 18.5);
-          const normalForeheadSpanPx = 5.6 * pxPerCm; // 정상 눈썹~헤어라인 거리(약 5.6cm)
+          const normalForeheadSpanPx = 5.6 * pxPerCm;
 
           const leftTempleSpanPx = Math.max(0, browY - boundaryYs[0]);
           const leftMidSpanPx = Math.max(0, browY - boundaryYs[1]);
@@ -363,11 +362,15 @@ const analyzeVertexDensity = (imageSrc, maskSrc = null, facePts = null) => {
                 }
               }
 
-              const analysisWidth = Math.floor(hairWidth * 0.62);
+              const analysisWidth = Math.max(60, Math.floor(hairWidth * 0.62));
               startX = Math.max(0, Math.floor(bestX - analysisWidth / 2));
               endX = Math.min(w, Math.floor(bestX + analysisWidth / 2));
               startY = Math.floor(minY + hairHeight * 0.18);
               endY = Math.floor(maxY - hairHeight * 0.18);
+              if (endY - startY < 40) {
+                startY = Math.floor(h * 0.20);
+                endY = Math.floor(h * 0.76);
+              }
             }
           }
 
@@ -379,8 +382,9 @@ const analyzeVertexDensity = (imageSrc, maskSrc = null, facePts = null) => {
           let rightScalpCount = 0;
           let blackPixels = 0;
 
-          // 수평 스캔라인별 연속된 두피 가르마 폭(px) 측정
+          // 수평 및 수직 스캔라인별 두피 가르마 폭(px) 양방향 측정 (세로/가로 사진 회전 불변 보정)
           const rowPartingWidthsPx = [];
+          const colScalpCounts = new Array(Math.max(1, endX - startX)).fill(0);
 
           for (let y = startY; y < endY; y++) {
             let rowScalpPixels = 0;
@@ -402,6 +406,7 @@ const analyzeVertexDensity = (imageSrc, maskSrc = null, facePts = null) => {
               if (isScalp) {
                 scalpPixels++;
                 rowScalpPixels++;
+                colScalpCounts[x - startX]++;
                 if (isErythema) erythemaPixels++;
                 if (x < bestX) leftScalpCount++;
                 else rightScalpCount++;
@@ -413,7 +418,7 @@ const analyzeVertexDensity = (imageSrc, maskSrc = null, facePts = null) => {
             }
           }
 
-          if (totalValidPixels === 0 || blackPixels > totalValidPixels * 0.92) {
+          if (totalValidPixels === 0 || blackPixels > totalValidPixels * 0.94) {
             resolve({
               densityLossPercent: -1.0,
               left_val: -1.0,
@@ -436,16 +441,29 @@ const analyzeVertexDensity = (imageSrc, maskSrc = null, facePts = null) => {
           }
           densityLossPercent = Math.min(Math.max(densityLossPercent, 1.5), 98.0);
 
-          // 실제 가르마 폭(mm) 계산: 정수리 분석 영역 폭을 약 110mm로 환산한 상위 30% 가르마 라인 폭
+          // 실제 가르마 폭(mm) 계산 (수평/수직 방향 중 실제 가르마 단면 축 자동 선택)
           const roiWidthPx = Math.max(40, endX - startX);
-          const mmPerPx = 110.0 / roiWidthPx;
-          let partingWidthMm = 1.6;
+          const roiHeightPx = Math.max(40, endY - startY);
+          const mmPerPxX = 110.0 / roiWidthPx;
+          const mmPerPxY = 110.0 / roiHeightPx;
+
+          let horizPartingMm = 1.8;
           if (rowPartingWidthsPx.length > 0) {
             rowPartingWidthsPx.sort((a, b) => b - a);
             const topSlice = rowPartingWidthsPx.slice(0, Math.max(1, Math.floor(rowPartingWidthsPx.length * 0.35)));
             const avgPartPx = topSlice.reduce((s, v) => s + v, 0) / topSlice.length;
-            partingWidthMm = Math.min(24.0, Math.max(1.2, avgPartPx * mmPerPx * 0.48));
+            horizPartingMm = Math.min(24.0, Math.max(1.2, avgPartPx * mmPerPxX * 0.48));
           }
+
+          const nonZeroCols = colScalpCounts.filter(v => v > 0).sort((a, b) => b - a);
+          let vertPartingMm = horizPartingMm;
+          if (nonZeroCols.length > 0) {
+            const topColSlice = nonZeroCols.slice(0, Math.max(1, Math.floor(nonZeroCols.length * 0.35)));
+            const avgColPx = topColSlice.reduce((s, v) => s + v, 0) / topColSlice.length;
+            vertPartingMm = Math.min(24.0, Math.max(1.2, avgColPx * mmPerPxY * 0.48));
+          }
+
+          const partingWidthMm = Math.min(horizPartingMm, vertPartingMm);
 
           // 단위 면적당 추정 모낭 밀도 (정상 한국인 정수리 약 135~155 hairs/cm²)
           const follicularDensityPerCm2 = Math.round(Math.max(18, Math.min(160, 152 * (1 - (densityLossPercent / 115)))));
@@ -515,25 +533,32 @@ const analyzeVertexDensity = (imageSrc, maskSrc = null, facePts = null) => {
 };
 
 export const performOfflineAnalysis = async (pointsData, capturedImages) => {
-  await new Promise(resolve => setTimeout(resolve, 650));
+  await new Promise(resolve => setTimeout(resolve, 350));
 
-  // 1. 정면 및 좌/우 측면 실제 헤어라인 레이캐스팅 분석
+  const fallbackVertexSrc = capturedImages?.vertex || capturedImages?.front || capturedImages?.left || capturedImages?.right || null;
+  const fallbackVertexMask = capturedImages?.vertex
+    ? pointsData?.vertex?.mask
+    : pointsData?.front?.mask || null;
+  const fallbackVertexFace = capturedImages?.vertex
+    ? pointsData?.vertex?.face
+    : pointsData?.front?.face || null;
+
+  // 1. 정면 및 좌/우 측면 실제 헤어라인 레이캐스팅 분석 + 정수리 밀도 분석
   const [frontResult, leftResult, rightResult, vertexResult] = await Promise.all([
     analyzeHairlineGeometry(capturedImages?.front, pointsData?.front?.mask, pointsData?.front, 'front'),
     analyzeHairlineGeometry(capturedImages?.left, pointsData?.left?.mask, pointsData?.left, 'left'),
     analyzeHairlineGeometry(capturedImages?.right, pointsData?.right?.mask, pointsData?.right, 'right'),
-    analyzeVertexDensity(capturedImages?.vertex, pointsData?.vertex?.mask, pointsData?.vertex?.face)
+    analyzeVertexDensity(fallbackVertexSrc, fallbackVertexMask, fallbackVertexFace)
   ]);
 
   if (vertexResult.densityLossPercent === -1.0) {
     return {
       success: false,
-      error: '정수리 사진이 너무 어둡거나 두피/모발을 식별할 수 없습니다. 밝은 조명에서 다시 촬영해주세요.'
+      error: '촬영된 사진이 너무 어둡거나 두피/모발을 식별할 수 없습니다. 밝은 조명에서 다시 촬영해주세요.'
     };
   }
 
   const front_val = frontResult.recessionCm;
-  // 좌/우 측면 촬영본이 있으면 측면 후퇴도와 정면 양측 M자 깊이를 융합하여 정밀 산출
   const left_val = capturedImages?.left
     ? parseFloat(((leftResult.recessionCm * 0.65) + (frontResult.leftTempleCm * 0.35)).toFixed(2))
     : frontResult.leftTempleCm;

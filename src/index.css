@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   /* Dark Luxury Palette */
   --bg-main: #000000;
   --bg-surface: #111111;
@@ -31,6 +31,7 @@ body {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -42,8 +43,11 @@ h1, h2, h3, h4, h5, h6 {
   width: 100%;
   max-width: 480px; /* Mobile app constraint */
   height: 100vh;
+  height: 100dvh;
   position: relative;
-  overflow: hidden;
+  overflow: clip;
+  display: flex;
+  flex-direction: column;
   background-color: var(--bg-main);
   box-shadow: 0 0 40px rgba(0,0,0,0.05); /* Whisper shadow */
 }
@@ -52,8 +56,53 @@ h1, h2, h3, h4, h5, h6 {
 .app-container {
   width: 100%;
   height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+.diagnosis-stage-viewport {
+  flex: 1 1 0%;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: clip;
+  overscroll-behavior: contain;
+}
+
+/* Fit nested full-screen step wrappers cleanly inside remaining viewport height */
+.diagnosis-stage-viewport > .ob-stage-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0%;
+  height: 100%;
+  min-height: 0;
+}
+
+.diagnosis-stage-viewport .ob-wrapper,
+.diagnosis-stage-viewport .pv-wrapper,
+.diagnosis-stage-viewport .ag-wrapper,
+.diagnosis-stage-viewport .ev-wrapper,
+.diagnosis-stage-viewport .gv-wrapper,
+.diagnosis-stage-viewport .fhv-wrapper,
+.diagnosis-stage-viewport .dv-wrapper,
+.diagnosis-stage-viewport .qv-wrapper,
+.diagnosis-stage-viewport .rtv-wrapper,
+.diagnosis-stage-viewport .prv-wrapper,
+.diagnosis-stage-viewport .tv-wrapper,
+.diagnosis-stage-viewport .exv-wrapper,
+.diagnosis-stage-viewport .nv-wrapper,
+.diagnosis-stage-viewport .siv-wrapper,
+.diagnosis-stage-viewport .pgv-full-screen-container,
+.diagnosis-stage-viewport .cv-container,
+.diagnosis-stage-viewport .rvw-wrapper,
+.diagnosis-stage-viewport .lv-wrapper,
+.diagnosis-stage-viewport .rv-wrapper {
+  height: 100% !important;
+  min-height: 0 !important;
+  flex: 1 1 0%;
 }
 
 .header {
@@ -153,7 +202,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-main); 
+  background: var(--bg-main);
 }
 
 ::-webkit-scrollbar-thumb {
@@ -164,4 +213,3 @@ h1, h2, h3, h4, h5, h6 {
 ::-webkit-scrollbar-thumb:hover {
   background: #E5C158;
 }
-

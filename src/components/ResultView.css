@@ -1,13 +1,16 @@
 /* ResultView.css */
 
 .rv-wrapper {
+  position: relative;
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  flex: 1 1 0%;
+  height: 100%;
+  min-height: 0;
   background-color: var(--bg-main);
   color: var(--text-main);
   font-family: var(--font-sans);
-  overflow: hidden; /* Prevent body scroll */
+  overflow: clip;
 }
 
 /* Header */
@@ -15,15 +18,16 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
+  padding: 12px 16px;
   background-color: var(--bg-main);
   border-bottom: 0.5px solid var(--border-light);
+  flex-shrink: 0;
   z-index: 100;
 }
 
 .rv-header h1 {
   font-family: var(--font-serif);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   margin: 0;
   color: var(--text-main);
@@ -47,9 +51,11 @@
 
 /* Main Content Scrollable Area */
 .rv-main-content {
-  flex: 1;
+  flex: 1 1 0%;
+  min-height: 0;
   overflow-y: auto;
-  padding-bottom: 120px; /* Space for floating CTA */
+  overscroll-behavior: contain;
+  padding-bottom: 96px; /* Space for floating CTA */
   display: flex;
   flex-direction: column;
 }
@@ -67,8 +73,9 @@
 .rv-top-tabs {
   display: flex;
   justify-content: space-around;
-  padding: 10px 20px;
+  padding: 6px 16px;
   background-color: var(--bg-surface);
+  flex-shrink: 0;
 }
 
 .rv-tab-btn {
@@ -79,15 +86,15 @@
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  padding: 12px 0;
+  letter-spacing: 0.08em;
+  padding: 10px 4px;
   position: relative;
   cursor: pointer;
   transition: color 0.2s;
 }
 
 .rv-tab-btn.active {
-  color: var(--text-main);
+  color: var(--accent-gold);
 }
 
 .rv-tab-btn.active::after {
@@ -104,9 +111,10 @@
 .rv-image-container {
   position: relative;
   width: 100%;
-  aspect-ratio: 3 / 4; /* Matches CameraView */
-  background-color: #f0f0f0;
-  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  max-height: 300px;
+  background-color: #0b0b0e;
+  overflow: clip;
   user-select: none;
 }
 
@@ -114,6 +122,7 @@
   position: absolute;
   top: 0; left: 0; width: 100%; height: 100%;
   object-fit: cover;
+  display: block;
 }
 
 .rv-overlay-layer {
@@ -133,21 +142,23 @@
 .rv-slider-clip {
   position: absolute;
   top: 0; left: 0; width: 100%; height: 100%;
-  overflow: hidden;
+  overflow: clip;
 }
 
 .rv-slider-image {
   position: absolute;
-  top: 0; left: 0; 
+  top: 0; left: 0;
   width: 100%; height: 100%;
   object-fit: cover;
-  filter: brightness(0.85); /* Dim slightly */
+  display: block;
+  filter: brightness(0.85);
 }
 
 /* Overlays */
 .rv-svg-overlay {
   position: absolute;
   top: 0; left: 0; width: 100%; height: 100%;
+  display: block;
 }
 
 .rv-slider-line {
@@ -168,10 +179,10 @@
   transform: translate(-50%, -50%);
   width: 24px;
   height: 48px;
-  background-color: rgba(255, 255, 255, 0.8);
+  background-color: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(4px);
   border: 1px solid var(--accent-gold);
-  border-radius: 0; /* Sharp corners */
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -197,58 +208,58 @@
 /* Bottom Sub-tabs (floating on image) */
 .rv-sub-tabs {
   position: absolute;
-  bottom: 16px;
+  bottom: 12px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  background-color: rgba(255, 255, 255, 0.9);
+  gap: 2px;
+  background-color: rgba(12, 12, 16, 0.88);
   backdrop-filter: blur(12px);
-  border-radius: 0;
+  border-radius: 8px;
   padding: 4px;
   z-index: 30;
-  border: 1px solid var(--border-light);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.45);
 }
 
 .rv-sub-tab-btn {
   background: transparent;
   border: none;
-  color: var(--text-muted);
+  color: #ccc;
   font-family: var(--font-sans);
   font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 8px 16px;
-  border-radius: 0;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 6px 12px;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
 }
 
 .rv-sub-tab-btn.active {
-  background-color: var(--text-main);
-  color: var(--bg-surface);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  background-color: var(--accent-gold);
+  color: #000;
+  box-shadow: 0 2px 8px rgba(212, 175, 55, 0.35);
 }
 
 /* --- Data Cards Section --- */
 .rv-cards-container {
-  padding: 24px 20px;
+  padding: 18px 16px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .rv-card {
   background-color: var(--bg-surface);
-  border-radius: 0;
-  padding: 24px;
+  border-radius: 10px;
+  padding: 18px;
   border: 0.5px solid var(--border-light);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .rv-card-row {
@@ -430,7 +441,7 @@
   font-family: var(--font-sans);
   font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.06em;
   color: var(--text-muted);
   margin: 0;
   font-weight: 600;
@@ -438,7 +449,7 @@
 
 .rv-card-value {
   font-family: var(--font-serif);
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 600;
   color: var(--text-main);
   margin: 0;
@@ -450,10 +461,10 @@
 
 .rv-card-desc {
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-muted);
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
 /* Density Color Index Bar */
@@ -483,29 +494,28 @@
 /* Analysis Details Card */
 .rv-card-badge {
   display: inline-block;
-  background: var(--text-main);
-  color: var(--bg-surface);
-  padding: 6px 12px;
-  border-radius: 0;
+  background: var(--accent-gold);
+  color: #000;
+  padding: 5px 12px;
+  border-radius: 6px;
   font-family: var(--font-sans);
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  margin-bottom: 12px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
   align-self: flex-start;
 }
 
 .rv-explanation-text {
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: 13.5px;
   color: var(--text-main);
-  line-height: 1.6;
-  margin-top: 12px;
+  line-height: 1.65;
+  margin-top: 6px;
   background: var(--bg-main);
-  padding: 20px;
-  border-radius: 0;
-  border-left: 2px solid var(--accent-gold);
+  padding: 16px;
+  border-radius: 8px;
+  border-left: 3px solid var(--accent-gold);
 }
 
 /* Floating CTA */
@@ -514,8 +524,8 @@
   bottom: 0;
   left: 0;
   width: 100%;
-  padding: 20px;
-  background: linear-gradient(to top, var(--bg-main) 80%, transparent);
+  padding: 14px 16px 18px;
+  background: linear-gradient(to top, var(--bg-main) 82%, transparent);
   display: flex;
   justify-content: center;
   z-index: 100;
@@ -527,8 +537,8 @@
   background: var(--text-main);
   color: var(--bg-surface);
   border: none;
-  padding: 18px 24px;
-  border-radius: 0;
+  padding: 16px 24px;
+  border-radius: 8px;
   font-family: var(--font-sans);
   font-size: 14px;
   text-transform: uppercase;

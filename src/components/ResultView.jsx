@@ -2,9 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { supabase } from '../supabase';
 import './ResultView.css';
 
-const ResultView = ({ images, onReset }) => {
+const ResultView = ({ diagnosisData = {}, images = {}, onReset }) => {
   const [mainTab, setMainTab] = useState('Overview');
-  const [subTab, setSubTab] = useState('Front');
   const [sliderPosition, setSliderPosition] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
   const [imgDim, setImgDim] = useState({ width: 640, height: 480 });
@@ -15,12 +14,10 @@ const ResultView = ({ images, onReset }) => {
   const [surveySubmitted, setSurveySubmitted] = useState(false);
   const sliderRef = useRef(null);
 
-  const diagnosisData = arguments[0]?.diagnosisData || {};
-
   const norwood = diagnosisData?.norwood || '분석 완료';
   const ludwig = diagnosisData?.ludwig || '분석 완료';
-  const sinclair = diagnosisData?.sinclair || 'Grade 2';
-  const basp = diagnosisData?.basp || 'Basic M1';
+  const sinclair = diagnosisData?.sinclair || 'Sinclair Stage 1';
+  const basp = diagnosisData?.basp || 'L (정상 일자형)';
   const summary = diagnosisData?.summary || '진단 데이터를 불러왔습니다.';
   const features = diagnosisData?.features || {};
   const boxes = diagnosisData?.boxes || {};
@@ -30,18 +27,33 @@ const ResultView = ({ images, onReset }) => {
       ? diagnosisData.hasHairLoss
       : Boolean(features.mShapeRecession || features.vertexThinning);
 
+  const follicularDensity = features.follicularDensityPerCm2 ?? features.follicularDensityEstimate ?? 132;
+  const partingWidth = Number((features.partingWidthMm ?? 2.1).toFixed(1));
+  const templeRecession = Number((features.templeRecessionCm ?? 0).toFixed(1));
+  const frontalRecession = Number((features.frontalRecessionCm ?? 0).toFixed(1));
+  const leftRecession = Number((features.leftRecessionCm ?? templeRecession).toFixed(1));
+  const rightRecession = Number((features.rightRecessionCm ?? templeRecession).toFixed(1));
+  const maxRecessionCm = Number(Math.max(templeRecession, frontalRecession).toFixed(1));
+  const scalpErythema = Number((features.scalpErythemaPercent ?? features.scalpErythemaRatio ?? 8.0).toFixed(1));
+  const vertexThinning = Number((features.vertexThinningPercent ?? 10.0).toFixed(1));
+
+  const rightScalpShare = (features.vertexRightPercent ?? 50) / 100;
+  const leftScalpShare = (features.vertexLeftPercent ?? 50) / 100;
+  const rightDensityPct = Math.round(Math.max(12, Math.min(99, 100 - vertexThinning * (0.5 + rightScalpShare))));
+  const leftDensityPct = Math.round(Math.max(12, Math.min(99, 100 - vertexThinning * (0.5 + leftScalpShare))));
+
   // 종합 모발 건강 점수 (0~100점: 높을수록 좋음 ↑)
   const computedHealthScore =
     diagnosisData?.healthScore ??
     Math.max(
-      25,
+      20,
       Math.min(
-        96,
+        98,
         Math.round(
           100 -
-            Math.max(0, (140 - (features.follicularDensityEstimate ?? 116)) * 0.55) -
-            Math.max(0, ((features.partingWidthMm ?? 2.4) - 1.8) * 4.5) -
-            Math.max(0, (features.mShapeDepthDelta ?? 6.5) * 0.4)
+            Math.max(0, (142 - follicularDensity) * 0.52) -
+            Math.max(0, (partingWidth - 1.8) * 3.0) -
+            Math.max(0, (templeRecession - 1.0) * 5.2 + (frontalRecession - 1.0) * 3.8)
         )
       )
     );
@@ -92,16 +104,6 @@ const ResultView = ({ images, onReset }) => {
     { id: 'Density', label: '모낭 밀도·홍반' },
   ];
 
-  const subTabs = [
-    { id: 'Front', label: '정면' },
-    { id: 'Left', label: '좌측' },
-    { id: 'Right', label: '우측' },
-    { id: 'Top', label: '정수리' },
-  ].filter((tab) => {
-    const keyMap = { Front: 'front', Left: 'left', Right: 'right', Top: 'vertex' };
-    return !!images?.[keyMap[tab.id]];
-  });
-
   const imageKeyMap = {
     Front: 'front',
     Left: 'left',
@@ -109,7 +111,17 @@ const ResultView = ({ images, onReset }) => {
     Top: 'vertex',
   };
 
-  const currentImageKey = imageKeyMap[subTab];
+  const subTabs = [
+    { id: 'Front', label: '정면' },
+    { id: 'Left', label: '좌측' },
+    { id: 'Right', label: '우측' },
+    { id: 'Top', label: '정수리' },
+  ].filter((tab) => Boolean(images?.[imageKeyMap[tab.id]]));
+
+  const [subTab, setSubTab] = useState(() => subTabs[0]?.id || 'Front');
+  const activeSubTab = subTabs.some((t) => t.id === subTab) ? subTab : subTabs[0]?.id || 'Front';
+
+  const currentImageKey = imageKeyMap[activeSubTab] || 'front';
   const currentImageSrc = images?.[currentImageKey];
   const currentBox = boxes?.[currentImageKey] || [140, 80, 360, 220];
   const currentMask = masks?.[currentImageKey];
@@ -131,7 +143,7 @@ const ResultView = ({ images, onReset }) => {
   const updateSliderPosition = (e) => {
     if (!sliderRef.current) return;
     const rect = sliderRef.current.getBoundingClientRect();
-    const x = e.clientX || (e.touches && e.touches[0].clientX);
+    const x = e.clientX ?? (e.touches && e.touches[0]?.clientX);
     if (x === undefined) return;
     let position = ((x - rect.left) / rect.width) * 100;
     position = Math.max(0, Math.min(100, position));
@@ -174,7 +186,7 @@ const ResultView = ({ images, onReset }) => {
             preserveAspectRatio="xMidYMid slice"
             style={{ zIndex: 10, pointerEvents: 'none' }}
           >
-            {subTab === 'Top' ? (
+            {activeSubTab === 'Top' ? (
               <>
                 <rect
                   x={bx}
@@ -187,7 +199,7 @@ const ResultView = ({ images, onReset }) => {
                   strokeDasharray="4,4"
                 />
                 <text x={bx + 8} y={by + 22} fill="rgba(255, 82, 82, 1)" fontSize="14" fontWeight="bold">
-                  우측 밀도 ({features.vertexRightRatio ?? 55}%)
+                  우측 밀도 ({rightDensityPct}%)
                 </text>
                 <rect
                   x={bx + bw / 2}
@@ -200,7 +212,7 @@ const ResultView = ({ images, onReset }) => {
                   strokeDasharray="4,4"
                 />
                 <text x={bx + bw / 2 + 8} y={by + 22} fill="rgba(0, 150, 255, 1)" fontSize="14" fontWeight="bold">
-                  좌측 밀도 ({features.vertexLeftRatio ?? 56}%)
+                  좌측 밀도 ({leftDensityPct}%)
                 </text>
                 <line x1={bx + bw / 2} y1={by} x2={bx + bw / 2} y2={by + bh} stroke="var(--accent-gold)" strokeWidth="3" />
                 <text
@@ -211,7 +223,7 @@ const ResultView = ({ images, onReset }) => {
                   fontWeight="bold"
                   textAnchor="middle"
                 >
-                  가르마 폭 {features.partingWidthMm ?? 2.4}mm
+                  가르마 폭 {partingWidth}mm
                 </text>
               </>
             ) : (
@@ -238,7 +250,15 @@ const ResultView = ({ images, onReset }) => {
     }
 
     if (mainTab === 'Hairline') {
-      const mRecessPx = Math.round(((features.mShapeDepthDelta || 8) / 30) * (bh * 0.45));
+      const contourPts = activeSubTab === 'Front' && Array.isArray(features.hairlineContour) && features.hairlineContour.length >= 3
+        ? features.hairlineContour
+        : null;
+      const mRecessPx = Math.round(Math.min(0.45, maxRecessionCm / 8.5) * bh);
+
+      const polyPoints = contourPts
+        ? contourPts.map((pt) => `${pt.x},${pt.y}`).join(' ')
+        : `${bx},${by + bh * 0.6} ${bx + bw * 0.22},${by + bh * 0.44 - mRecessPx} ${bx + bw * 0.5},${by + bh * 0.52} ${bx + bw * 0.78},${by + bh * 0.44 - mRecessPx} ${bx + bw},${by + bh * 0.6}`;
+
       return (
         <svg
           className="rv-svg-overlay"
@@ -247,26 +267,40 @@ const ResultView = ({ images, onReset }) => {
         >
           <line
             x1={bx}
-            y1={by + bh * 0.55}
+            y1={by + bh * 0.58}
             x2={bx + bw}
-            y2={by + bh * 0.55}
-            stroke="rgba(76, 175, 80, 0.75)"
+            y2={by + bh * 0.58}
+            stroke="rgba(76, 175, 80, 0.8)"
             strokeWidth="2"
             strokeDasharray="4,4"
           />
-          <text x={bx + 8} y={by + bh * 0.55 - 6} fill="#81C784" fontSize="12" fontWeight="bold">
+          <text x={bx + 8} y={by + bh * 0.58 - 6} fill="#81C784" fontSize="12" fontWeight="bold">
             표준 정상 헤어라인 기준선
           </text>
           <polyline
-            points={`${bx},${by + bh * 0.6} ${bx + bw * 0.22},${by + bh * 0.4 - mRecessPx} ${bx + bw * 0.5},${by + bh * 0.48} ${bx + bw * 0.78},${by + bh * 0.4 - mRecessPx} ${bx + bw},${by + bh * 0.6}`}
+            points={polyPoints}
             fill="none"
             stroke="var(--accent-gold)"
             strokeWidth="4"
             strokeLinecap="round"
           />
-          <circle cx={bx + bw * 0.22} cy={by + bh * 0.4 - mRecessPx} r="6" fill="#FF5252" />
-          <circle cx={bx + bw * 0.5} cy={by + bh * 0.48} r="6" fill="var(--accent-gold)" />
-          <circle cx={bx + bw * 0.78} cy={by + bh * 0.4 - mRecessPx} r="6" fill="#FF5252" />
+          {contourPts ? (
+            contourPts.map((pt, idx) => (
+              <circle
+                key={idx}
+                cx={pt.x}
+                cy={pt.y}
+                r="6"
+                fill={idx === 2 ? '#D4AF37' : '#FF5252'}
+              />
+            ))
+          ) : (
+            <>
+              <circle cx={bx + bw * 0.22} cy={by + bh * 0.44 - mRecessPx} r="6" fill="#FF5252" />
+              <circle cx={bx + bw * 0.5} cy={by + bh * 0.52} r="6" fill="var(--accent-gold)" />
+              <circle cx={bx + bw * 0.78} cy={by + bh * 0.44 - mRecessPx} r="6" fill="#FF5252" />
+            </>
+          )}
         </svg>
       );
     }
@@ -294,7 +328,7 @@ const ResultView = ({ images, onReset }) => {
             fontWeight="bold"
             textAnchor="middle"
           >
-            추정 밀도 {features.follicularDensityEstimate ?? 112} hairs/cm²
+            추정 밀도 {follicularDensity} hairs/cm²
           </text>
         </svg>
       );
@@ -306,10 +340,12 @@ const ResultView = ({ images, onReset }) => {
   return (
     <div className="rv-wrapper">
       <header className="rv-header">
-        <button className="rv-icon-btn" onClick={onReset} title="처음으로">
+        <button className="rv-icon-btn" onClick={onReset} title="다시 진단하기">
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
-        <h1>AI 정밀 모발·두피 진단 리포트</h1>
+        <h1>
+          AI 정밀 모발·두피 진단 리포트 ({features.gender === 'female' ? '여성' : '남성'})
+        </h1>
         <button
           className="rv-icon-btn"
           onClick={() => (window.location.href = '/')}
@@ -341,10 +377,17 @@ const ResultView = ({ images, onReset }) => {
                 src={currentImageSrc}
                 alt="Base"
                 className="rv-base-image"
-                onLoad={(e) => setImgDim({ width: e.target.naturalWidth, height: e.target.naturalHeight })}
+                onLoad={(e) =>
+                  setImgDim({
+                    width: e.target.naturalWidth || 640,
+                    height: e.target.naturalHeight || 480,
+                  })
+                }
               />
             ) : (
-              <div style={{ color: '#555', textAlign: 'center', paddingTop: '50%' }}>이미지 없음</div>
+              <div style={{ color: '#888', textAlign: 'center', paddingTop: '45%', fontSize: '0.85rem' }}>
+                촬영된 이미지 없음
+              </div>
             )}
 
             {currentImageSrc && (
@@ -370,22 +413,24 @@ const ResultView = ({ images, onReset }) => {
             )}
           </div>
 
-          <div className="rv-sub-tabs">
-            {subTabs.map((tab) => (
-              <button
-                key={tab.id}
-                className={`rv-sub-tab-btn ${subTab === tab.id ? 'active' : ''}`}
-                onClick={() => setSubTab(tab.id)}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          {subTabs.length > 0 && (
+            <div className="rv-sub-tabs">
+              {subTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  className={`rv-sub-tab-btn ${activeSubTab === tab.id ? 'active' : ''}`}
+                  onClick={() => setSubTab(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Quantitative Clinical Data Cards */}
         <div className="rv-cards-container" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {/* 💡 산출된 점수·등급이 높으면 좋은지 낮으면 좋은지 한눈에 보는 안내 배너 */}
+          {/* 산출된 점수·등급이 높으면 좋은지 낮으면 좋은지 한눈에 보는 안내 배너 */}
           <div
             style={{
               background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.14), rgba(18, 18, 24, 0.96))',
@@ -483,7 +528,7 @@ const ResultView = ({ images, onReset }) => {
           </div>
 
           <div className="rv-card">
-            <div className="rv-card-row">
+            <div className="rv-card-row" style={{ alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                   <h3 className="rv-card-title" style={{ margin: 0 }}>한국형 BASP 분류 (대한모발학회)</h3>
@@ -513,7 +558,7 @@ const ResultView = ({ images, onReset }) => {
                 <span style={{ fontSize: '0.62rem', color: '#81C784', fontWeight: 700 }}>↑ 높을수록 좋음</span>
               </div>
               <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#D4AF37', marginTop: '4px' }}>
-                {features.follicularDensityEstimate ?? 112} <span style={{ fontSize: '0.75rem' }}>hairs/cm²</span>
+                {follicularDensity} <span style={{ fontSize: '0.75rem' }}>hairs/cm²</span>
               </div>
               <div style={{ fontSize: '0.68rem', color: '#888', marginTop: '2px' }}>정상 성인 기준 130~160모/cm²</div>
             </div>
@@ -524,20 +569,24 @@ const ResultView = ({ images, onReset }) => {
                 <span style={{ fontSize: '0.62rem', color: '#64B5F6', fontWeight: 700 }}>↓ 좁을수록 좋음</span>
               </div>
               <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#f5f0e8', marginTop: '4px' }}>
-                {features.partingWidthMm ?? 2.4} <span style={{ fontSize: '0.75rem' }}>mm</span>
+                {partingWidth} <span style={{ fontSize: '0.75rem' }}>mm</span>
               </div>
               <div style={{ fontSize: '0.68rem', color: '#888', marginTop: '2px' }}>정상 2.0mm 이하 (클수록 연모화)</div>
             </div>
 
             <div className="rv-card" style={{ padding: '14px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.72rem', color: '#999' }}>M자 양측 후퇴 편차</span>
+                <span style={{ fontSize: '0.72rem', color: '#999' }}>
+                  {features.gender === 'female' ? '전두부 헤어라인 후퇴' : 'M자·전두부 후퇴 깊이'}
+                </span>
                 <span style={{ fontSize: '0.62rem', color: '#64B5F6', fontWeight: 700 }}>↓ 낮을수록 좋음</span>
               </div>
               <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#f5f0e8', marginTop: '4px' }}>
-                +{features.mShapeDepthDelta ?? 6.5}%
+                {maxRecessionCm} <span style={{ fontSize: '0.75rem' }}>cm</span>
               </div>
-              <div style={{ fontSize: '0.68rem', color: '#888', marginTop: '2px' }}>0%에 가까울수록 일자 헤어라인</div>
+              <div style={{ fontSize: '0.68rem', color: '#888', marginTop: '2px' }}>
+                좌 {leftRecession}cm · 우 {rightRecession}cm (1.8cm 미만 정상)
+              </div>
             </div>
 
             <div className="rv-card" style={{ padding: '14px' }}>
@@ -546,7 +595,7 @@ const ResultView = ({ images, onReset }) => {
                 <span style={{ fontSize: '0.62rem', color: '#64B5F6', fontWeight: 700 }}>↓ 낮을수록 좋음</span>
               </div>
               <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#64B5F6', marginTop: '4px' }}>
-                {features.scalpErythemaRatio ?? 12.4}%
+                {scalpErythema}%
               </div>
               <div style={{ fontSize: '0.68rem', color: '#888', marginTop: '2px' }}>15% 이하 안정 (높을수록 열감·염증)</div>
             </div>
@@ -577,7 +626,7 @@ const ResultView = ({ images, onReset }) => {
           type="button"
           className="btn-secondary"
           onClick={onReset}
-          style={{ flex: 1, padding: '14px', borderRadius: '10px', fontWeight: 700 }}
+          style={{ flex: 1, padding: '13px 10px', borderRadius: '10px', fontWeight: 700, fontSize: '0.82rem' }}
         >
           다시 촬영·진단하기
         </button>
@@ -586,12 +635,13 @@ const ResultView = ({ images, onReset }) => {
           className="btn-primary"
           onClick={() => (window.location.href = '/')}
           style={{
-            flex: 1.4,
-            padding: '14px',
+            flex: 1.35,
+            padding: '13px 10px',
             borderRadius: '10px',
             background: 'linear-gradient(135deg, #D4AF37, #B89225)',
             color: '#000',
             fontWeight: 800,
+            fontSize: '0.84rem',
           }}
         >
           통합 대시보드로 이동 →

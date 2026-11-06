@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useCallback } from 'react';
 import CameraView from './components/CameraView';
 import ReviewView from './components/ReviewView';
 import LoadingView from './components/LoadingView';
@@ -46,9 +46,18 @@ function App() {
   const [duration, setDuration] = useState(savedProfile?.duration || null);
   const [routine, setRoutine] = useState(savedProfile?.routine || null);
   const [procedure, setProcedure] = useState(savedProfile?.procedure || null);
-  const [gender, setGender] = useState(savedProfile?.gender || 'male');
+  const [gender, setGender] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlGender = params.get('gender');
+    if (urlGender === 'female' || urlGender === 'male') {
+      saveSurveyProfile({ gender: urlGender });
+      return urlGender;
+    }
+    return savedProfile?.gender || 'male';
+  });
 
-  const getCaptureSteps = () => (gender === 'female' ? ['front', 'vertex'] : ['front', 'left', 'right', 'vertex']);
+  const getCaptureSteps = (targetGender = gender) =>
+    targetGender === 'female' ? ['front', 'vertex'] : ['front', 'left', 'right', 'vertex'];
   const currentCaptureSteps = getCaptureSteps();
 
   const [capturedImages, setCapturedImages] = useState({
@@ -84,6 +93,16 @@ function App() {
     setCurrentView('expectation');
   };
 
+  const handleCameraGenderSwitch = (nextGender) => {
+    if (nextGender === gender) return;
+    setGender(nextGender);
+    const updated = saveSurveyProfile({ gender: nextGender });
+    setSavedProfile(updated);
+    setCapturedImages({ front: null, left: null, right: null, vertex: null });
+    setCapturedAllPoints({ front: null, left: null, right: null, vertex: null });
+    setCurrentCaptureIndex(0);
+  };
+
   const handleRetakeSurvey = (user, openAuthModal) => {
     const proceed = () => {
       clearSurveyProfile();
@@ -109,6 +128,46 @@ function App() {
     proceed();
   };
 
+  const runAnalysisPipeline = async (imagesToAnalyze, pointsToAnalyze, activeGender = gender) => {
+    setDiagnosisData(null);
+    setCurrentView('loading');
+    try {
+      const responseData = await performOfflineAnalysis(pointsToAnalyze, imagesToAnalyze);
+      if (responseData.success) {
+        const features = {
+          ...responseData.data.features,
+          gender: activeGender,
+          age,
+          ethnicity,
+          goals,
+          familyHistory,
+          duration,
+          routine,
+          procedure,
+        };
+        const result = analyzeHairLoss(features);
+        result.features = features;
+        result.boxes = responseData.data.boxes || {};
+        result.masks = {
+          front: pointsToAnalyze.front?.mask || null,
+          left: pointsToAnalyze.left?.mask || null,
+          right: pointsToAnalyze.right?.mask || null,
+          vertex: pointsToAnalyze.vertex?.mask || null,
+        };
+        setDiagnosisData(result);
+      } else {
+        alert(responseData.error || '분석에 실패했습니다. 밝은 조명에서 다시 촬영해 주세요.');
+        setDiagnosisData(null);
+        setCurrentView('review');
+      }
+    } catch (error) {
+      console.error('Analysis Error:', error);
+      alert('진단 분석 중 오류가 발생했습니다. 다시 시도해 주세요.');
+      setDiagnosisData(null);
+      setCurrentView('review');
+    }
+  };
+
   const handleCapture = async (imageSrc, points) => {
     const steps = getCaptureSteps();
     const currentStep = steps[currentCaptureIndex];
@@ -127,52 +186,32 @@ function App() {
     setCurrentView('review');
   };
 
-  const handleStartAnalysis = async () => {
-    setCurrentView('loading');
-    try {
-      const responseData = await performOfflineAnalysis(capturedAllPoints, capturedImages);
-      if (responseData.success) {
-        const features = {
-          ...responseData.data.features,
-          gender,
-          age,
-          ethnicity,
-          goals,
-          familyHistory,
-          duration,
-          routine,
-          procedure,
-        };
-        const result = analyzeHairLoss(features);
-        result.features = features;
-        result.boxes = responseData.data.boxes || {};
-        result.masks = {
-          front: capturedAllPoints.front?.mask || null,
-          left: capturedAllPoints.left?.mask || null,
-          right: capturedAllPoints.right?.mask || null,
-          vertex: capturedAllPoints.vertex?.mask || null,
-        };
-        setDiagnosisData(result);
-      } else {
-        alert(responseData.error || '분석에 실패했습니다.');
-        setDiagnosisData(null);
-        setCurrentView('review');
-      }
-    } catch (error) {
-      console.error('Analysis Error:', error);
-      setDiagnosisData(null);
-    }
+  const handleQuickAnalyzeFromCamera = async (imageSrc, points) => {
+    const steps = getCaptureSteps();
+    const currentStep = steps[currentCaptureIndex] || 'front';
+
+    const updatedImages = { ...capturedImages, [currentStep]: imageSrc };
+    const updatedPoints = { ...capturedAllPoints, [currentStep]: points };
+
+    setCapturedImages(updatedImages);
+    setCapturedAllPoints(updatedPoints);
+
+    await runAnalysisPipeline(updatedImages, updatedPoints, gender);
   };
 
-  const handleLoadingComplete = () => {
-    setCurrentView('result');
+  const handleStartAnalysis = async () => {
+    await runAnalysisPipeline(capturedImages, capturedAllPoints, gender);
   };
+
+  const handleLoadingComplete = useCallback(() => {
+    setCurrentView('result');
+  }, []);
 
   const resetApp = () => {
     setCapturedImages({ front: null, left: null, right: null, vertex: null });
     setCapturedAllPoints({ front: null, left: null, right: null, vertex: null });
     setCurrentCaptureIndex(0);
-    setCurrentView('onboarding');
+    setCurrentView('camera');
     setDiagnosisData(null);
 
     const profile = getSavedSurveyProfile();
@@ -185,14 +224,17 @@ function App() {
       setDuration(profile.duration || null);
       setRoutine(profile.routine || null);
       setProcedure(profile.procedure || null);
-      setGender(profile.gender || 'male');
+      if (profile.gender) setGender(profile.gender);
     }
   };
 
   return (
     <AuthGate>
       {(user, handleLogout, openAuthModal) => (
-        <div className="app-container" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+        <div
+          className="app-container"
+          style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden' }}
+        >
           <MemberHeaderBar
             member={user}
             user={user}
@@ -211,11 +253,12 @@ function App() {
               padding: '6px 12px',
               background: '#0d0d10',
               borderBottom: '1px solid rgba(212, 175, 55, 0.16)',
+              flexShrink: 0,
             }}
           >
             <button
               type="button"
-              onClick={() => setCurrentView('onboarding')}
+              onClick={() => setCurrentView('camera')}
               style={{
                 flex: 1,
                 padding: '6px',
@@ -265,17 +308,17 @@ function App() {
             </button>
           </div>
 
-          <div style={{ flex: 1, position: 'relative' }}>
+          <div className="diagnosis-stage-viewport">
             {currentView === 'areata' && (
               <AlopeciaAreataView
                 user={user}
                 onRequireAuth={openAuthModal}
-                onBack={() => setCurrentView('onboarding')}
+                onBack={() => setCurrentView('camera')}
               />
             )}
             {currentView === 'onboarding' && (
-              <div>
-                <div style={{ padding: '12px 14px 0', background: '#09090b' }}>
+              <div className="ob-stage-wrap">
+                <div style={{ padding: '12px 14px 0', background: '#09090b', flexShrink: 0 }}>
                   <PrivacyMembershipNoticeCard
                     user={user}
                     featureType="diagnosis"
@@ -400,7 +443,8 @@ function App() {
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  height: '80vh',
+                  flex: 1,
+                  height: '100%',
                   padding: '20px',
                   color: 'var(--text-main)',
                   background: 'var(--bg-main)',
@@ -416,7 +460,7 @@ function App() {
                 >
                   당신의 성별을 선택해주세요
                 </h1>
-                <div style={{ display: 'flex', gap: '20px', width: '100%', maxWidth: '400px' }}>
+                <div style={{ display: 'flex', gap: '14px', width: '100%', maxWidth: '400px' }}>
                   <button onClick={() => handleGenderSelect('male')} className="btn-secondary">
                     남성 (Norwood·BASP)
                   </button>
@@ -437,6 +481,8 @@ function App() {
             {currentView === 'camera' && (
               <CameraView
                 onCapture={handleCapture}
+                onQuickAnalyze={handleQuickAnalyzeFromCamera}
+                onGenderChange={handleCameraGenderSwitch}
                 currentStep={currentCaptureSteps[currentCaptureIndex]}
                 stepIndex={currentCaptureIndex + 1}
                 totalSteps={currentCaptureSteps.length}
@@ -446,21 +492,33 @@ function App() {
             {currentView === 'review' && (
               <ReviewView
                 photos={capturedImages}
+                gender={gender}
                 onStartAnalysis={handleStartAnalysis}
                 onRetakeAll={() => {
                   setCapturedImages({ front: null, left: null, right: null, vertex: null });
+                  setCapturedAllPoints({ front: null, left: null, right: null, vertex: null });
                   setCurrentCaptureIndex(0);
                   setCurrentView('camera');
                 }}
                 onBack={() => {
-                  setCurrentCaptureIndex(currentCaptureSteps.length - 1);
+                  setCurrentCaptureIndex(Math.max(0, currentCaptureSteps.length - 1));
                   setCurrentView('camera');
                 }}
               />
             )}
-            {currentView === 'loading' && <LoadingView onComplete={handleLoadingComplete} />}
-            {currentView === 'result' && diagnosisData && (
-              <ResultView diagnosisData={diagnosisData} images={capturedImages} onReset={resetApp} />
+            {currentView === 'loading' && (
+              <LoadingView
+                onComplete={handleLoadingComplete}
+                isReady={Boolean(diagnosisData)}
+                gender={gender}
+              />
+            )}
+            {currentView === 'result' && (
+              <ResultView
+                diagnosisData={diagnosisData || {}}
+                images={capturedImages}
+                onReset={resetApp}
+              />
             )}
           </div>
 
