@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   medicalData,
   DRUG_INTERACTIONS_DATA,
@@ -15,62 +15,128 @@ const SUB_TABS = [
   { id: 'drugs', label: '탈모약 총람' },
 ];
 
-const RISK_STYLE = {
-  '절대 금기': { bg: 'rgba(255, 82, 82, 0.16)', border: 'rgba(255, 82, 82, 0.5)', color: '#FF5252' },
-  '고위험 금기': { bg: 'rgba(255, 82, 82, 0.16)', border: 'rgba(255, 82, 82, 0.5)', color: '#FF5252' },
-  '병용 주의': { bg: 'rgba(255, 183, 77, 0.16)', border: 'rgba(255, 183, 77, 0.5)', color: '#FFB74D' },
-  '섭취 주의': { bg: 'rgba(255, 183, 77, 0.16)', border: 'rgba(255, 183, 77, 0.5)', color: '#FFB74D' },
-  '의사 상담 필요': { bg: 'rgba(100, 181, 246, 0.15)', border: 'rgba(100, 181, 246, 0.45)', color: '#64B5F6' },
+const BADGE_STYLE = {
+  danger: { bg: 'rgba(255, 82, 82, 0.16)', border: 'rgba(255, 82, 82, 0.5)', color: '#FF6B6B' },
+  warning: { bg: 'rgba(255, 183, 77, 0.16)', border: 'rgba(255, 183, 77, 0.5)', color: '#FFB74D' },
+  caution: { bg: 'rgba(100, 181, 246, 0.15)', border: 'rgba(100, 181, 246, 0.45)', color: '#64B5F6' },
+  safe: { bg: 'rgba(129, 199, 132, 0.16)', border: 'rgba(129, 199, 132, 0.48)', color: '#81C784' },
 };
 
-const GuideTab = ({ initialSection = 'interactions' }) => {
-  const [activeSubTab, setActiveSubTab] = useState(initialSection);
+const SIDE_EFFECT_FILTERS = ['전체', '피나스테리드', '두타스테리드', '미녹시딜', '스피로노락톤'];
+
+const FOOD_GRADE_FILTERS = [
+  { id: 'all', label: '전체 (10종)' },
+  { id: 'danger', label: '절대금기 · 고위험' },
+  { id: 'warning', label: '중등도 위험' },
+  { id: 'caution', label: '섭취 주의' },
+];
+
+const splitExamples = (val) => {
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'string') {
+    return val
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+  return [];
+};
+
+const GuideTab = ({
+  initialSection = 'interactions',
+  onOpenDiagnosis = null,
+  onOpenSasang = null,
+}) => {
+  const [activeSubTab, setActiveSubTab] = useState(
+    SUB_TABS.some((t) => t.id === initialSection) ? initialSection : 'interactions'
+  );
   const [activeAccordion, setActiveAccordion] = useState(0);
 
-  const [selectedIngredientId, setSelectedIngredientId] = useState(DRUG_INTERACTIONS_DATA[0].id);
+  // TAB 1: 병용금기 양약 상태
+  const [selectedDrugKey, setSelectedDrugKey] = useState(
+    DRUG_INTERACTIONS_DATA[0]?.drugKey || 'finasteride'
+  );
   const [interactionSearch, setInteractionSearch] = useState('');
 
-  const [selectedSideEffectDrugId, setSelectedSideEffectDrugId] = useState(DRUG_SIDE_EFFECTS_DATA[0].id);
-  const [expandedSideEffectIdx, setExpandedSideEffectIdx] = useState(0);
+  // TAB 2: 부작용 대처 상태
+  const [sideEffectDrugFilter, setSideEffectDrugFilter] = useState('전체');
+  const [expandedSideEffectId, setExpandedSideEffectId] = useState(
+    DRUG_SIDE_EFFECTS_DATA[0]?.id || null
+  );
 
-  const [foodCategoryFilter, setFoodCategoryFilter] = useState('전체');
-  const [expandedFoodId, setExpandedFoodId] = useState(CONTRAINDICATED_FOODS_DATA[0].id);
+  // TAB 3: 금기 식품 10선 상태
+  const [foodGradeFilter, setFoodGradeFilter] = useState('all');
+  const [expandedFoodId, setExpandedFoodId] = useState(
+    CONTRAINDICATED_FOODS_DATA[0]?.id || null
+  );
 
   const currentIngredient = useMemo(
-    () => DRUG_INTERACTIONS_DATA.find((d) => d.id === selectedIngredientId) || DRUG_INTERACTIONS_DATA[0],
-    [selectedIngredientId]
+    () =>
+      DRUG_INTERACTIONS_DATA.find((d) => d.drugKey === selectedDrugKey) ||
+      DRUG_INTERACTIONS_DATA[0],
+    [selectedDrugKey]
   );
 
+  // 검색어 입력 시 전체 탈모약 성분에서 통합 검색, 미입력 시 선택된 성분의 병용금기 목록 표시
   const filteredInteractions = useMemo(() => {
     const q = interactionSearch.trim().toLowerCase();
-    if (!q) return currentIngredient.contraindicatedDrugs;
-    return currentIngredient.contraindicatedDrugs.filter(
-      (item) =>
-        item.drugClass.toLowerCase().includes(q) ||
-        item.mechanism.toLowerCase().includes(q) ||
-        item.examples.some((ex) => ex.toLowerCase().includes(q))
-    );
+    if (!q) {
+      return (currentIngredient?.interactions || []).map((item) => ({
+        ...item,
+        sourceDrugName: currentIngredient.drugName,
+      }));
+    }
+
+    const matches = [];
+    DRUG_INTERACTIONS_DATA.forEach((group) => {
+      (group.interactions || []).forEach((item) => {
+        const haystack = [
+          group.drugName,
+          group.brandExamples,
+          item.targetDrug,
+          item.targetIngredients,
+          item.category,
+          item.mechanism,
+          item.actionGuide,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+
+        if (haystack.includes(q)) {
+          matches.push({
+            ...item,
+            sourceDrugName: group.drugName,
+          });
+        }
+      });
+    });
+    return matches;
   }, [currentIngredient, interactionSearch]);
 
-  const currentSideEffectDrug = useMemo(
-    () => DRUG_SIDE_EFFECTS_DATA.find((d) => d.id === selectedSideEffectDrugId) || DRUG_SIDE_EFFECTS_DATA[0],
-    [selectedSideEffectDrugId]
-  );
-
-  const foodCategories = useMemo(() => {
-    const cats = Array.from(new Set(CONTRAINDICATED_FOODS_DATA.map((f) => f.category)));
-    return ['전체', ...cats];
-  }, []);
+  const filteredSideEffects = useMemo(() => {
+    if (sideEffectDrugFilter === '전체') return DRUG_SIDE_EFFECTS_DATA;
+    return DRUG_SIDE_EFFECTS_DATA.filter((se) =>
+      (se.relatedDrugs || []).some((d) => d.includes(sideEffectDrugFilter))
+    );
+  }, [sideEffectDrugFilter]);
 
   const filteredBadFoods = useMemo(() => {
-    if (foodCategoryFilter === '전체') return CONTRAINDICATED_FOODS_DATA;
-    return CONTRAINDICATED_FOODS_DATA.filter((f) => f.category === foodCategoryFilter);
-  }, [foodCategoryFilter]);
+    if (foodGradeFilter === 'all') return CONTRAINDICATED_FOODS_DATA;
+    return CONTRAINDICATED_FOODS_DATA.filter((f) => f.dangerBadge === foodGradeFilter);
+  }, [foodGradeFilter]);
 
   return (
-    <div className="tab-content fade-in guide-tab" style={{ padding: 0 }}>
+    <div className="tab-content fade-in guide-tab" style={{ padding: 0, colorScheme: 'dark' }}>
       <div className="tab-banner">
-        <img src="/assets/banners/banner_safety.jpg" alt="의학·약학 안전 백과" className="tab-banner-img" />
+        <img
+          src="/assets/banners/banner_safety.jpg"
+          alt="금기 및 약학 안전 백과 배너"
+          className="tab-banner-img"
+          onError={(e) => {
+            e.currentTarget.src = '/assets/banners/banner_guide.jpg';
+          }}
+        />
         <div className="tab-banner-overlay">
           <h1 className="tab-banner-title">금기 · 약학 백과</h1>
           <p className="tab-banner-sub">병용금기 양약 · 부작용 대처 · 금기 식품 핵심 정리</p>
@@ -98,6 +164,7 @@ const GuideTab = ({ initialSection = 'interactions' }) => {
             <button
               key={t.id}
               type="button"
+              aria-pressed={active}
               onClick={() => setActiveSubTab(t.id)}
               style={{
                 padding: '9px 4px',
@@ -116,18 +183,27 @@ const GuideTab = ({ initialSection = 'interactions' }) => {
         })}
       </div>
 
-      <div style={{ padding: '14px 14px 90px' }}>
+      <div style={{ padding: '14px 14px 90px' }} data-testid="guide-tab-body">
         {/* TAB 1: 병용금기 양약 */}
         {activeSubTab === 'interactions' && (
-          <div className="fade-in">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '10px' }}>
+          <div className="fade-in" data-testid="guide-subtab-interactions">
+            <h2 style={{ fontSize: '0.86rem', fontWeight: 800, color: '#D4AF37', margin: '0 0 8px' }}>
+              복용 중인 탈모약 성분별 병용금기 · 주의 양약
+            </h2>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
               {DRUG_INTERACTIONS_DATA.map((item) => {
-                const isSel = item.id === selectedIngredientId;
+                const isSel = item.drugKey === selectedDrugKey && !interactionSearch.trim();
+                const interactionCount = Array.isArray(item.interactions) ? item.interactions.length : 0;
                 return (
                   <button
-                    key={item.id}
+                    key={item.drugKey}
                     type="button"
-                    onClick={() => setSelectedIngredientId(item.id)}
+                    aria-pressed={isSel}
+                    onClick={() => {
+                      setSelectedDrugKey(item.drugKey);
+                      setInteractionSearch('');
+                    }}
                     style={{
                       textAlign: 'left',
                       padding: '10px 12px',
@@ -139,18 +215,20 @@ const GuideTab = ({ initialSection = 'interactions' }) => {
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
+                      gap: '8px',
                     }}
                   >
-                    <div>
-                      <div style={{ fontSize: '0.82rem', fontWeight: 800, color: isSel ? '#D4AF37' : '#eee' }}>
-                        {item.ingredient}
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: '0.81rem', fontWeight: 800, color: isSel ? '#D4AF37' : '#eee' }}>
+                        {item.drugName}
                       </div>
-                      <div style={{ fontSize: '0.68rem', color: '#999', marginTop: '2px' }}>
-                        {item.brandExamples.join(', ')}
+                      <div style={{ fontSize: '0.68rem', color: '#999', marginTop: '2px', lineHeight: 1.35 }}>
+                        {Array.isArray(item.brandExamples) ? item.brandExamples.join(', ') : item.brandExamples}
                       </div>
                     </div>
                     <span
                       style={{
+                        flexShrink: 0,
                         fontSize: '0.68rem',
                         padding: '3px 8px',
                         borderRadius: '999px',
@@ -159,192 +237,300 @@ const GuideTab = ({ initialSection = 'interactions' }) => {
                         fontWeight: 700,
                       }}
                     >
-                      주의 {item.contraindicatedDrugs.length}종
+                      주의 {interactionCount}종
                     </span>
                   </button>
                 );
               })}
             </div>
 
-            <input
-              type="text"
-              value={interactionSearch}
-              onChange={(e) => setInteractionSearch(e.target.value)}
-              placeholder="양약 이름 또는 질환 검색 (예: 하루날, 혈압약, 진통제)"
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                padding: '10px 12px',
-                borderRadius: '8px',
-                border: '1px solid rgba(212, 175, 55, 0.35)',
-                background: '#111216',
-                color: '#f5f0e8',
-                fontSize: '0.78rem',
-                marginBottom: '10px',
-              }}
-            />
+            <div style={{ marginBottom: '10px' }}>
+              <label
+                htmlFor="guide-interaction-search"
+                style={{ display: 'block', fontSize: '0.71rem', color: '#bbb', fontWeight: 700, marginBottom: '4px' }}
+              >
+                🔍 전체 탈모약 대비 양약 · 질환 통합 검색
+              </label>
+              <input
+                id="guide-interaction-search"
+                type="search"
+                value={interactionSearch}
+                onChange={(e) => setInteractionSearch(e.target.value)}
+                placeholder="양약 이름 또는 질환 검색 (예: 하루날, 혈압약, 진통제, 무좀약)"
+                style={{
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(212, 175, 55, 0.35)',
+                  background: '#111216',
+                  color: '#f5f0e8',
+                  fontSize: '0.78rem',
+                }}
+              />
+            </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {filteredInteractions.map((drug, i) => {
-                const badge = RISK_STYLE[drug.riskLevel] || RISK_STYLE['병용 주의'];
-                return (
-                  <div
-                    key={i}
-                    style={{
-                      background: 'rgba(20, 20, 24, 0.95)',
-                      border: `1px solid ${badge.border}`,
-                      borderRadius: '10px',
-                      padding: '12px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                      <div style={{ fontSize: '0.84rem', fontWeight: 800, color: '#f5f0e8' }}>{drug.drugClass}</div>
-                      <span
-                        style={{
-                          flexShrink: 0,
-                          fontSize: '0.66rem',
-                          fontWeight: 700,
-                          padding: '2px 8px',
-                          borderRadius: '999px',
-                          background: badge.bg,
-                          border: `1px solid ${badge.border}`,
-                          color: badge.color,
-                        }}
-                      >
-                        {drug.riskLevel}
-                      </span>
-                    </div>
+            {!interactionSearch.trim() && currentIngredient?.metabolismInfo && (
+              <div
+                style={{
+                  fontSize: '0.71rem',
+                  color: '#cfc6b0',
+                  background: 'rgba(212, 175, 55, 0.08)',
+                  border: '1px solid rgba(212, 175, 55, 0.24)',
+                  borderRadius: '8px',
+                  padding: '8px 10px',
+                  marginBottom: '10px',
+                  lineHeight: 1.45,
+                }}
+              >
+                🧬 <strong>대사 경로:</strong> {currentIngredient.metabolismInfo}
+              </div>
+            )}
 
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '8px' }}>
-                      {drug.examples.map((ex, idx) => (
-                        <span
-                          key={idx}
-                          style={{
-                            fontSize: '0.68rem',
-                            padding: '2px 7px',
-                            borderRadius: '6px',
-                            background: 'rgba(255,255,255,0.06)',
-                            color: '#ddd',
-                          }}
-                        >
-                          💊 {ex}
-                        </span>
-                      ))}
-                    </div>
-
-                    <div style={{ fontSize: '0.74rem', color: '#ccc', lineHeight: 1.5, marginBottom: '6px' }}>
-                      {drug.mechanism}
-                    </div>
-
+            {filteredInteractions.length === 0 ? (
+              <div
+                style={{
+                  textAlign: 'center',
+                  padding: '24px 12px',
+                  background: 'rgba(255,255,255,0.02)',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  color: '#999',
+                  fontSize: '0.78rem',
+                }}
+              >
+                검색하신 약물과 일치하는 병용금기 항목이 없습니다.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {filteredInteractions.map((drug, i) => {
+                  const badge = BADGE_STYLE[drug.severityCode] || BADGE_STYLE.warning;
+                  const ingredientChips = splitExamples(drug.targetIngredients);
+                  return (
                     <div
+                      key={i}
                       style={{
-                        fontSize: '0.73rem',
-                        color: '#81C784',
-                        lineHeight: 1.45,
-                        padding: '7px 9px',
-                        borderRadius: '6px',
-                        background: 'rgba(76, 175, 80, 0.08)',
+                        background: 'rgba(20, 20, 24, 0.95)',
+                        border: `1px solid ${badge.border}`,
+                        borderRadius: '10px',
+                        padding: '12px',
                       }}
                     >
-                      <strong>지침:</strong> {drug.action}
+                      {interactionSearch.trim() && (
+                        <div style={{ fontSize: '0.66rem', color: '#D4AF37', fontWeight: 800, marginBottom: '4px' }}>
+                          대상 탈모약: {drug.sourceDrugName}
+                        </div>
+                      )}
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '6px' }}>
+                        <h3 style={{ margin: 0, fontSize: '0.84rem', fontWeight: 800, color: '#f5f0e8', lineHeight: 1.35 }}>
+                          {drug.targetDrug}
+                        </h3>
+                        <span
+                          style={{
+                            flexShrink: 0,
+                            fontSize: '0.66rem',
+                            fontWeight: 800,
+                            padding: '2px 8px',
+                            borderRadius: '999px',
+                            background: badge.bg,
+                            border: `1px solid ${badge.border}`,
+                            color: badge.color,
+                          }}
+                        >
+                          {drug.severity}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '8px' }}>
+                        {drug.category && (
+                          <span
+                            style={{
+                              fontSize: '0.66rem',
+                              padding: '2px 7px',
+                              borderRadius: '6px',
+                              background: 'rgba(212, 175, 55, 0.14)',
+                              color: '#D4AF37',
+                              fontWeight: 700,
+                            }}
+                          >
+                            {drug.category}
+                          </span>
+                        )}
+                        {ingredientChips.map((ex, idx) => (
+                          <span
+                            key={idx}
+                            style={{
+                              fontSize: '0.68rem',
+                              padding: '2px 7px',
+                              borderRadius: '6px',
+                              background: 'rgba(255,255,255,0.06)',
+                              color: '#ddd',
+                            }}
+                          >
+                            💊 {ex}
+                          </span>
+                        ))}
+                      </div>
+
+                      <div style={{ fontSize: '0.74rem', color: '#ccc', lineHeight: 1.5, marginBottom: '7px' }}>
+                        {drug.mechanism}
+                      </div>
+
+                      <div
+                        style={{
+                          fontSize: '0.73rem',
+                          color: '#81C784',
+                          lineHeight: 1.45,
+                          padding: '7px 9px',
+                          borderRadius: '6px',
+                          background: 'rgba(76, 175, 80, 0.08)',
+                        }}
+                      >
+                        <strong>✅ 복약 지침:</strong> {drug.actionGuide}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
         {/* TAB 2: 부작용 대처 */}
         {activeSubTab === 'sideEffects' && (
-          <div className="fade-in">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '10px' }}>
-              {DRUG_SIDE_EFFECTS_DATA.map((d) => {
-                const active = d.id === selectedSideEffectDrugId;
+          <div className="fade-in" data-testid="guide-subtab-sideEffects">
+            <h2 style={{ fontSize: '0.86rem', fontWeight: 800, color: '#D4AF37', margin: '0 0 8px' }}>
+              탈모약 부작용 증상별 기전 및 의학적 대처 프로토콜
+            </h2>
+
+            <div style={{ display: 'flex', gap: '5px', overflowX: 'auto', paddingBottom: '6px', marginBottom: '10px' }}>
+              {SIDE_EFFECT_FILTERS.map((flt) => {
+                const active = sideEffectDrugFilter === flt;
                 return (
                   <button
-                    key={d.id}
+                    key={flt}
                     type="button"
-                    onClick={() => {
-                      setSelectedSideEffectDrugId(d.id);
-                      setExpandedSideEffectIdx(0);
-                    }}
+                    aria-pressed={active}
+                    onClick={() => setSideEffectDrugFilter(flt)}
                     style={{
-                      padding: '9px',
-                      borderRadius: '8px',
-                      border: active ? '1.5px solid #D4AF37' : '1px solid rgba(255,255,255,0.08)',
-                      background: active ? 'rgba(212, 175, 55, 0.15)' : 'rgba(255,255,255,0.03)',
-                      color: active ? '#D4AF37' : '#ccc',
-                      fontSize: '0.74rem',
-                      fontWeight: 700,
+                      flexShrink: 0,
+                      padding: '6px 11px',
+                      borderRadius: '999px',
+                      border: active ? '1px solid #D4AF37' : '1px solid rgba(255,255,255,0.1)',
+                      background: active ? '#D4AF37' : 'rgba(255,255,255,0.04)',
+                      color: active ? '#000' : '#ccc',
+                      fontSize: '0.72rem',
+                      fontWeight: active ? 800 : 500,
                       cursor: 'pointer',
-                      textAlign: 'left',
                     }}
                   >
-                    <div>{d.drugName.split(' (')[0]}</div>
-                    <div style={{ fontSize: '0.64rem', color: '#888', fontWeight: 400, marginTop: '2px' }}>
-                      헌혈제한: {d.bloodDonationBan}
-                    </div>
+                    {flt}
                   </button>
                 );
               })}
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {currentSideEffectDrug.systems.map((sys, idx) => {
-                const isOpen = expandedSideEffectIdx === idx;
+              {filteredSideEffects.map((se) => {
+                const isOpen = expandedSideEffectId === se.id;
+                const badge = BADGE_STYLE[se.riskBadge] || BADGE_STYLE.caution;
                 return (
                   <div
-                    key={idx}
+                    key={se.id}
                     style={{
                       background: 'rgba(18, 18, 22, 0.96)',
-                      border: isOpen ? '1px solid rgba(212, 175, 55, 0.5)' : '1px solid rgba(255,255,255,0.08)',
+                      border: isOpen ? `1px solid ${badge.border}` : '1px solid rgba(255,255,255,0.08)',
                       borderRadius: '10px',
                       overflow: 'hidden',
                     }}
                   >
                     <button
                       type="button"
-                      onClick={() => setExpandedSideEffectIdx(isOpen ? -1 : idx)}
+                      aria-expanded={isOpen}
+                      onClick={() => setExpandedSideEffectId(isOpen ? null : se.id)}
                       style={{
                         width: '100%',
-                        padding: '11px 12px',
+                        padding: '12px',
                         background: 'transparent',
                         border: 'none',
                         color: '#f5f0e8',
                         display: 'flex',
                         justifyContent: 'space-between',
-                        alignItems: 'center',
+                        alignItems: 'flex-start',
+                        gap: '8px',
                         cursor: 'pointer',
                         textAlign: 'left',
                       }}
                     >
-                      <div>
-                        <span
-                          style={{
-                            fontSize: '0.64rem',
-                            padding: '2px 6px',
-                            borderRadius: '4px',
-                            background: 'rgba(212, 175, 55, 0.16)',
-                            color: '#D4AF37',
-                            fontWeight: 700,
-                            marginRight: '6px',
-                          }}
-                        >
-                          {sys.system}
-                        </span>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>{sys.symptoms.join(' · ')}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '5px' }}>
+                          <span
+                            style={{
+                              fontSize: '0.64rem',
+                              padding: '2px 7px',
+                              borderRadius: '4px',
+                              background: 'rgba(212, 175, 55, 0.16)',
+                              color: '#D4AF37',
+                              fontWeight: 800,
+                            }}
+                          >
+                            {se.system}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '0.64rem',
+                              padding: '2px 7px',
+                              borderRadius: '999px',
+                              background: badge.bg,
+                              border: `1px solid ${badge.border}`,
+                              color: badge.color,
+                              fontWeight: 700,
+                            }}
+                          >
+                            {se.riskLevel}
+                          </span>
+                        </div>
+
+                        <div style={{ fontSize: '0.83rem', fontWeight: 800, color: '#fff', lineHeight: 1.38, marginBottom: '6px' }}>
+                          {se.title}
+                        </div>
+
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                          {(se.relatedDrugs || []).map((dr, dIdx) => (
+                            <span
+                              key={dIdx}
+                              style={{
+                                fontSize: '0.65rem',
+                                padding: '2px 6px',
+                                borderRadius: '5px',
+                                background: 'rgba(255,255,255,0.06)',
+                                color: '#bbb',
+                              }}
+                            >
+                              {dr}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                      <span style={{ color: '#D4AF37', fontSize: '0.95rem', fontWeight: 700 }}>{isOpen ? '−' : '+'}</span>
+
+                      <span style={{ color: '#D4AF37', fontSize: '1rem', fontWeight: 800, paddingTop: '2px' }} aria-hidden="true">
+                        {isOpen ? '−' : '+'}
+                      </span>
                     </button>
 
                     {isOpen && (
                       <div style={{ padding: '0 12px 12px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                        <div style={{ marginTop: '8px', fontSize: '0.72rem', color: '#FFB74D', fontWeight: 600, marginBottom: '6px' }}>
-                          발현 빈도: {sys.incidence}
+                        <div style={{ marginTop: '9px', fontSize: '0.72rem', color: '#FFB74D', fontWeight: 700, marginBottom: '3px' }}>
+                          • 발현 빈도: {se.incidence}
                         </div>
-                        <div style={{ fontSize: '0.74rem', color: '#ccc', lineHeight: 1.5, marginBottom: '6px' }}>
-                          {sys.mechanism}
+                        {se.onsetTimeline && (
+                          <div style={{ fontSize: '0.71rem', color: '#9ec5fe', fontWeight: 600, marginBottom: '7px' }}>
+                            • 발현 시기: {se.onsetTimeline}
+                          </div>
+                        )}
+                        <div style={{ fontSize: '0.74rem', color: '#ccc', lineHeight: 1.52, marginBottom: '8px' }}>
+                          {se.mechanism}
                         </div>
                         <div
                           style={{
@@ -352,11 +538,11 @@ const GuideTab = ({ initialSection = 'interactions' }) => {
                             color: '#81C784',
                             lineHeight: 1.5,
                             background: 'rgba(76, 175, 80, 0.08)',
-                            padding: '8px',
-                            borderRadius: '6px',
+                            padding: '9px 10px',
+                            borderRadius: '7px',
                           }}
                         >
-                          <strong>✅ 대처법:</strong> {sys.copingStrategy}
+                          <strong>✅ 임상 대처법:</strong> {se.copingStrategy}
                         </div>
                       </div>
                     )}
@@ -369,28 +555,33 @@ const GuideTab = ({ initialSection = 'interactions' }) => {
 
         {/* TAB 3: 금기 식품 10선 */}
         {activeSubTab === 'badFoods' && (
-          <div className="fade-in">
+          <div className="fade-in" data-testid="guide-subtab-badFoods">
+            <h2 style={{ fontSize: '0.86rem', fontWeight: 800, color: '#D4AF37', margin: '0 0 8px' }}>
+              탈모 악화 · 모낭 독성 주의 식품 10선 (학술 근거)
+            </h2>
+
             <div style={{ display: 'flex', gap: '5px', overflowX: 'auto', paddingBottom: '6px', marginBottom: '10px' }}>
-              {foodCategories.map((cat) => {
-                const active = foodCategoryFilter === cat;
+              {FOOD_GRADE_FILTERS.map((flt) => {
+                const active = foodGradeFilter === flt.id;
                 return (
                   <button
-                    key={cat}
+                    key={flt.id}
                     type="button"
-                    onClick={() => setFoodCategoryFilter(cat)}
+                    aria-pressed={active}
+                    onClick={() => setFoodGradeFilter(flt.id)}
                     style={{
                       flexShrink: 0,
-                      padding: '5px 11px',
+                      padding: '6px 11px',
                       borderRadius: '999px',
                       border: active ? '1px solid #D4AF37' : '1px solid rgba(255,255,255,0.1)',
                       background: active ? '#D4AF37' : 'rgba(255,255,255,0.04)',
                       color: active ? '#000' : '#ccc',
                       fontSize: '0.72rem',
-                      fontWeight: active ? 700 : 500,
+                      fontWeight: active ? 800 : 500,
                       cursor: 'pointer',
                     }}
                   >
-                    {cat}
+                    {flt.label}
                   </button>
                 );
               })}
@@ -398,8 +589,9 @@ const GuideTab = ({ initialSection = 'interactions' }) => {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {filteredBadFoods.map((food) => {
-                const badge = RISK_STYLE[food.riskLevel] || RISK_STYLE['섭취 주의'];
+                const badge = BADGE_STYLE[food.dangerBadge] || BADGE_STYLE.warning;
                 const isExpanded = expandedFoodId === food.id;
+                const exampleItems = splitExamples(food.examples);
                 return (
                   <div
                     key={food.id}
@@ -407,66 +599,86 @@ const GuideTab = ({ initialSection = 'interactions' }) => {
                       background: 'rgba(18, 18, 22, 0.96)',
                       border: isExpanded ? `1px solid ${badge.border}` : '1px solid rgba(255,255,255,0.08)',
                       borderRadius: '10px',
-                      padding: '12px',
-                      cursor: 'pointer',
+                      overflow: 'hidden',
                     }}
-                    onClick={() => setExpandedFoodId(isExpanded ? null : food.id)}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                      <h4 style={{ margin: 0, fontSize: '0.84rem', color: '#f5f0e8', fontWeight: 800 }}>{food.name}</h4>
-                      <span
-                        style={{
-                          flexShrink: 0,
-                          fontSize: '0.65rem',
-                          fontWeight: 700,
-                          padding: '2px 7px',
-                          borderRadius: '999px',
-                          background: badge.bg,
-                          border: `1px solid ${badge.border}`,
-                          color: badge.color,
-                        }}
-                      >
-                        {food.riskLevel}
-                      </span>
-                    </div>
-
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', margin: '6px 0' }}>
-                      {food.foods.map((fItem, i) => (
+                    <button
+                      type="button"
+                      aria-expanded={isExpanded}
+                      onClick={() => setExpandedFoodId(isExpanded ? null : food.id)}
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#f5f0e8',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                        <h3 style={{ margin: 0, fontSize: '0.84rem', color: '#f5f0e8', fontWeight: 800, lineHeight: 1.38 }}>
+                          {food.name}
+                        </h3>
                         <span
-                          key={i}
                           style={{
-                            fontSize: '0.68rem',
-                            padding: '2px 7px',
-                            borderRadius: '6px',
-                            background: 'rgba(255, 82, 82, 0.08)',
-                            color: '#ffcdd2',
+                            flexShrink: 0,
+                            fontSize: '0.65rem',
+                            fontWeight: 800,
+                            padding: '2px 8px',
+                            borderRadius: '999px',
+                            background: badge.bg,
+                            border: `1px solid ${badge.border}`,
+                            color: badge.color,
                           }}
                         >
-                          ⛔ {fItem}
+                          {food.dangerLevel}
                         </span>
-                      ))}
-                    </div>
+                      </div>
 
-                    <div style={{ fontSize: '0.72rem', color: '#FFB74D', fontWeight: 600 }}>
-                      원인: {food.culpritCompound}
-                    </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', margin: '7px 0' }}>
+                        {exampleItems.map((fItem, i) => (
+                          <span
+                            key={i}
+                            style={{
+                              fontSize: '0.68rem',
+                              padding: '2px 7px',
+                              borderRadius: '6px',
+                              background: 'rgba(255, 82, 82, 0.09)',
+                              color: '#ffcdd2',
+                            }}
+                          >
+                            ⛔ {fItem}
+                          </span>
+                        ))}
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '0.72rem', color: '#FFB74D', fontWeight: 700 }}>
+                          원인 물질: {food.harmfulComponent}
+                        </span>
+                        <span style={{ fontSize: '0.7rem', color: '#D4AF37', fontWeight: 800 }} aria-hidden="true">
+                          {isExpanded ? '접기 ▲' : '기전 보기 ▼'}
+                        </span>
+                      </div>
+                    </button>
 
                     {isExpanded && (
-                      <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-                        <div style={{ fontSize: '0.74rem', color: '#ccc', lineHeight: 1.5, marginBottom: '6px' }}>
-                          {food.mechanism}
+                      <div style={{ padding: '0 12px 12px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+                        <div style={{ marginTop: '9px', fontSize: '0.74rem', color: '#d6d6d6', lineHeight: 1.54, marginBottom: '8px' }}>
+                          {food.medicalReason}
                         </div>
                         <div
                           style={{
                             fontSize: '0.73rem',
                             color: '#81C784',
-                            lineHeight: 1.45,
+                            lineHeight: 1.48,
                             background: 'rgba(76, 175, 80, 0.08)',
-                            padding: '7px 9px',
+                            padding: '8px 10px',
                             borderRadius: '6px',
                           }}
                         >
-                          <strong>섭취 지침:</strong> {food.clinicalAdvice}
+                          <strong>🥗 안전한 대체 식품:</strong> {food.safeAlternative}
                         </div>
                       </div>
                     )}
@@ -479,29 +691,47 @@ const GuideTab = ({ initialSection = 'interactions' }) => {
 
         {/* TAB 4: 탈모약 총람 */}
         {activeSubTab === 'drugs' && (
-          <div className="fade-in">
+          <div className="fade-in" data-testid="guide-subtab-drugs">
+            <h2 style={{ fontSize: '0.86rem', fontWeight: 800, color: '#D4AF37', margin: '0 0 8px' }}>
+              FDA · 식약처 허가 탈모 치료제 약리학 총람
+            </h2>
+
             {medicalData.map((category, idx) => {
               const isOpen = activeAccordion === idx;
 
               if (category.isSpecial) {
                 return (
-                  <div key={idx} className="accordion-item glass-panel" style={{ border: '1px solid var(--accent-gold)' }}>
-                    <div className="accordion-header" onClick={() => setActiveAccordion(isOpen ? null : idx)}>
-                      <span style={{ color: 'var(--accent-gold)' }}>{category.type}</span>
-                      <span>{isOpen ? '−' : '+'}</span>
-                    </div>
+                  <div
+                    key={category.id || idx}
+                    className="accordion-item glass-panel"
+                    style={{ border: '1px solid var(--accent-gold)', borderRadius: '10px', marginBottom: '8px' }}
+                  >
+                    <button
+                      type="button"
+                      aria-expanded={isOpen}
+                      className="accordion-header"
+                      onClick={() => setActiveAccordion(isOpen ? null : idx)}
+                      style={{ width: '100%', background: 'transparent', border: 'none', color: 'inherit', textAlign: 'left' }}
+                    >
+                      <span style={{ color: 'var(--accent-gold)', fontSize: '0.82rem', lineHeight: 1.4 }}>
+                        {category.type}
+                      </span>
+                      <span style={{ color: 'var(--accent-gold)', marginLeft: '8px' }} aria-hidden="true">
+                        {isOpen ? '−' : '+'}
+                      </span>
+                    </button>
                     {isOpen && (
                       <div className="accordion-content fade-in">
                         <div className="info-block">
-                          <span className="info-label">기본 원리</span>
+                          <span className="info-label">기본 원칙</span>
                           <p>{category.efficacy}</p>
                         </div>
                         <div className="info-block">
-                          <span className="info-label warning">미녹시딜 농도 증량</span>
+                          <span className="info-label warning">미녹시딜 농도 상향 · 병합</span>
                           <p>{category.sideEffects}</p>
                         </div>
                         <div className="info-block">
-                          <span className="info-label danger">경구약 성분 변경</span>
+                          <span className="info-label danger">경구약 성분 교체 원칙</span>
                           <p>{category.contraindications}</p>
                         </div>
                       </div>
@@ -511,44 +741,131 @@ const GuideTab = ({ initialSection = 'interactions' }) => {
               }
 
               return (
-                <div key={idx} className="accordion-item glass-panel">
-                  <div className="accordion-header" onClick={() => setActiveAccordion(isOpen ? null : idx)}>
-                    <span>{category.type}</span>
-                    <span>{isOpen ? '−' : '+'}</span>
-                  </div>
+                <div
+                  key={category.id || idx}
+                  className="accordion-item glass-panel"
+                  style={{ borderRadius: '10px', marginBottom: '8px', border: '1px solid rgba(255,255,255,0.09)' }}
+                >
+                  <button
+                    type="button"
+                    aria-expanded={isOpen}
+                    className="accordion-header"
+                    onClick={() => setActiveAccordion(isOpen ? null : idx)}
+                    style={{ width: '100%', background: 'transparent', border: 'none', color: '#f5f0e8', textAlign: 'left' }}
+                  >
+                    <span style={{ fontSize: '0.82rem', lineHeight: 1.4 }}>{category.type}</span>
+                    <span style={{ color: '#D4AF37', marginLeft: '8px' }} aria-hidden="true">
+                      {isOpen ? '−' : '+'}
+                    </span>
+                  </button>
                   {isOpen && (
                     <div className="accordion-content fade-in">
-                      <div className="info-block" style={{ background: 'var(--bg-main)', padding: '0.8rem', borderRadius: '6px' }}>
-                        <h5 style={{ color: 'var(--accent-gold)', marginBottom: '0.3rem' }}>{category.original.manufacturer}</h5>
-                        <p style={{ fontSize: '0.92rem', fontWeight: 'bold' }}>{category.original.name}</p>
-                      </div>
+                      {category.original && (
+                        <div
+                          className="info-block"
+                          style={{ background: 'rgba(212, 175, 55, 0.08)', padding: '0.8rem', borderRadius: '8px', border: '1px solid rgba(212, 175, 55, 0.22)' }}
+                        >
+                          <div style={{ color: '#D4AF37', fontSize: '0.72rem', fontWeight: 700, marginBottom: '0.25rem' }}>
+                            {category.original.manufacturer}
+                          </div>
+                          <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#fff' }}>
+                            {category.original.name}
+                          </div>
+                          {category.halfLife && (
+                            <div style={{ fontSize: '0.7rem', color: '#bbb', marginTop: '0.35rem', lineHeight: 1.4 }}>
+                              ⏱️ {category.halfLife}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {Array.isArray(category.generics) && category.generics.length > 0 && (
+                        <div className="info-block">
+                          <span className="info-label">대표 제네릭 (동일성분 의약품)</span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '0.4rem' }}>
+                            {category.generics.map((gen) => (
+                              <span
+                                key={gen}
+                                style={{
+                                  background: 'rgba(255,255,255,0.07)',
+                                  padding: '3px 8px',
+                                  borderRadius: '8px',
+                                  fontSize: '0.71rem',
+                                  color: '#ddd',
+                                }}
+                              >
+                                {gen}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       <div className="info-block">
-                        <span className="info-label">대표 제네릭</span>
-                        <p style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '0.4rem' }}>
-                          {category.generics.map((gen) => (
-                            <span
-                              key={gen}
-                              style={{
-                                background: 'var(--border-light)',
-                                padding: '2px 8px',
-                                borderRadius: '10px',
-                                fontSize: '0.73rem',
-                              }}
-                            >
-                              {gen}
-                            </span>
-                          ))}
-                        </p>
+                        <span className="info-label">약리 효능</span>
+                        <p style={{ fontSize: '0.76rem', color: '#ddd' }}>{category.efficacy}</p>
                       </div>
-                      <div className="info-block">
-                        <span className="info-label">효능</span>
-                        <p>{category.efficacy}</p>
-                      </div>
+
+                      {category.sideEffects && (
+                        <div className="info-block">
+                          <span className="info-label warning">보고된 부작용</span>
+                          <p style={{ fontSize: '0.75rem', color: '#ccc' }}>{category.sideEffects}</p>
+                        </div>
+                      )}
+
+                      {category.contraindications && (
+                        <div className="info-block" style={{ marginBottom: 0 }}>
+                          <span className="info-label danger">필수 금기 및 주의사항</span>
+                          <p style={{ fontSize: '0.75rem', color: '#f3c6c6' }}>{category.contraindications}</p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* 하단 진단 바로가기 연결 */}
+        {(onOpenDiagnosis || onOpenSasang) && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '14px' }}>
+            {onOpenDiagnosis && (
+              <button
+                type="button"
+                onClick={onOpenDiagnosis}
+                style={{
+                  padding: '11px 10px',
+                  borderRadius: '9px',
+                  border: '1px solid rgba(212, 175, 55, 0.4)',
+                  background: '#16161c',
+                  color: '#D4AF37',
+                  fontSize: '0.74rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                }}
+              >
+                📸 AI 탈모 진단 이동 →
+              </button>
+            )}
+            {onOpenSasang && (
+              <button
+                type="button"
+                onClick={onOpenSasang}
+                style={{
+                  padding: '11px 10px',
+                  borderRadius: '9px',
+                  border: '1px solid rgba(212, 175, 55, 0.4)',
+                  background: '#16161c',
+                  color: '#f5d77f',
+                  fontSize: '0.74rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                }}
+              >
+                🧍 사상체질 식이 이동 →
+              </button>
+            )}
           </div>
         )}
       </div>
