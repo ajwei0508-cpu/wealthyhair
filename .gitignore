@@ -48,3 +48,5 @@ backend/venv/
 backend/gcp-key.json
 __pycache__/
 gcp-key.json
+
+backend/*.db

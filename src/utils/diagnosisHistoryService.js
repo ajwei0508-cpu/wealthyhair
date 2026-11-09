@@ -4,6 +4,7 @@
 
 import { get, set, del } from 'idb-keyval';
 import { supabase } from '../supabase';
+import { trackUserActivity } from './adminAuditService';
 
 const IDB_KEY_PREFIX = 'wealthyhair_diag_history_v1_';
 const LS_META_PREFIX = 'wealthyhair_diag_meta_v1_';
@@ -269,6 +270,27 @@ export async function saveAndrogeneticDiagnosisRecord({
 
   await writeRawRecords(scopeId, updatedList);
 
+  if (!prevItem || isManualSave) {
+    trackUserActivity({
+      eventType: 'DIAGNOSIS_AGA',
+      eventLabel: effectiveGender === 'female' ? '여성형 탈모 AI 정밀 진단' : '남성형 탈모 AI 정밀 진단',
+      appSection: 'AI 탈모 정밀 진단 (결과 리포트)',
+      actionDetail: `${record.primaryGrade} · ${record.secondaryGrade} (모발 건강점수 ${record.healthScore}점 | 모낭밀도 ${record.metrics.follicularDensityPerCm2}개/cm²)`,
+      member,
+      metadata: {
+        recordId: record.id,
+        category: 'androgenetic',
+        gender: effectiveGender,
+        primaryGrade: record.primaryGrade,
+        secondaryGrade: record.secondaryGrade,
+        healthScore: record.healthScore,
+        metrics: record.metrics,
+        memo: record.memo,
+        thumbnail: record.thumbnails?.primary || null,
+      },
+    }).catch(() => {});
+  }
+
   // 클라우드 보조 백업 (비차단형 — 네트워크 오류 시 로컬 저장에 영향 없음)
   if (member?.email && (!prevItem || isManualSave)) {
     supabase
@@ -381,6 +403,26 @@ export async function saveAreataDiagnosisRecord({
   }
 
   await writeRawRecords(scopeId, updatedList);
+
+  if (!prevItem || isManualSave) {
+    trackUserActivity({
+      eventType: 'DIAGNOSIS_AREATA',
+      eventLabel: '원형탈모(SALT) 정밀 진단',
+      appSection: '원형탈모(SALT) 진단 탭',
+      actionDetail: `${record.primaryGrade} · ${record.secondaryGrade} (SALT ${record.saltScore}점 | 최대 직경 Ø${record.metrics.maxDiameterCm}cm, 총 면적 ${record.metrics.totalAreaCm2}cm²)`,
+      member,
+      metadata: {
+        recordId: record.id,
+        category: 'areata',
+        primaryGrade: record.primaryGrade,
+        secondaryGrade: record.secondaryGrade,
+        saltScore: record.saltScore,
+        metrics: record.metrics,
+        memo: record.memo,
+        thumbnail: record.thumbnails?.primary || null,
+      },
+    }).catch(() => {});
+  }
 
   if (member?.email && (!prevItem || isManualSave)) {
     supabase

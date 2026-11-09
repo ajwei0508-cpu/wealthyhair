@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import BottomNavBar from './components/BottomNavBar';
 import MedicationTab from './components/MedicationTab';
 import GuideTab from './components/GuideTab';
@@ -15,6 +15,7 @@ import AuthGate, {
 } from './components/AuthGate';
 import DiagnosisHistoryPanel from './components/DiagnosisHistoryPanel';
 import KakaoReportModal from './components/KakaoReportModal';
+import { trackUserActivity } from './utils/adminAuditService';
 
 const TAB_NAMES = {
   diagnosis: 'AI 탈모 진단',
@@ -134,6 +135,16 @@ function DashboardApp() {
   const [guideInitialSection, setGuideInitialSection] = useState('interactions');
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+
+  useEffect(() => {
+    const label = TAB_NAMES[activeTab] || activeTab;
+    trackUserActivity({
+      eventType: 'TAB_SWITCH',
+      eventLabel: `${label} 탭 접속`,
+      appSection: `대시보드 > ${label}`,
+      actionDetail: `사용자가 [${label}] 메뉴를 열어 이용 중입니다.`,
+    }).catch(() => {});
+  }, [activeTab]);
 
   const navigateToGuideSection = (sec) => {
     setGuideInitialSection(sec || 'interactions');

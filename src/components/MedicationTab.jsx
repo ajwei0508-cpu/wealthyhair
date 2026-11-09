@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './MedicationTab.css';
 import { Info, CheckCircle2 } from 'lucide-react';
+import { trackUserActivity } from '../utils/adminAuditService';
 
 const MedicationTab = ({ onNavigateToGuide }) => {
   const [alarm, setAlarm] = useState(null);
@@ -55,6 +56,13 @@ const MedicationTab = ({ onNavigateToGuide }) => {
     setMedIngredient(detectedIngredient);
     setShowSetup(false);
     requestNotificationPermission();
+    trackUserActivity({
+      eventType: 'MEDICATION_LOG',
+      eventLabel: '복약 알림 약품 설정',
+      appSection: '복약 관리 탭',
+      actionDetail: `복약 알림 등록 완료 (${newAlarm.medName} · 성분: ${newAlarm.ingredient} · 알림시각: ${newAlarm.time})`,
+      metadata: newAlarm,
+    }).catch(() => {});
   };
 
   const today = new Date();
@@ -73,6 +81,13 @@ const MedicationTab = ({ onNavigateToGuide }) => {
     localStorage.setItem('medicationLedger', JSON.stringify(nextLedger));
     setLedger(nextLedger);
     window.dispatchEvent(new Event('ledgerUpdated'));
+    trackUserActivity({
+      eventType: 'MEDICATION_LOG',
+      eventLabel: '오늘의 복약 완료 체크',
+      appSection: '복약 관리 탭',
+      actionDetail: `${todayStr} 오늘의 탈모약(${alarm?.medName || '탈모약'}) 복용 체크 완료`,
+      metadata: { date: todayStr, medName: alarm?.medName || '탈모약' },
+    }).catch(() => {});
   };
 
   const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();

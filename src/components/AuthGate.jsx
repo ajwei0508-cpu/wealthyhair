@@ -30,8 +30,9 @@ import {
   withdrawMemberAccount,
 } from '../utils/authService';
 import { getDiagnosisHistory } from '../utils/diagnosisHistoryService';
+import PrivateAdminModal from './PrivateAdminModal';
 
-// ── 1. 상단 글로벌 헤더 바 ──
+// ── 1. 상단 글로벌 헤더 바 (로고 5연속 클릭 시크릿 트리거 & 비공개 보안 아이콘 내장) ──
 export const MemberHeaderBar = ({
   member,
   user,
@@ -43,6 +44,26 @@ export const MemberHeaderBar = ({
 }) => {
   const activeMember = member || user || null;
   const menuLabel = currentMenuLabel || currentScreenName || '';
+  const [logoClickCount, setLogoClickCount] = useState(0);
+
+  const handleSecretLogoClick = () => {
+    setLogoClickCount((prev) => {
+      const next = prev + 1;
+      if (next >= 5) {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('openPrivateAdminModal'));
+        }
+        return 0;
+      }
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (logoClickCount === 0) return;
+    const timer = setTimeout(() => setLogoClickCount(0), 2500);
+    return () => clearTimeout(timer);
+  }, [logoClickCount]);
 
   return (
     <header
@@ -59,7 +80,11 @@ export const MemberHeaderBar = ({
         zIndex: 90,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+      <div
+        onClick={handleSecretLogoClick}
+        style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, cursor: 'pointer', userSelect: 'none' }}
+        title="WEALTHY HAIR (5회 연속 클릭 시 비공개 관리자 모드)"
+      >
         <img
           src="/logo_transparent.png"
           alt="모발부자 로고"
@@ -80,6 +105,20 @@ export const MemberHeaderBar = ({
         >
           WEALTHY HAIR
         </span>
+        {logoClickCount >= 3 && (
+          <span
+            style={{
+              fontSize: '0.62rem',
+              padding: '1px 6px',
+              borderRadius: '999px',
+              background: 'rgba(212, 175, 55, 0.25)',
+              color: '#FFD54F',
+              fontWeight: 800,
+            }}
+          >
+            관리자 {5 - logoClickCount}회
+          </span>
+        )}
         {menuLabel && (
           <span
             style={{
@@ -101,6 +140,31 @@ export const MemberHeaderBar = ({
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+        <button
+          type="button"
+          onClick={() => {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new Event('openPrivateAdminModal'));
+            }
+          }}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(212, 175, 55, 0.08)',
+            border: '1px solid rgba(212, 175, 55, 0.28)',
+            color: '#D4AF37',
+            borderRadius: '6px',
+            padding: '5px 7px',
+            fontSize: '0.68rem',
+            cursor: 'pointer',
+          }}
+          title="비공개 관리자 모드 (PIN 보안)"
+          aria-label="비공개 관리자 모드 열기"
+        >
+          <Lock size={13} />
+        </button>
+
         <button
           type="button"
           onClick={onOpenReport}
@@ -565,6 +629,35 @@ export const MemberProfileModal = ({ member, user, isOpen, onClose, onLoggedOut,
             </button>
           </div>
         )}
+
+        <div style={{ marginTop: '10px', textAlign: 'center' }}>
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new Event('openPrivateAdminModal'));
+              }
+            }}
+            style={{
+              width: '100%',
+              padding: '8px',
+              borderRadius: '8px',
+              border: '1px dashed rgba(212, 175, 55, 0.35)',
+              background: 'rgba(212, 175, 55, 0.06)',
+              color: '#D4AF37',
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '5px',
+            }}
+          >
+            <Lock size={12} /> 비공개 관리자 관제 센터 열기 (PIN 보안)
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -1497,9 +1590,14 @@ export const AuthModal = ({
   );
 };
 
-// ── 5. 비차단형(Non-Blocking) AuthGate 컨테이너 + 자동로그인 복원 ──
+// ── 5. 비차단형(Non-Blocking) AuthGate 컨테이너 + 자동로그인 복원 + 비공개 관리자 모드 ──
 const AuthGate = ({ children }) => {
   const [user, setUser] = useState(() => getCurrentMember());
+  const [adminModalOpen, setAdminModalOpen] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const params = new URLSearchParams(window.location.search);
+    return params.get('admin') === '1' || window.location.hash === '#admin';
+  });
   const [authModalState, setAuthModalState] = useState({
     isOpen: false,
     openSeq: 0,
@@ -1519,12 +1617,33 @@ const AuthGate = ({ children }) => {
     const syncAuth = () => {
       setUser(getCurrentMember());
     };
+    const handleOpenAdmin = () => {
+      setAdminModalOpen(true);
+    };
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.altKey) && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
+        e.preventDefault();
+        setAdminModalOpen((prev) => !prev);
+      }
+    };
+    const handleHashChange = () => {
+      if (window.location.hash === '#admin') {
+        setAdminModalOpen(true);
+      }
+    };
+
     window.addEventListener('authChanged', syncAuth);
     window.addEventListener('storage', syncAuth);
+    window.addEventListener('openPrivateAdminModal', handleOpenAdmin);
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('hashchange', handleHashChange);
     return () => {
       active = false;
       window.removeEventListener('authChanged', syncAuth);
       window.removeEventListener('storage', syncAuth);
+      window.removeEventListener('openPrivateAdminModal', handleOpenAdmin);
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('hashchange', handleHashChange);
     };
   }, []);
 
@@ -1572,6 +1691,11 @@ const AuthGate = ({ children }) => {
           onAuthenticated={handleAuthenticated}
         />
       )}
+      <PrivateAdminModal
+        isOpen={adminModalOpen}
+        onClose={() => setAdminModalOpen(false)}
+        currentUser={user}
+      />
     </>
   );
 };

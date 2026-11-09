@@ -48,6 +48,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from admin_routes import router as admin_router
+app.include_router(admin_router)
+
 def analyze_scalp_image(image_bytes: bytes):
     """
     OpenCV based open-source diagnosis logic.

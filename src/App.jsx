@@ -30,6 +30,7 @@ import { performOfflineAnalysis } from './utils/offlineAnalysis';
 import { getCurrentMember } from './utils/authService';
 import { saveAndrogeneticDiagnosisRecord } from './utils/diagnosisHistoryService';
 import { getSavedSurveyProfile, saveSurveyProfile, clearSurveyProfile } from './utils/surveyStorage';
+import { trackUserActivity } from './utils/adminAuditService';
 import './index.css';
 
 function App() {
@@ -40,6 +41,25 @@ function App() {
   });
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (['onboarding', 'camera', 'review', 'result', 'areata'].includes(currentView)) {
+      const viewNameMap = {
+        onboarding: 'AI 탈모진단 온보딩',
+        camera: '두피·모발 카메라 스캔',
+        review: '촬영 사진 검수 화면',
+        result: 'AI 탈모진단 결과 리포트 열람',
+        areata: '원형탈모(SALT) 정밀 진단',
+      };
+      const label = viewNameMap[currentView] || currentView;
+      trackUserActivity({
+        eventType: 'PAGE_VIEW',
+        eventLabel: label,
+        appSection: `진단앱 > ${label}`,
+        actionDetail: `사용자가 진단앱 [${label}] 단계를 진행 중입니다.`,
+      }).catch(() => {});
+    }
+  }, [currentView]);
 
   const [savedProfile, setSavedProfile] = useState(() => getSavedSurveyProfile());
   const [age, setAge] = useState(() => {

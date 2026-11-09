@@ -4,6 +4,7 @@
 import { supabase } from '../supabase';
 import { syncMemberToSurveyProfile, clearSurveyProfile } from './surveyStorage';
 import { migrateGuestHistoryToMember, clearMemberDiagnosisHistory } from './diagnosisHistoryService';
+import { trackUserActivity, upsertLocalAdminMember } from './adminAuditService';
 
 const SESSION_KEY = 'wealthyhair_auth_session_v1';
 const TEMP_SESSION_KEY = 'wealthyhair_auth_session_temp_v1';
@@ -347,6 +348,17 @@ export async function registerKoreanMember(payload) {
     console.warn('Supabase member log notice:', err?.message);
   }
 
+  // 5. 관리자 감사 레지스트리에 신규 가입자 및 접속 위치·기기 즉시 기록
+  upsertLocalAdminMember(sessionUser);
+  trackUserActivity({
+    eventType: 'MEMBER_SIGNUP',
+    eventLabel: '신규 회원가입 및 약관동의',
+    appSection: '회원 인증 게이트',
+    actionDetail: `신규 회원가입 완료 (성명: ${newMember.name} | 연락처: ${newMember.phone} | 이메일: ${newMember.email} | 자동로그인: ${autoLogin ? 'ON' : 'OFF'})`,
+    member: sessionUser,
+    metadata: { consents: newMember.consents, autoLogin },
+  }).catch(() => {});
+
   window.dispatchEvent(new Event('authChanged'));
   return sessionUser;
 }
@@ -365,6 +377,15 @@ export async function loginKoreanMember(email, password, options = {}) {
     );
     syncMemberToSurveyProfile(sessionUser, false);
     await migrateGuestHistoryToMember(sessionUser).catch(() => {});
+    upsertLocalAdminMember(sessionUser);
+    trackUserActivity({
+      eventType: 'MEMBER_LOGIN',
+      eventLabel: '회원 로그인 성공',
+      appSection: '회원 인증 게이트',
+      actionDetail: `${sessionUser.name}님 로그인 (${sessionUser.email} | 자동로그인: ${autoLogin ? 'ON' : 'OFF'})`,
+      member: sessionUser,
+      metadata: { autoLogin },
+    }).catch(() => {});
     window.dispatchEvent(new Event('authChanged'));
     return sessionUser;
   }
@@ -397,6 +418,15 @@ export async function loginKoreanMember(email, password, options = {}) {
       const sessionUser = persistMemberSession(cloudMemberRecord, autoLogin);
       syncMemberToSurveyProfile(sessionUser, false);
       await migrateGuestHistoryToMember(sessionUser).catch(() => {});
+      upsertLocalAdminMember(sessionUser);
+      trackUserActivity({
+        eventType: 'MEMBER_LOGIN',
+        eventLabel: '클라우드 회원 로그인 성공',
+        appSection: '회원 인증 게이트',
+        actionDetail: `${sessionUser.name}님 클라우드 인증 로그인 (${sessionUser.email})`,
+        member: sessionUser,
+        metadata: { autoLogin, source: 'cloud' },
+      }).catch(() => {});
       window.dispatchEvent(new Event('authChanged'));
       return sessionUser;
     }
@@ -408,6 +438,16 @@ export async function loginKoreanMember(email, password, options = {}) {
 }
 
 export function logoutMember() {
+  const prevMember = getCurrentMember();
+  if (prevMember) {
+    trackUserActivity({
+      eventType: 'LOGOUT',
+      eventLabel: '회원 로그아웃',
+      appSection: '회원 프로필 모달',
+      actionDetail: `${prevMember.name}님 로그아웃 완료`,
+      member: prevMember,
+    }).catch(() => {});
+  }
   try {
     localStorage.removeItem(SESSION_KEY);
     localStorage.setItem(EXPLICIT_LOGOUT_KEY, '1');
@@ -441,6 +481,16 @@ export function logoutMember() {
 
 // 개인정보보호법 제36조(개인정보의 정정·삭제)에 따른 회원탈퇴 및 개인 진단·복약 데이터 즉시 파기
 export function withdrawMemberAccount(memberId) {
+  const prevMember = getCurrentMember();
+  if (prevMember) {
+    trackUserActivity({
+      eventType: 'WITHDRAW',
+      eventLabel: '회원 탈퇴 및 개인정보 파기',
+      appSection: '회원 프로필 모달',
+      actionDetail: `${prevMember.name}님 회원 탈퇴 요청 처리 완료`,
+      member: prevMember,
+    }).catch(() => {});
+  }
   const members = getRegisteredMembers().filter((m) => m.id !== memberId);
   localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(members));
   localStorage.removeItem(SESSION_KEY);

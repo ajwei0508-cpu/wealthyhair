@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Send, CheckCircle2, MessageSquareWarning, Copy, ExternalLink, Clock } from 'lucide-react';
 import { supabase } from '../supabase';
+import { trackUserActivity } from '../utils/adminAuditService';
 
 // 제작자 공식 카카오톡 상담 채널 (바른한의원 / 제작자 직통 채널 _ykxcLK)
 const DEFAULT_KAKAO_CHANNEL_ID = '_ykxcLK';
@@ -105,6 +106,15 @@ const KakaoReportModal = ({ isOpen, onClose, currentMenu = '전체 메뉴', memb
     const nextHistory = [newRecord, ...history].slice(0, 10);
     setHistory(nextHistory);
     localStorage.setItem(REPORT_HISTORY_KEY, JSON.stringify(nextHistory));
+
+    trackUserActivity({
+      eventType: 'KAKAO_REPORT',
+      eventLabel: '불편사항 카톡 신고 접수',
+      appSection: currentMenu,
+      actionDetail: `[${category}] ${content.trim().slice(0, 80)} (회신연락처: ${replyContact || '미기재'})`,
+      member,
+      metadata: { category, content: content.trim(), replyContact },
+    }).catch(() => {});
 
     setIsSending(false);
     setSentSuccess(true);
